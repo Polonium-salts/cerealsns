@@ -1,0 +1,298 @@
+import type { SearchResponse, OpenRouterModel, EdgeNode, AppConfig } from '../types';
+
+export async function executeSearch(
+  query: string,
+  category = 'general',
+  page = 1,
+  timeRange = '',
+  customSearxngUrls: string[] = []
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({
+    q: query,
+    category,
+    page: page.toString(),
+    time_range: timeRange,
+  });
+
+  if (customSearxngUrls && customSearxngUrls.length > 0) {
+    params.append('custom_urls', customSearxngUrls.join(','));
+  }
+
+  const resp = await fetch(`/api/search?${params.toString()}`);
+  if (!resp.ok) {
+    const errorData = await resp.json().catch(() => ({}));
+    throw new Error(errorData.error || `Search request failed with status ${resp.status}`);
+  }
+  return resp.json();
+}
+
+export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
+  try {
+    const resp = await fetch('/api/openrouter/models');
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to fetch openrouter models:', e);
+  }
+  return [];
+}
+
+export async function fetchEdgeNodes(): Promise<{ nodes: EdgeNode[]; optimalRoute: EdgeNode }> {
+  try {
+    const resp = await fetch('/api/nodes/ping');
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to ping edge nodes:', e);
+  }
+  return {
+    nodes: [],
+    optimalRoute: {
+      id: 'edgeone-hk',
+      name: 'EdgeOne HK-01',
+      provider: 'EdgeOne',
+      location: 'Hong Kong',
+      city: 'Hong Kong',
+      countryCode: 'HK',
+      latencyMs: 18,
+      status: 'optimal',
+      cacheHitRatio: 0.92,
+      concurrentRequests: 120,
+    },
+  };
+}
+
+export function streamAISummary(
+  payload: {
+    query: string;
+    results: any[];
+    model?: string;
+    openrouterApiKey?: string;
+    summaryDepth?: string;
+    systemPrompt?: string;
+  },
+  onChunk: (delta: string) => void,
+  onDone: (metadata?: any) => void,
+  onError: (err: Error) => void
+): () => void {
+  const controller = new AbortController();
+
+  fetch('/api/summary/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: controller.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+      if (!response.body) {
+        throw new Error('ReadableStream not supported');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const dataStr = trimmed.slice(6);
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.delta) {
+                onChunk(data.delta);
+              }
+              if (data.done) {
+                onDone(data);
+                return;
+              }
+            } catch (e) {
+              // Ignore malformed SSE lines
+            }
+          }
+        }
+      }
+      onDone();
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        onError(err);
+      }
+    });
+
+  return () => {
+    controller.abort();
+  };
+}
+
+// Admin API Management Panel Helper Functions
+export async function fetchAdminStats(): Promise<import('../types').ApiAdminStats | null> {
+  try {
+    const resp = await fetch('/api/admin/stats');
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to fetch admin stats:', e);
+  }
+  return null;
+}
+
+export async function fetchAdminApiKeys(): Promise<import('../types').ApiKeyItem[]> {
+  try {
+    const resp = await fetch('/api/admin/apikeys');
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to fetch admin API keys:', e);
+  }
+  return [];
+}
+
+export async function createAdminApiKey(payload: { name: string; scopes: string[]; rateLimitRps: number }): Promise<import('../types').ApiKeyItem | null> {
+  try {
+    const resp = await fetch('/api/admin/apikeys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to create API key:', e);
+  }
+  return null;
+}
+
+export async function updateAdminApiKey(id: string, updates: Partial<import('../types').ApiKeyItem>): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/admin/apikeys/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return resp.ok;
+  } catch (e) {
+    console.warn('Failed to update API key:', e);
+    return false;
+  }
+}
+
+export async function deleteAdminApiKey(id: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/admin/apikeys/${id}`, { method: 'DELETE' });
+    return resp.ok;
+  } catch (e) {
+    console.warn('Failed to delete API key:', e);
+    return false;
+  }
+}
+
+export async function fetchAdminEndpoints(): Promise<import('../types').ApiEndpointItem[]> {
+  try {
+    const resp = await fetch('/api/admin/endpoints');
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to fetch admin endpoints:', e);
+  }
+  return [];
+}
+
+export async function updateAdminEndpoint(id: string, updates: Partial<import('../types').ApiEndpointItem>): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/admin/endpoints/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return resp.ok;
+  } catch (e) {
+    console.warn('Failed to update endpoint:', e);
+    return false;
+  }
+}
+
+export async function fetchAdminLogs(status?: string, search?: string): Promise<import('../types').ApiLogItem[]> {
+  try {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (search) params.set('search', search);
+
+    const resp = await fetch(`/api/admin/logs?${params.toString()}`);
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to fetch admin logs:', e);
+  }
+  return [];
+}
+
+export async function fetchAdminConfig(): Promise<import('../types').ApiAdminConfig | null> {
+  try {
+    const resp = await fetch('/api/admin/config');
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to fetch admin config:', e);
+  }
+  return null;
+}
+
+export async function saveAdminConfig(config: Partial<import('../types').ApiAdminConfig>): Promise<boolean> {
+  try {
+    const resp = await fetch('/api/admin/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    return resp.ok;
+  } catch (e) {
+    console.warn('Failed to save admin config:', e);
+    return false;
+  }
+}
+
+export async function pingSearxngNode(url: string): Promise<{ ok: boolean; latencyMs: number; status: 'online' | 'degraded' | 'offline' }> {
+  try {
+    const resp = await fetch('/api/admin/searxng/ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (resp.ok) return resp.json();
+  } catch (e) {
+    console.warn('Failed to ping SearXNG node:', e);
+  }
+  return { ok: false, latencyMs: 999, status: 'offline' };
+}
+
+export async function pingAllSearxngNodes(): Promise<import('../types').SearxngInstanceItem[]> {
+  try {
+    const resp = await fetch('/api/admin/searxng/ping-all', {
+      method: 'POST',
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      return data.searxngInstances || [];
+    }
+  } catch (e) {
+    console.warn('Failed to ping all SearXNG nodes:', e);
+  }
+  return [];
+}
+
+export async function purgeJsDelivrCdnCache(): Promise<{ ok: boolean; message?: string; purgedAt?: string }> {
+  try {
+    const resp = await fetch('/api/admin/jsdelivr/purge', { method: 'POST' });
+    if (resp.ok) {
+      const data = await resp.json();
+      return { ok: true, message: data.message, purgedAt: data.purgedAt };
+    }
+  } catch (e) {
+    console.warn('Failed to purge jsDelivr CDN cache:', e);
+  }
+  return { ok: false, message: 'Purge request failed' };
+}
+

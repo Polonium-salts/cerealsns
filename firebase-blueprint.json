@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "configs": {
+      "title": "System Configuration",
+      "description": "Stores engine settings, openrouter model preferences, and SearXNG instance lists",
+      "type": "object",
+      "properties": {
+        "searxngInstances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "name": { "type": "string" },
+              "enabled": { "type": "boolean" },
+              "latency": { "type": "number" },
+              "region": { "type": "string" }
+            }
+          }
+        },
+        "openrouterModel": { "type": "string" },
+        "openrouterApiKey": { "type": "string" },
+        "defaultCategory": { "type": "string" },
+        "edgeRoutingEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["searxngInstances", "updatedAt"]
+    },
+    "curated_searches": {
+      "title": "Curated Search Collections",
+      "description": "User saved or featured search queries with AI summaries",
+      "type": "object",
+      "properties": {
+        "query": { "type": "string" },
+        "category": { "type": "string" },
+        "summary": { "type": "string" },
+        "resultCount": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["query", "summary", "createdAt"]
+    }
+  }
+}

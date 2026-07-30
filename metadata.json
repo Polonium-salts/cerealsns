@@ -1,0 +1,6 @@
+{
+  "name": "CerealsNS",
+  "description": "基于SearXNG与AI大模型(OpenRouter/Gemini)的元搜索引擎，支持SSE实时流式总结、多引擎聚合、节点延迟优化与Firebase配置同步。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
