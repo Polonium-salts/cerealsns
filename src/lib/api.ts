@@ -18,12 +18,17 @@ export async function executeSearch(
     params.append('custom_urls', customSearxngUrls.join(','));
   }
 
-  const resp = await fetch(`/api/search?${params.toString()}`);
-  if (!resp.ok) {
-    const errorData = await resp.json().catch(() => ({}));
-    throw new Error(errorData.error || `Search request failed with status ${resp.status}`);
+  try {
+    const resp = await fetch(`/api/search?${params.toString()}`);
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({}));
+      throw new Error(errorData.error || `请求失败 (HTTP ${resp.status})`);
+    }
+    return await resp.json();
+  } catch (err: any) {
+    console.error('Search request error:', err);
+    throw new Error(err.message || '搜索服务连接失败，请稍后重试');
   }
-  return resp.json();
 }
 
 export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
