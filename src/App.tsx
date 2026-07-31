@@ -5,8 +5,6 @@ import { SearchBar } from './components/SearchBar';
 import { QuickShortcuts } from './components/QuickShortcuts';
 import { AISummaryCard } from './components/AISummaryCard';
 import { SearchResultsList } from './components/SearchResultsList';
-import { SourceMatrixTab } from './components/SourceMatrixTab';
-import { EdgeNodesMonitor } from './components/EdgeNodesMonitor';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
@@ -15,7 +13,7 @@ import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryIt
 import { executeSearch, streamAISummary, fetchEdgeNodes } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
 import { loadAppConfigFromFirebase, saveAppConfigToFirebase } from './lib/firebase';
-import { Sparkles, Layers, BarChart3, Pencil, Globe, Zap, Cpu, Server, Shield } from 'lucide-react';
+import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Server, Shield } from 'lucide-react';
 
 const DEFAULT_CONFIG: AppConfig = {
   openrouterApiKey: '',
@@ -34,6 +32,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('general');
   const [timeRange, setTimeRange] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchData, setSearchData] = useState<SearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -49,13 +48,9 @@ export default function App() {
   const [optimalNode, setOptimalNode] = useState<EdgeNode | null>(null);
   const [savedOfflineIds, setSavedOfflineIds] = useState<Set<string>>(new Set());
 
-  // UI Navigation Tabs
-  const [activeTab, setActiveTab] = useState<'summary' | 'results' | 'matrix'>('summary');
-
   // Modals & Drawers & Admin Route
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isEdgeMonitorOpen, setIsEdgeMonitorOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
@@ -94,15 +89,18 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const urlQuery = params.get('q');
       const urlCat = params.get('cat') || 'general';
+      const urlPage = parseInt(params.get('page') || '1', 10);
 
       if (urlQuery && urlQuery.trim()) {
         setQuery(urlQuery);
         setCategory(urlCat);
-        handleExecuteSearch(urlQuery, urlCat, '', true, false);
+        setCurrentPage(urlPage);
+        handleExecuteSearch(urlQuery, urlCat, '', true, false, urlPage);
       } else if (!urlQuery && window.location.pathname === '/') {
         setQuery('');
         setSearchData(null);
         setSummaryText('');
+        setCurrentPage(1);
       }
     };
 
@@ -143,13 +141,16 @@ export default function App() {
     searchCat = category,
     searchTime = timeRange,
     aiModeEnabled = true,
-    updateHistory = true
+    updateHistory = true,
+    targetPage = 1,
+    targetEngines = 'google'
   ) => {
     if (!searchQuery.trim()) return;
 
     setQuery(searchQuery);
     setCategory(searchCat);
     setTimeRange(searchTime);
+    setCurrentPage(targetPage);
     setIsLoading(true);
     setSearchData(null);
     setSummaryText('');
@@ -161,14 +162,17 @@ export default function App() {
       if (searchCat && searchCat !== 'general') {
         params.set('cat', searchCat);
       }
+      if (targetPage > 1) {
+        params.set('page', targetPage.toString());
+      }
       const targetUrl = `/search?${params.toString()}`;
       if (window.location.pathname + window.location.search !== targetUrl) {
-        window.history.pushState({ q: searchQuery, cat: searchCat }, '', targetUrl);
+        window.history.pushState({ q: searchQuery, cat: searchCat, page: targetPage }, '', targetUrl);
       }
     }
 
     try {
-      const resp = await executeSearch(searchQuery, searchCat, 1, searchTime, config.customSearxngUrls);
+      const resp = await executeSearch(searchQuery, searchCat, targetPage, searchTime, config.customSearxngUrls, targetEngines);
       setSearchData(resp);
       setIsLoading(false);
 
@@ -178,19 +182,24 @@ export default function App() {
         category: searchCat,
         resultCount: resp.results.length,
         results: resp.results,
-        tags: [searchCat],
+        tags: [searchCat, `page_${targetPage}`],
         isFavorite: false,
         offlineCached: true,
       });
 
-      // Auto trigger AI summary if AI mode is enabled
-      if (aiModeEnabled && config.autoSummarize && resp.results.length > 0) {
+      // Auto trigger AI summary if AI mode is enabled and on page 1
+      if (aiModeEnabled && config.autoSummarize && resp.results.length > 0 && targetPage === 1) {
         startStreamingSummary(searchQuery, resp.results, config.openrouterModel);
       }
     } catch (err: any) {
       console.error('Search failed:', err);
       setIsLoading(false);
     }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    handleExecuteSearch(query, category, timeRange, true, true, newPage, 'google');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Start Streaming AI Summary
@@ -263,7 +272,6 @@ export default function App() {
     });
     setSummaryText(item.aiSummaryFull || item.aiSummaryPreview || '');
     setIsHistoryOpen(false);
-    setActiveTab('summary');
   };
 
   // Save single result
@@ -304,7 +312,6 @@ export default function App() {
         optimalNode={optimalNode}
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenEdgeMonitor={() => setIsEdgeMonitorOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onResetSearch={() => {
           setQuery('');
@@ -357,16 +364,9 @@ export default function App() {
             {/* Footer Edge Latency Info */}
             <div className="mt-8 text-center text-xs text-slate-400 flex items-center justify-center space-x-2">
               <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-              <span>EdgeOne 节点就绪</span>
+              <span>EdgeOne 节点加速中</span>
               <span>·</span>
               <span>18ms 延迟</span>
-              <span>·</span>
-              <button
-                onClick={() => setIsEdgeMonitorOpen(true)}
-                className="text-white font-medium hover:underline"
-              >
-                查看节点矩阵
-              </button>
             </div>
           </div>
         )}
@@ -376,121 +376,64 @@ export default function App() {
           <div className="max-w-[1440px] w-full mx-auto py-2 space-y-6">
             
             {/* Search Bar in Active State */}
-            <div className="max-w-3xl">
-              <SearchBar
-                initialQuery={query}
-                activeCategory={category}
-                activeTimeRange={timeRange}
-                onSearch={handleExecuteSearch}
-                isLoading={isLoading}
-                isCompactMode
-              />
-            </div>
-
-            {/* Mode Switcher Tabs */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setActiveTab('summary')}
-                  className={`flex items-center space-x-2 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
-                    activeTab === 'summary'
-                      ? 'bg-white text-slate-900 border border-slate-200 shadow-sm'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>双栏视图 (AI + 网页)</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('results')}
-                  className={`flex items-center space-x-2 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
-                    activeTab === 'results'
-                      ? 'bg-white text-slate-900 border border-slate-200 shadow-sm'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <Layers className="h-4 w-4 text-blue-500" />
-                  <span>聚合网页 ({searchData?.results.length || 0})</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('matrix')}
-                  className={`flex items-center space-x-2 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
-                    activeTab === 'matrix'
-                      ? 'bg-white text-slate-900 border border-slate-200 shadow-sm'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <BarChart3 className="h-4 w-4 text-emerald-500" />
-                  <span>引擎延迟矩阵</span>
-                </button>
+            <div className="flex items-center justify-between gap-4">
+              <div className="max-w-3xl flex-1">
+                <SearchBar
+                  initialQuery={query}
+                  activeCategory={category}
+                  activeTimeRange={timeRange}
+                  onSearch={handleExecuteSearch}
+                  isLoading={isLoading}
+                  isCompactMode
+                />
               </div>
-
               {searchData && (
-                <div className="text-xs text-slate-400 hidden sm:block">
+                <div className="text-xs text-slate-400 hidden sm:block whitespace-nowrap">
                   检索耗时: <span className="font-mono text-emerald-400 font-bold">{searchData.stats.fetchTimeMs} ms</span>
                 </div>
               )}
             </div>
 
-            {/* Tab 1: AI Answer on Right (9fr) & Search Engine Results on Left (16fr) */}
-            {activeTab === 'summary' && (
-              <div className="grid grid-cols-1 lg:grid-cols-[16fr_9fr] gap-6 xl:gap-8 items-start">
-                {/* Left Side: Search Engine Results (16 ratio) */}
-                <div className="w-full space-y-4 order-2 lg:order-1">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-800">
-                    <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                      <Layers className="h-4 w-4 text-blue-400" />
-                      <span>搜索引擎网页结果</span>
-                    </h3>
-                  </div>
-                  <SearchResultsList
-                    results={searchData?.results || []}
-                    isLoading={isLoading}
-                    query={query}
-                    onSaveToOffline={handleSaveSingleResult}
-                    savedIds={savedOfflineIds}
-                  />
+            {/* Dual Column Layout: Search Engine Results on Left (16 ratio) & AI Answer on Right (9 ratio) */}
+            <div className="grid grid-cols-1 lg:grid-cols-[16fr_9fr] gap-6 xl:gap-8 items-start">
+              {/* Left Side: Search Engine Results (16 ratio) */}
+              <div className="w-full space-y-4 order-2 lg:order-1">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+                    <Layers className="h-4 w-4 text-blue-400" />
+                    <span>搜索引擎网页结果</span>
+                  </h3>
                 </div>
-
-                {/* Right Side: AI Overview / AI Answer (9 ratio) - Sticky Pin Position */}
-                <div className="w-full space-y-4 order-1 lg:order-2 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto pr-1">
-                  <AISummaryCard
-                    query={query}
-                    summaryText={summaryText}
-                    isStreaming={isStreaming}
-                    modelUsed={summaryModel}
-                    searchResults={searchData?.results || []}
-                    onRegenerate={(modelOverride) => {
-                      if (searchData?.results) {
-                        startStreamingSummary(query, searchData.results, modelOverride);
-                      }
-                    }}
-                    onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
-                    config={config}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Raw Search Results */}
-            {activeTab === 'results' && (
-              <div className="max-w-4xl">
                 <SearchResultsList
                   results={searchData?.results || []}
                   isLoading={isLoading}
                   query={query}
                   onSaveToOffline={handleSaveSingleResult}
                   savedIds={savedOfflineIds}
+                  currentPage={currentPage}
+                  totalPages={searchData?.totalPages || 10}
+                  onPageChange={handlePageChange}
                 />
               </div>
-            )}
 
-            {/* Tab 3: Source Matrix Analytics */}
-            {activeTab === 'matrix' && (
-              <SourceMatrixTab searchData={searchData} />
-            )}
+              {/* Right Side: AI Overview / AI Answer (9 ratio) */}
+              <div className="w-full space-y-4 order-1 lg:order-2">
+                <AISummaryCard
+                  query={query}
+                  summaryText={summaryText}
+                  isStreaming={isStreaming}
+                  modelUsed={summaryModel}
+                  searchResults={searchData?.results || []}
+                  onRegenerate={(modelOverride) => {
+                    if (searchData?.results) {
+                      startStreamingSummary(query, searchData.results, modelOverride);
+                    }
+                  }}
+                  onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
+                  config={config}
+                />
+              </div>
+            </div>
 
           </div>
         )}
@@ -534,18 +477,10 @@ export default function App() {
         onSelectHistoryItem={handleSelectHistoryItem}
       />
 
-      <EdgeNodesMonitor
-        isOpen={isEdgeMonitorOpen}
-        onClose={() => setIsEdgeMonitorOpen(false)}
-        onSelectNode={(node) => setOptimalNode(node)}
-        activeNode={optimalNode}
-      />
-
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onExecuteQuery={(q) => handleExecuteSearch(q, category, timeRange, true)}
-        onOpenEdgeMonitor={() => setIsEdgeMonitorOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenAdminPanel={handleOpenAdminPanel}

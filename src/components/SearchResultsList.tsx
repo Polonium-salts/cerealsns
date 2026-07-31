@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, Bookmark, BookmarkCheck, Globe, Filter, MoreVertical } from 'lucide-react';
 import type { SearchResult } from '../types';
+import { GooglePagination } from './GooglePagination';
 
 interface SearchResultsListProps {
   results: SearchResult[];
@@ -8,6 +9,9 @@ interface SearchResultsListProps {
   query: string;
   onSaveToOffline: (result: SearchResult) => void;
   savedIds: Set<string>;
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 export const SearchResultsList: React.FC<SearchResultsListProps> = ({
@@ -16,6 +20,9 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   query,
   onSaveToOffline,
   savedIds,
+  currentPage = 1,
+  totalPages = 10,
+  onPageChange,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterEngine, setFilterEngine] = useState<string>('all');
@@ -27,7 +34,10 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const engines = Array.from(new Set(results.map((r) => r.engine)));
+  const presentEngines = Array.from(new Set(results.map((r) => r.engine)));
+  const allKnownEngines = ['Google', 'Bing', 'DuckDuckGo', 'Wikipedia', 'Baidu'];
+  const engines = Array.from(new Set([...presentEngines, ...allKnownEngines.filter(e => presentEngines.includes(e))]));
+  const filterableEngines = engines.length > 0 ? engines : allKnownEngines;
 
   const filteredResults = results
     .filter((r) => filterEngine === 'all' || r.engine === filterEngine)
@@ -131,7 +141,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   return (
     <div className="space-y-6 my-2 w-full max-w-4xl text-slate-200 font-sans">
       
-      {/* Top Search Result Meta Bar & Optional Site-specific Link */}
+      {/* Top Search Result Meta Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-b border-slate-800/80 pb-3">
         <div className="flex items-center space-x-2">
           {query && (
@@ -144,25 +154,21 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               <span>{query.length > 20 ? query.slice(0, 20) + '...' : query} 站内的其它相关信息 »</span>
             </a>
           )}
-          <span className="text-slate-500">·</span>
-          <span>找到约 <span className="font-bold text-slate-200">{filteredResults.length}</span> 条聚合网页结果</span>
-          <span className="text-slate-500">·</span>
-          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20" title="接口响应已通过 jsDelivr 边缘 CDN 加速分发">
-            <span>⚡ jsDelivr CDN 极速加速</span>
-          </span>
+          {query && <span className="text-slate-500">·</span>}
+          <span>找到约 <span className="font-bold text-slate-200">{filteredResults.length}</span> 条网页结果</span>
         </div>
 
-        <div className="flex items-center space-x-3">
-          {/* Filter by engine */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Filter Dropdown */}
           <div className="flex items-center space-x-1">
             <Filter className="h-3 w-3 text-slate-400" />
             <select
               value={filterEngine}
               onChange={(e) => setFilterEngine(e.target.value)}
-              className="rounded-md border border-slate-700 bg-[#242832] px-2 py-0.5 text-xs text-slate-200 focus:outline-none"
+              className="rounded-md border border-slate-700 bg-[#242832] px-2 py-0.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
             >
-              <option value="all">所有检索源 ({engines.length})</option>
-              {engines.map((eng) => (
+              <option value="all">所有检索源 ({filterableEngines.length})</option>
+              {filterableEngines.map((eng) => (
                 <option key={eng} value={eng}>{eng}</option>
               ))}
             </select>
@@ -226,8 +232,8 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
                 {/* Right Side Badges & Three Dots */}
                 <div className="flex items-center space-x-2 text-[11px] shrink-0 ml-2">
-                  <span className="hidden sm:inline-block rounded bg-[#272b36] px-1.5 py-0.5 text-slate-400 border border-slate-700/60 font-mono">
-                    {item.engine} ({item.latencyMs}ms)
+                  <span className="hidden sm:inline-block rounded bg-[#272b36] px-2 py-0.5 text-slate-300 border border-slate-700/60 font-sans text-[11px]">
+                    {item.engine}
                   </span>
                   <button className="text-[#9aa0a6] hover:text-slate-100 p-1 rounded transition-colors" title="更多选项">
                     <MoreVertical className="h-4 w-4" />
@@ -280,6 +286,16 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
           );
         })}
       </div>
+
+      {/* Google Style Pagination Bar */}
+      {onPageChange && (
+        <GooglePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   );
 };

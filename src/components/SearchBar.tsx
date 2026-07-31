@@ -153,7 +153,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <button
             type="button"
             onClick={() => setAiMode(!aiMode)}
-            className={`ml-2 flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+            className={`ml-1 flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
               aiMode
                 ? 'bg-[#1e2432] text-white border border-slate-700 shadow-sm'
                 : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
@@ -164,6 +164,18 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             <span className="whitespace-nowrap">AI 模式</span>
           </button>
         </div>
+
+        {/* Sub-label for SearXNG API engine */}
+        {!isCompactMode && (
+          <div className="flex items-center justify-center space-x-2 pt-1.5 text-[11px] text-slate-400">
+            <span className="inline-flex items-center space-x-1 rounded-full bg-cyan-950/60 px-2.5 py-0.5 text-cyan-300 border border-cyan-800/60 font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+              <span>SearXNG 隐私元搜索 API 驱动</span>
+            </span>
+            <span>·</span>
+            <span>无跟踪 · 零日志 · 多源实时聚合</span>
+          </div>
+        )}
 
         {/* Time Filters Drawer */}
         {showFilters && (

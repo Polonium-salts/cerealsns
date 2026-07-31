@@ -96,18 +96,10 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
               <span>AI 概览回答</span>
-              <button
-                onClick={() => setIsPinned(!isPinned)}
-                className={`inline-flex items-center space-x-1 rounded-full px-2 py-0.5 text-[10px] font-bold border transition-all ${
-                  isPinned
-                    ? 'bg-amber-50 text-amber-900 border-amber-300'
-                    : 'bg-slate-100 text-slate-600 border-slate-300'
-                }`}
-                title={isPinned ? '窗口位置已固定 (Sticky Pin)' : '解除固定'}
-              >
-                <Pin className={`h-2.5 w-2.5 ${isPinned ? 'text-amber-600 fill-amber-500' : ''}`} />
-                <span>{isPinned ? '位置已固定' : '取消固定'}</span>
-              </button>
+              <span className="inline-flex items-center space-x-1 rounded-full px-2 py-0.5 text-[10px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm" title="与网页搜索结果保持统一位置同步滑动">
+                <Pin className="h-2.5 w-2.5 text-emerald-600 fill-emerald-500" />
+                <span>同步滑动</span>
+              </span>
               {isStreaming && (
                 <span className="inline-flex items-center space-x-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-300">
                   <span>实时生成中...</span>

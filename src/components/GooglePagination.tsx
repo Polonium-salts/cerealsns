@@ -1,0 +1,129 @@
+import React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+interface GooglePaginationProps {
+  currentPage: number;
+  totalPages?: number;
+  onPageChange: (page: number) => void;
+  isLoading?: boolean;
+}
+
+export const GooglePagination: React.FC<GooglePaginationProps> = ({
+  currentPage,
+  totalPages = 10,
+  onPageChange,
+  isLoading = false,
+}) => {
+  const maxPages = Math.min(Math.max(totalPages, 1), 10);
+  const pages = Array.from({ length: maxPages }, (_, i) => i + 1);
+
+  return (
+    <div className="flex flex-col items-center justify-center pt-10 pb-16 select-none border-t border-slate-800/60 mt-10">
+      {/* Gooooooooooogle Iconic Pagination Banner */}
+      <div className="flex items-center space-x-0.5 text-3xl sm:text-4xl font-black tracking-tight mb-3 font-sans">
+        {/* Capital 'G' */}
+        <span className="text-[#4285f4]">G</span>
+
+        {/* 'o' letters for each page */}
+        {pages.map((p) => {
+          const isActive = p === currentPage;
+          return (
+            <button
+              key={p}
+              onClick={() => !isLoading && onPageChange(p)}
+              disabled={isLoading}
+              className={`inline-block transition-transform hover:scale-125 focus:outline-none ${
+                isActive ? 'scale-110 font-black' : 'opacity-80 hover:opacity-100'
+              }`}
+              title={`转到第 ${p} 页 (SearXNG Google)`}
+            >
+              <span
+                className={`${
+                  isActive
+                    ? 'text-[#ea4335] underline decoration-2 underline-offset-4'
+                    : p % 2 === 0
+                    ? 'text-[#fbbc05]'
+                    : 'text-[#ea4335]'
+                }`}
+              >
+                o
+              </span>
+            </button>
+          );
+        })}
+
+        {/* 'gle' */}
+        <span className="text-[#4285f4]">g</span>
+        <span className="text-[#34a853]">l</span>
+        <span className="text-[#ea4335]">e</span>
+
+        {/* Right Arrow */}
+        <button
+          onClick={() => !isLoading && currentPage < maxPages && onPageChange(currentPage + 1)}
+          disabled={isLoading || currentPage >= maxPages}
+          className="ml-1 text-[#8ab4f8] hover:text-white transition-colors disabled:opacity-30"
+          title="下一页"
+        >
+          <ChevronRight className="h-6 w-6 stroke-[3]" />
+        </button>
+      </div>
+
+      {/* Page Numbers Row */}
+      <div className="flex items-center space-x-1 sm:space-x-2 text-sm font-medium">
+        {/* Previous Button */}
+        {currentPage > 1 && (
+          <button
+            onClick={() => !isLoading && onPageChange(currentPage - 1)}
+            disabled={isLoading}
+            className="flex items-center space-x-1 text-[#8ab4f8] hover:underline px-2.5 py-1 rounded-md transition-colors mr-1 sm:mr-3 text-xs sm:text-sm"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span>上一页</span>
+          </button>
+        )}
+
+        {/* Number Buttons */}
+        <div className="flex items-center space-x-1">
+          {pages.map((p) => {
+            const isActive = p === currentPage;
+            return (
+              <button
+                key={p}
+                onClick={() => !isLoading && onPageChange(p)}
+                disabled={isLoading}
+                className={`min-w-[32px] h-8 flex items-center justify-center rounded-md transition-all text-xs sm:text-sm ${
+                  isActive
+                    ? 'font-bold text-slate-950 bg-[#8ab4f8] shadow-md scale-105'
+                    : 'text-[#8ab4f8] hover:bg-slate-800/80 hover:underline'
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Next Button */}
+        {currentPage < maxPages && (
+          <button
+            onClick={() => !isLoading && onPageChange(currentPage + 1)}
+            disabled={isLoading}
+            className="flex items-center space-x-1 text-[#8ab4f8] hover:underline px-2.5 py-1 rounded-md transition-colors ml-1 sm:ml-3 text-xs sm:text-sm"
+          >
+            <span>下一页</span>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Subtle engine & pagination badge */}
+      <div className="mt-4 flex items-center space-x-2 text-[11px] text-slate-400 font-sans">
+        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-800/50">
+          <span>SearXNG Google API</span>
+        </span>
+        <span>·</span>
+        <span>第 <strong className="text-slate-200">{currentPage}</strong> / {maxPages} 页</span>
+      </div>
+    </div>
+  );
+};

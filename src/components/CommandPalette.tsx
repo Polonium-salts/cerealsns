@@ -5,7 +5,6 @@ interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onExecuteQuery: (query: string) => void;
-  onOpenEdgeMonitor: () => void;
   onOpenHistory: () => void;
   onOpenConfig: () => void;
   onOpenAdminPanel?: () => void;
@@ -16,7 +15,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
   onExecuteQuery,
-  onOpenEdgeMonitor,
   onOpenHistory,
   onOpenConfig,
   onOpenAdminPanel,
@@ -57,13 +55,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       icon: Server,
       color: 'text-purple-400',
       action: () => { if (onOpenAdminPanel) onOpenAdminPanel(); onClose(); }
-    },
-    {
-      id: 'cmd-edge',
-      title: '全球 EdgeOne & Cloudflare 边缘计算节点延迟测试',
-      icon: Globe,
-      color: 'text-emerald-400',
-      action: () => { onOpenEdgeMonitor(); onClose(); }
     },
     {
       id: 'cmd-history',

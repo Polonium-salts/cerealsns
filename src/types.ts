@@ -21,6 +21,8 @@ export interface EngineStats {
 export interface SearchResponse {
   query: string;
   category: string;
+  page?: number;
+  totalPages?: number;
   results: SearchResult[];
   stats: {
     totalResults: number;

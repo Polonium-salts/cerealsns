@@ -5,13 +5,15 @@ export async function executeSearch(
   category = 'general',
   page = 1,
   timeRange = '',
-  customSearxngUrls: string[] = []
+  customSearxngUrls: string[] = [],
+  engines = 'google,bing,duckduckgo,wikipedia,baidu'
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     q: query,
     category,
     page: page.toString(),
     time_range: timeRange,
+    engines,
   });
 
   if (customSearxngUrls && customSearxngUrls.length > 0) {

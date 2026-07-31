@@ -6,7 +6,6 @@ interface NavbarProps {
   optimalNode: EdgeNode | null;
   onOpenConfig: () => void;
   onOpenHistory: () => void;
-  onOpenEdgeMonitor: () => void;
   onOpenCommandPalette: () => void;
   onResetSearch: () => void;
   firebaseConnected: boolean;
@@ -29,7 +28,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   optimalNode,
   onOpenConfig,
   onOpenHistory,
-  onOpenEdgeMonitor,
   onOpenCommandPalette,
   onResetSearch,
   firebaseConnected,

@@ -76,8 +76,38 @@ export async function onRequest(context) {
     }
   }
 
-  if (path === 'endpoints' && method === 'GET') {
-    return new Response(JSON.stringify(adminEndpoints), { headers: { 'Content-Type': 'application/json' } });
+  if (path.startsWith('apikeys/')) {
+    const keyId = path.replace('apikeys/', '');
+    if (method === 'PUT') {
+      const body = await request.json().catch(() => ({}));
+      const k = adminApiKeys.find(item => item.id === keyId);
+      if (k) {
+        Object.assign(k, body);
+        return new Response(JSON.stringify(k), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ error: 'Key not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (method === 'DELETE') {
+      const idx = adminApiKeys.findIndex(item => item.id === keyId);
+      if (idx !== -1) {
+        adminApiKeys.splice(idx, 1);
+        return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ error: 'Key not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
+  if (path.startsWith('endpoints/')) {
+    const epId = path.replace('endpoints/', '');
+    if (method === 'PUT') {
+      const body = await request.json().catch(() => ({}));
+      const ep = adminEndpoints.find(item => item.id === epId);
+      if (ep) {
+        Object.assign(ep, body);
+        return new Response(JSON.stringify(ep), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ error: 'Endpoint not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    }
   }
 
   if (path === 'config') {
