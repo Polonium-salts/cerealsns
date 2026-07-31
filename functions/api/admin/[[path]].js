@@ -27,10 +27,40 @@ let adminEndpoints = [
 ];
 
 export async function onRequest(context) {
-  const { request, params } = context;
+  const { request, params, env } = context;
   const url = new URL(request.url);
   const path = params.path ? params.path.join('/') : '';
   const method = request.method;
+
+  const envPassword = (env && (env.PANEL_PASSWORD || env.ADMIN_PASSWORD)) || 'admin_nexus_2026';
+  const expectedToken = 'admin_token_' + btoa(envPassword);
+
+  if (path === 'verify-password' && method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    if (body.password && body.password.trim() === envPassword.trim()) {
+      return new Response(JSON.stringify({ ok: true, message: '验证成功', token: expectedToken }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return new Response(JSON.stringify({ ok: false, error: '密码错误，访问管理面板失败' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Auth check for all other admin routes
+  const authHeader = request.headers.get('authorization') || '';
+  const tokenHeader = request.headers.get('x-admin-token') || '';
+  const passHeader = request.headers.get('x-admin-password') || '';
+
+  const isAuth = authHeader === `Bearer ${expectedToken}` || tokenHeader === expectedToken || passHeader === envPassword;
+
+  if (!isAuth) {
+    return new Response(JSON.stringify({ error: '未经授权访问，请输入管理面板密码' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 
   if (path === 'stats' && method === 'GET') {
     return new Response(JSON.stringify({

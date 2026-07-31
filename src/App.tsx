@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { GoogleLogo } from './components/GoogleLogo';
 import { SearchBar } from './components/SearchBar';
-import { QuickShortcuts } from './components/QuickShortcuts';
 import { AISummaryCard } from './components/AISummaryCard';
 import { SearchResultsList } from './components/SearchResultsList';
 import { HistoryDrawer } from './components/HistoryDrawer';
@@ -17,7 +16,7 @@ import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Server, Shield } from 'lucid
 
 const DEFAULT_CONFIG: AppConfig = {
   openrouterApiKey: '',
-  openrouterModel: 'google/gemini-2.0-flash-001',
+  openrouterModel: 'openrouter/free',
   openrouterBaseUrl: 'https://openrouter.ai/api/v1',
   systemPrompt: '',
   customSearxngUrls: ['https://xka.cz'],
@@ -39,7 +38,7 @@ export default function App() {
   // Streaming AI summary state
   const [summaryText, setSummaryText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [summaryModel, setSummaryModel] = useState('Gemini 2.0 Flash');
+  const [summaryModel, setSummaryModel] = useState('OpenRouter Free Auto');
   const cancelStreamRef = useRef<(() => void) | null>(null);
 
   // App Configuration State
@@ -203,12 +202,18 @@ export default function App() {
   };
 
   // Start Streaming AI Summary
-  const startStreamingSummary = (topic: string, results: SearchResult[], modelOverride?: string) => {
+  const startStreamingSummary = (
+    topic: string,
+    results: SearchResult[],
+    modelOverride?: string,
+    depthOverride?: AppConfig['summaryDepth']
+  ) => {
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
     }
 
     const targetModel = modelOverride || config.openrouterModel;
+    const targetDepth = depthOverride || config.summaryDepth;
     setSummaryModel(targetModel);
     setSummaryText('');
     setIsStreaming(true);
@@ -219,7 +224,7 @@ export default function App() {
         results,
         model: targetModel,
         openrouterApiKey: config.openrouterApiKey,
-        summaryDepth: config.summaryDepth,
+        summaryDepth: targetDepth,
         systemPrompt: config.systemPrompt,
       },
       (delta) => {
@@ -344,7 +349,7 @@ export default function App() {
               <GoogleLogo size="xl" />
             </div>
 
-            {/* Google Pill Search Input */}
+            {/* Search Bar */}
             <div className="w-full">
               <SearchBar
                 initialQuery={query}
@@ -354,12 +359,6 @@ export default function App() {
                 isLoading={isLoading}
               />
             </div>
-
-            {/* Quick Circular Shortcuts Launcher Grid (Google, GitHub, Build, Hexo, YouTube, 热榜, 展开) */}
-            <QuickShortcuts
-              onExecuteShortcut={(sq) => handleExecuteSearch(sq, undefined, timeRange, true)}
-              onOpenCustomModal={() => setIsCommandPaletteOpen(true)}
-            />
 
             {/* Footer Edge Latency Info */}
             <div className="mt-8 text-center text-xs text-slate-400 flex items-center justify-center space-x-2">
@@ -424,13 +423,14 @@ export default function App() {
                   isStreaming={isStreaming}
                   modelUsed={summaryModel}
                   searchResults={searchData?.results || []}
-                  onRegenerate={(modelOverride) => {
+                  onRegenerate={(modelOverride, skillOverride) => {
                     if (searchData?.results) {
-                      startStreamingSummary(query, searchData.results, modelOverride);
+                      startStreamingSummary(query, searchData.results, modelOverride, skillOverride);
                     }
                   }}
                   onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
                   config={config}
+                  onUpdateConfig={handleSaveConfig}
                 />
               </div>
             </div>
@@ -443,15 +443,6 @@ export default function App() {
       {/* Floating Bottom-Right Launcher Buttons */}
       {!isSearchActive && (
         <div className="fixed bottom-6 right-6 z-30 flex items-center space-x-3">
-          <button
-            onClick={handleOpenAdminPanel}
-            className="flex items-center space-x-2 rounded-full border border-purple-500/30 bg-[#251d38] px-4 py-2 text-xs font-semibold text-purple-200 shadow-2xl hover:bg-[#32274d] hover:border-purple-400 transition-all"
-            title="API 管理面板 (/sfheoheejfifejfeppoj)"
-          >
-            <Server className="h-3.5 w-3.5 text-purple-400" />
-            <span>API 管理面板</span>
-          </button>
-
           <button
             onClick={() => setIsConfigOpen(true)}
             className="flex items-center space-x-2 rounded-full border border-[#4a4261] bg-[#312a42] px-4 py-2 text-xs font-semibold text-slate-200 shadow-2xl hover:bg-[#3c3452] hover:border-[#635a7e] transition-all"

@@ -7,7 +7,7 @@ export async function onRequestGet(context) {
     version: '1.0.0',
     platform: 'Cloudflare Pages Functions',
     edgeNodesOnline: 5,
-    geminiConfigured: Boolean(env.GEMINI_API_KEY || env.OPENROUTER_API_KEY),
+    openrouterConfigured: Boolean(env.OPENROUTER_API_KEY),
   };
 
   return new Response(JSON.stringify(data), {

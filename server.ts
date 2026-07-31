@@ -2,7 +2,6 @@ import express from 'express';
 import http from 'http';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -64,7 +63,7 @@ const adminEndpoints = [
   { id: 'ep_2', path: '/api/summary/stream', method: 'POST' as const, name: 'AI 实时流式总结接口', description: '基于 SSE 的大模型流式内容结构化提炼与溯源', enabled: true, rateLimitRpm: 300, authRequired: false, totalRequests: 0, errorCount: 0, avgLatencyMs: 0 },
   { id: 'ep_3', path: '/api/nodes/ping', method: 'GET' as const, name: '边缘节点延迟监控接口', description: '边缘计算节点 Health & Ping 探测', enabled: true, rateLimitRpm: 2400, authRequired: false, totalRequests: 0, errorCount: 0, avgLatencyMs: 0 },
   { id: 'ep_4', path: '/api/openrouter/models', method: 'GET' as const, name: '模型目录查询接口', description: '获取系统支持的大语言模型列表与上下文限制', enabled: true, rateLimitRpm: 600, authRequired: false, totalRequests: 0, errorCount: 0, avgLatencyMs: 0 },
-  { id: 'ep_5', path: '/api/health', method: 'GET' as const, name: '系统健康检查接口', description: '检查后端服务运行状态与 Gemini 密钥配置状态', enabled: true, rateLimitRpm: 3600, authRequired: false, totalRequests: 0, errorCount: 0, avgLatencyMs: 0 },
+  { id: 'ep_5', path: '/api/health', method: 'GET' as const, name: '系统健康检查接口', description: '检查后端服务运行状态与 OpenRouter 密钥配置状态', enabled: true, rateLimitRpm: 3600, authRequired: false, totalRequests: 0, errorCount: 0, avgLatencyMs: 0 },
 ];
 
 const adminLogs: any[] = [];
@@ -158,7 +157,44 @@ app.use((req, res, next) => {
   next();
 });
 
-// Admin API Routes for /sfheoheejfifejfeppoj Management Panel
+// Admin API Password Verification Endpoint
+app.post('/api/admin/verify-password', (req, res) => {
+  const { password } = req.body || {};
+  const envPassword = process.env.PANEL_PASSWORD || process.env.ADMIN_PASSWORD || 'admin_nexus_2026';
+
+  if (password && typeof password === 'string' && password.trim() === envPassword.trim()) {
+    const token = 'admin_token_' + Buffer.from(envPassword).toString('base64');
+    return res.json({ ok: true, message: '验证成功', token });
+  } else {
+    return res.status(401).json({ ok: false, error: '密码错误，访问管理面板失败' });
+  }
+});
+
+// Security Middleware for all /api/admin/* endpoints
+app.use('/api/admin', (req, res, next) => {
+  if (req.path === '/verify-password') {
+    return next();
+  }
+
+  const envPassword = process.env.PANEL_PASSWORD || process.env.ADMIN_PASSWORD || 'admin_nexus_2026';
+  const expectedToken = 'admin_token_' + Buffer.from(envPassword).toString('base64');
+
+  const authHeader = req.headers['authorization'];
+  const tokenHeader = req.headers['x-admin-token'];
+  const passHeader = req.headers['x-admin-password'];
+
+  const tokenMatches = (authHeader && authHeader === `Bearer ${expectedToken}`) ||
+                       (tokenHeader === expectedToken) ||
+                       (passHeader === envPassword);
+
+  if (!tokenMatches) {
+    return res.status(401).json({ error: '未经授权访问，请输入管理面板密码', authenticated: false });
+  }
+
+  next();
+});
+
+// Admin API Routes for Management Panel
 app.get('/api/admin/stats', (req, res) => {
   const totalCalls = adminEndpoints.reduce((acc, ep) => acc + ep.totalRequests, 0);
   const totalErrors = adminEndpoints.reduce((acc, ep) => acc + ep.errorCount, 0);
@@ -390,7 +426,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     edgeNodesOnline: EDGE_NODES.filter(n => n.status !== 'offline').length,
-    geminiConfigured: !!process.env.GEMINI_API_KEY,
+    openrouterConfigured: !!process.env.OPENROUTER_API_KEY,
   });
 });
 
@@ -398,54 +434,54 @@ app.get('/api/health', (req, res) => {
 app.get('/api/openrouter/models', (req, res) => {
   res.json([
     {
-      id: 'google/gemini-2.0-flash-001',
-      name: 'Gemini 2.0 Flash',
-      provider: 'Google',
-      contextLength: 1048576,
-      pricing: { prompt: '$0.10/M', completion: '$0.40/M' },
-      latencyAvgMs: 320,
-      description: '极速、精准的AI大模型，支持高并发超长上下文总结与事实核查。',
-      recommendedFor: '默认智能总结、快讯提炼与综合分析'
+      id: 'openrouter/free',
+      name: 'OpenRouter Free Router (自动选免费)',
+      provider: 'OpenRouter',
+      contextLength: 200000,
+      pricing: { prompt: '$0.00/M', completion: '$0.00/M' },
+      latencyAvgMs: 220,
+      description: 'OpenRouter 官方免费智能路由，自动路由至当前最稳定、最高速的免费大模型。',
+      recommendedFor: '默认智能总结、快讯提炼与综合分析 (推荐)'
     },
     {
-      id: 'deepseek/deepseek-r1',
-      name: 'DeepSeek R1',
-      provider: 'DeepSeek',
-      contextLength: 65536,
-      pricing: { prompt: '$0.55/M', completion: '$2.19/M' },
-      latencyAvgMs: 580,
-      description: '擅长深度逻辑推理、数学证明与代码技术全景复盘。',
+      id: 'google/gemma-4-31b-it:free',
+      name: 'Google Gemma 4 31B (Free)',
+      provider: 'Google',
+      contextLength: 262144,
+      pricing: { prompt: '$0.00/M', completion: '$0.00/M' },
+      latencyAvgMs: 280,
+      description: 'Google 256K 超长上下文密集多模态开源模型，完全免费。',
+      recommendedFor: '长文本长文章总结与多领域分析'
+    },
+    {
+      id: 'nvidia/nemotron-3-super-120b-a12b:free',
+      name: 'NVIDIA Nemotron 3 Super (Free)',
+      provider: 'NVIDIA',
+      contextLength: 262144,
+      pricing: { prompt: '$0.00/M', completion: '$0.00/M' },
+      latencyAvgMs: 350,
+      description: 'NVIDIA 120B MoE 旗舰大模型，256K 上下文支持复杂逻辑与推导，完全免费。',
       recommendedFor: '学术研究、复杂技术难题与对比拆解'
     },
     {
-      id: 'anthropic/claude-3.5-sonnet',
-      name: 'Claude 3.5 Sonnet',
-      provider: 'Anthropic',
-      contextLength: 200000,
-      pricing: { prompt: '$3.00/M', completion: '$15.00/M' },
-      latencyAvgMs: 450,
-      description: '卓越的文采、行业分析报告与高可读性结构化输出。',
-      recommendedFor: '商业策划、深度新闻溯源与专业撰稿'
-    },
-    {
-      id: 'openai/gpt-4o-mini',
-      name: 'GPT-4o Mini',
+      id: 'openai/gpt-oss-20b:free',
+      name: 'OpenAI gpt-oss-20b (Free)',
       provider: 'OpenAI',
-      contextLength: 128000,
-      pricing: { prompt: '$0.15/M', completion: '$0.60/M' },
-      latencyAvgMs: 390,
-      description: '高性价比、高稳定性通用知识总结助手。',
-      recommendedFor: '日常信息快速提炼与基础问答'
+      contextLength: 131072,
+      pricing: { prompt: '$0.00/M', completion: '$0.00/M' },
+      latencyAvgMs: 320,
+      description: 'OpenAI 20B 开源权重 MoE 模型，具备思考推导能力，完全免费。',
+      recommendedFor: '日常信息快速提炼与通用思考问答'
     },
     {
-      id: 'meta-llama/llama-3.3-70b-instruct',
-      name: 'Llama 3.3 70B',
-      provider: 'Meta',
+      id: 'cohere/north-mini-code:free',
+      name: 'Cohere North Mini Code (Free)',
+      provider: 'Cohere',
       contextLength: 128000,
-      pricing: { prompt: '$0.12/M', completion: '$0.30/M' },
-      latencyAvgMs: 410,
-      description: '开源顶级能力，适合快速概念释义与技术检索。',
-      recommendedFor: '开发者工具与开源技术文档查阅'
+      pricing: { prompt: '$0.00/M', completion: '$0.00/M' },
+      latencyAvgMs: 260,
+      description: 'Cohere 专精代码与文档结构化处理模型，完全免费。',
+      recommendedFor: '技术文档、代码解析与结构化数据提取'
     }
   ]);
 });
@@ -1281,53 +1317,65 @@ app.post('/api/summary/stream', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  const formattedContext = results.slice(0, 8).map((r: any, idx: number) => {
-    const cleanSnippet = (r.snippet || r.content || '').substring(0, 300);
-    return `[${idx + 1}] 标题: ${r.title}\n网址: ${r.url}\n来源: ${r.engine}\n摘要: ${cleanSnippet}`;
+  const formattedContext = results.slice(0, 10).map((r: any, idx: number) => {
+    const cleanSnippet = (r.snippet || r.content || '').substring(0, 450);
+    const dateStr = r.publishedDate ? ` (发布日期: ${r.publishedDate})` : '';
+    return `[${idx + 1}] 标题: ${r.title}\n网址: ${r.url}\n搜索引擎来源: ${r.engine}${dateStr}\n网页文本摘要: ${cleanSnippet}`;
   }).join('\n\n');
 
   const depthInstruction = summaryDepth === 'brief'
-    ? '用极其精炼的3-4句话给出最核心结论。'
+    ? '【技能模式：⚡ 极速提炼】用 200 字以内极其简练的语言给出最核心的 1 句结论与 3 个加粗要点，快速解答用户需求。'
     : summaryDepth === 'academic'
-    ? '以学术严谨的语气，包含背景引言、方法论对比、实验结论与讨论。'
+    ? '【技能模式：🎓 学术溯源与严谨对比】以学术研究视角，深入梳理理论背景、技术演进、严密逻辑推导与多源交叉证据，使用严格的引证序号 [1][2]。'
+    : summaryDepth === 'tech'
+    ? '【技能模式：💻 技术全景与代码范式】深入剖析底层技术架构、API / 代码示例、性能指标与优缺点对比，附带有结构化的 Markdown 特性对比表格。'
+    : summaryDepth === 'market'
+    ? '【技能模式：📈 商业研报与竞争格局】重点提炼行业市场数据、产业链格局、代表性玩家与商业化落地趋势，附带商业对比表格。'
     : summaryDepth === 'deep'
-    ? '详尽彻底地分析，分层剖析技术原理、市场影响及发展趋势。'
-    : '结构清晰地给出执行摘要、关键考点与建议。';
+    ? '【技能模式：🔍 深度长文探究】全面拆解多层逻辑、前因后果、未来发展走向与综合建议。'
+    : '【技能模式：📌 综合精准概览】给出直击要点的核心结论、清晰归纳的核心要点、客观严谨的深入剖析与有价值的追问方向。';
 
-  const defaultPrompt = `你是一个高级 AI 知识提炼专家与搜索引擎总结助手。
-请按照“AI 结构化 Markdown 回答 Skill 规范”格式，根据下方搜索上下文为用户生成清晰、直观、严格使用 Markdown 格式并附带引证来源的智能总结报告。
+  const defaultPrompt = `你是一个精准的 AI 搜索引擎总结与知识提炼专家 (NexusSearch Precise AI Search Synthesis Skill Engine)。
+你的核心任务是：严格依据下方提供的真实网页搜索结果上下文，针对用户的检索需求 "${searchTopic}"，生成一份直观、专业、完全基于搜索事实且结构清晰的 **AI 搜索概览回答**。
 
-### 检索主题: "${searchTopic}"
-
-### 网页检索结果上下文:
+### 🌐 真实网页搜索上下文 (来源于多源搜索引擎):
 ${formattedContext}
 
-### 必须遵循的 Markdown 输出与结构规范 (AI Response Skill Standard):
-必须使用标准 Markdown 格式输出，内容紧凑精炼，突出重点。引用观点或数据时，使用标准数字序号如 [1], [2] 进行溯源标注（无需生成重复链接列表，前端已有专门来源栏）：
+### 🎯 必须遵循的 AI 搜索 Markdown 输出技能规范 (AI Search Synthesis Skill):
+1. **真实无幻觉 (Fact-Grounded)**: 提炼内容必须严格来源于上述网页搜索结果，切勿捏造未在搜索结果中出现的结论。
+2. **准确引证 (Strict Citation)**: 涉及关键观点、事件、数据或对比结论时，句尾必须使用标准数字序号如 [1], [2] 标注信息来源编号（编号必须严格对应上述搜索结果序号）。
+3. **结构化呈现 (Structured Output)**:
 
 ### 📌 核心结论
-1-2 句精炼语言直接回答核心问题 [1]。
+1-2 句直击问题的总结性答复 [1]。
 
 ---
 
-### 💡 核心要点 (Key Takeaways)
-- **要点 1**: 观点描述 [1]
-- **要点 2**: 观点描述 [2]
-- **要点 3**: 观点描述 [3]
+### 💡 核心要点 (Key Insights)
+- **关键突破/要点 1**: 详细事实或观点分析 [1][2]。
+- **关键突破/要点 2**: 详细事实或观点分析 [3]。
+- **关键突破/要点 3**: 详细事实或观点分析 [4]。
 
 ---
 
-### 🔍 深度解析与逻辑剖析
-1-2 个简明段落深入剖析核心机制与应用 [1]。
+### 🔍 深度解析与检索溯源
+结合搜索结果进行客观多维度拆解与信息交叉复核 [1][2]。
 
 ---
 
-### 🎯 推荐追问 (Follow-up Questions)
-- **追问 1**: ...
+${summaryDepth === 'tech' || summaryDepth === 'market' || summaryDepth === 'deep' ? `### 📊 多维对比分析
+| 核心维度 / 特性 | 方案 / 选项 A | 方案 / 选项 B | 引证来源 |
+| :--- | :--- | :--- | :--- |
+| 核心定位 | ... | ... | [1] |
+| 关键优势 | ... | ... | [2] |
+
+---
+
+` : ''}### 🎯 推荐追问 (Follow-up Questions)
+- **追问 1**: 延伸思考或深度探索问题...
 - **追问 2**: ...
 - **追问 3**: ...
 
-语言格式要求：标准 Markdown 格式，客观专业中文，加粗重点词汇，内容紧凑，使用 [1], [2] 标注引证。
 ${depthInstruction}`;
 
   const promptText = systemPrompt ? `${systemPrompt}\n\n${defaultPrompt}` : defaultPrompt;
@@ -1346,14 +1394,18 @@ ${depthInstruction}`;
     res.end();
   };
 
-  // Option A: Custom OpenRouter API request if user provided valid key
-  if (openrouterApiKey && openrouterApiKey.trim().startsWith('sk-or-')) {
+  // Check if OpenRouter Key is provided by user or configured on server env
+  const activeApiKey = (openrouterApiKey && openrouterApiKey.trim().startsWith('sk-or-'))
+    ? openrouterApiKey.trim()
+    : (process.env.OPENROUTER_API_KEY || '');
+
+  if (activeApiKey) {
     try {
-      const selectedModel = model || 'google/gemini-2.0-flash-001';
+      const selectedModel = model || 'openrouter/free';
       const openRouterResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openrouterApiKey.trim()}`,
+          'Authorization': `Bearer ${activeApiKey}`,
           'HTTP-Referer': process.env.APP_URL || 'https://nexussearch.ai',
           'X-Title': 'NexusSearch AI Engine',
           'Content-Type': 'application/json'
@@ -1397,49 +1449,16 @@ ${depthInstruction}`;
         }
         endStream({ modelUsed: selectedModel, provider: 'OpenRouter' });
         return;
+      } else {
+        const errText = await openRouterResp.text().catch(() => 'Unknown OpenRouter Error');
+        console.error('OpenRouter stream request failed:', errText);
       }
-    } catch (err) {
-      console.warn('OpenRouter API call failed, switching to server-side Gemini AI API fallback.');
+    } catch (err: any) {
+      console.error('OpenRouter API connection failed:', err);
     }
   }
 
-  // Option B: Native Gemini Server-Side AI Streaming Fallback with rate-limit recovery
-  if (process.env.GEMINI_API_KEY) {
-    const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-3.6-flash'];
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-
-    for (const candidateModel of candidateModels) {
-      try {
-        const responseStream = await ai.models.generateContentStream({
-          model: candidateModel,
-          contents: promptText,
-          config: {
-            temperature: 0.3,
-          }
-        });
-
-        for await (const chunk of responseStream) {
-          if (chunk.text) {
-            sendEvent(chunk.text);
-          }
-        }
-        endStream({ modelUsed: `${candidateModel} (Server Powered)`, provider: 'Google AI Studio' });
-        return;
-      } catch (geminiError: any) {
-        console.warn(`Gemini model ${candidateModel} error:`, geminiError?.message || geminiError);
-        continue;
-      }
-    }
-  }
-
-  // Option C: High-speed Smart Local Streaming Synthesizer (Zero API Key Fail-Safe)
+  // Option B: High-speed Smart Local Streaming Synthesizer (Zero API Key Fail-Safe)
   // Ensures the app gives instant streaming response even before user enters API key
   const link1 = results[0]?.url || `https://www.bing.com/search?q=${encodeURIComponent(searchTopic)}`;
   const link2 = results[1]?.url || `https://www.google.com/search?q=${encodeURIComponent(searchTopic)}`;
@@ -1477,7 +1496,7 @@ ${depthInstruction}`;
     sendEvent(chunk);
     await new Promise(resolve => setTimeout(resolve, 35));
   }
-  endStream({ modelUsed: 'NexusSearch Local AI Streamer', provider: 'Edge Engine' });
+  endStream({ modelUsed: 'NexusSearch Local AI Streamer (请配置 OpenRouter 密钥)', provider: 'Local Synthesis' });
 });
 
 async function startServer() {

@@ -18,7 +18,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   firebaseConnected,
 }) => {
   const [apiKey, setApiKey] = useState(config.openrouterApiKey || '');
-  const [model, setModel] = useState(config.openrouterModel || 'google/gemini-2.0-flash-001');
+  const [model, setModel] = useState(config.openrouterModel || 'openrouter/free');
   const [summaryDepth, setSummaryDepth] = useState(config.summaryDepth || 'standard');
   const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt || '');
   const [searxngInstances, setSearxngInstances] = useState<string[]>(config.customSearxngUrls || []);
@@ -88,7 +88,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
           <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-950 p-4">
             <label className="flex items-center space-x-2 font-bold text-slate-100">
               <Key className="h-4 w-4 text-cyan-400" />
-              <span>OpenRouter API Key (可选 / 留空默认使用内置 Gemini 2.0)</span>
+              <span>OpenRouter API Key (可选 / 留空默认使用服务器 OpenRouter 密钥)</span>
             </label>
             <p className="text-[11px] text-slate-400">
               接入 OpenRouter 可调用包含 Claude 3.5 Sonnet、DeepSeek R1、GPT-4o 等全球顶级 LLM 模型。
@@ -114,11 +114,11 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 onChange={(e) => setModel(e.target.value)}
                 className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100 focus:border-indigo-500 focus:outline-none"
               >
-                <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (推荐·极速长文本)</option>
-                <option value="deepseek/deepseek-r1">DeepSeek R1 (深度逻辑推理)</option>
-                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (文采与专业报告)</option>
-                <option value="openai/gpt-4o-mini">GPT-4o Mini (通用稳定)</option>
-                <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (开源顶级能力)</option>
+                <option value="openrouter/free">OpenRouter Free Router (自动选免费·推荐)</option>
+                <option value="google/gemma-4-31b-it:free">Google Gemma 4 31B (Free)</option>
+                <option value="nvidia/nemotron-3-super-120b-a12b:free">NVIDIA Nemotron 3 Super (Free)</option>
+                <option value="openai/gpt-oss-20b:free">OpenAI gpt-oss-20b (Free)</option>
+                <option value="cohere/north-mini-code:free">Cohere North Mini Code (Free)</option>
               </select>
             </div>
 
@@ -132,10 +132,12 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 onChange={(e) => setSummaryDepth(e.target.value as any)}
                 className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100 focus:border-purple-500 focus:outline-none"
               >
-                <option value="brief">极简概括 (适合快速快讯浏览)</option>
-                <option value="standard">标准综合 (包含执行摘要、核心考点)</option>
-                <option value="deep">深度拆解 (分层次剖析技术架构与研报)</option>
-                <option value="academic">学术严谨 (背景引言、对比分析与论证)</option>
+                <option value="brief">⚡ 极速提炼 (200字速读核心结论与关键要点)</option>
+                <option value="standard">📌 标准综合 (包含核心结论、重点归纳与溯源分析)</option>
+                <option value="academic">🎓 学术溯源 (强调背景理论、演进与事实交叉比对)</option>
+                <option value="tech">💻 技术全景 (技术架构、代码/API范式与 Markdown 对比表)</option>
+                <option value="market">📈 商业研报 (市场数据、玩家格局与商业对比表)</option>
+                <option value="deep">🔍 深度探究 (分层次剖析技术架构与多维度研报)</option>
               </select>
             </div>
           </div>

@@ -15,29 +15,52 @@ export async function onRequestPost(context) {
     });
   }
 
-  const formattedContext = results.slice(0, 8).map((r, idx) => {
-    const cleanSnippet = (r.snippet || r.content || '').substring(0, 300);
-    return `[${idx + 1}] 标题: ${r.title}\n网址: ${r.url}\n来源: ${r.engine}\n摘要: ${cleanSnippet}`;
+  const formattedContext = results.slice(0, 10).map((r, idx) => {
+    const cleanSnippet = (r.snippet || r.content || '').substring(0, 450);
+    const dateStr = r.publishedDate ? ` (发布日期: ${r.publishedDate})` : '';
+    return `[${idx + 1}] 标题: ${r.title}\n网址: ${r.url}\n搜索引擎来源: ${r.engine}${dateStr}\n网页文本摘要: ${cleanSnippet}`;
   }).join('\n\n');
 
   const depthInstruction = summaryDepth === 'brief'
-    ? '用极其精炼的3-4句话给出最核心结论。'
+    ? '【技能模式：⚡ 极速提炼】用 200 字以内极其简练的语言给出最核心的 1 句结论与 3 个加粗要点，快速解答用户需求。'
     : summaryDepth === 'academic'
-    ? '以学术严谨的语气，包含背景引言、方法论对比、实验结论与讨论。'
+    ? '【技能模式：🎓 学术溯源与严谨对比】以学术研究视角，深入梳理理论背景、技术演进、严密逻辑推导与多源交叉证据，使用严格的引证序号 [1][2]。'
+    : summaryDepth === 'tech'
+    ? '【技能模式：💻 技术全景与代码范式】深入剖析底层技术架构、API / 代码示例、性能指标与优缺点对比，附带有结构化的 Markdown 特性对比表格。'
+    : summaryDepth === 'market'
+    ? '【技能模式：📈 商业研报与竞争格局】重点提炼行业市场数据、产业链格局、代表性玩家与商业化落地趋势，附带商业对比表格。'
     : summaryDepth === 'deep'
-    ? '详尽彻底地分析，分层剖析技术原理、市场影响及发展趋势。'
-    : '结构清晰地给出执行摘要、关键考点与建议。';
+    ? '【技能模式：🔍 深度长文探究】全面拆解多层逻辑、前因后果、未来发展走向与综合建议。'
+    : '【技能模式：📌 综合精准概览】给出直击要点的核心结论、清晰归纳的核心要点、客观严谨的深入剖析与有价值的追问方向。';
 
-  const defaultPrompt = `你是一个高级 AI 知识提炼专家与搜索引擎总结助手。
-请按照规范格式，根据下方搜索上下文为用户生成清晰、直观、严格使用 Markdown 格式并附带引证来源的智能总结报告。
+  const defaultPrompt = `你是一个精准的 AI 搜索引擎总结与知识提炼专家 (NexusSearch Precise AI Search Synthesis Skill Engine)。
+你的核心任务是：严格依据下方提供的真实网页搜索结果上下文，针对用户的检索需求 "${searchTopic}"，生成一份直观、专业、完全基于搜索事实且结构清晰的 **AI 搜索概览回答**。
 
-### 检索主题: "${searchTopic}"
-
-### 网页检索结果上下文:
+### 🌐 真实网页搜索上下文 (来源于多源搜索引擎):
 ${formattedContext}
 
-### 必须遵循的 Markdown 输出与结构规范:
-必须使用标准 Markdown 格式输出，每个标题、章节、段落、列表与表格之间务必保留空行（双换行符 \\n\\n）。引用观点或数据时，使用标准数字序号如 [1], [2], [3] 进行溯源标注。
+### 🎯 必须遵循的 AI 搜索 Markdown 输出技能规范 (AI Search Synthesis Skill):
+1. **真实无幻觉 (Fact-Grounded)**: 提炼内容必须严格来源于上述网页搜索结果，切勿捏造未在搜索结果中出现的结论。
+2. **准确引证 (Strict Citation)**: 涉及关键观点、事件、数据或对比结论时，句尾必须使用标准数字序号如 [1], [2] 标注信息来源编号（编号必须严格对应上述搜索结果序号）。
+3. **结构化呈现 (Structured Output)**:
+
+### 📌 核心结论
+1-2 句直击问题的总结性答复 [1]。
+
+---
+
+### 💡 核心要点 (Key Insights)
+- **关键突破/要点 1**: 详细事实或观点分析 [1][2]。
+- **关键突破/要点 2**: 详细事实或观点分析 [3]。
+- **关键突破/要点 3**: 详细事实或观点分析 [4]。
+
+---
+
+### 🔍 深度解析与检索溯源
+结合搜索结果进行客观多维度拆解与信息交叉复核 [1][2]。
+
+---
+
 ${depthInstruction}`;
 
   const promptText = systemPrompt ? `${systemPrompt}\n\n${defaultPrompt}` : defaultPrompt;
@@ -68,66 +91,6 @@ ${depthInstruction}`;
 
       if (openRouterResp.ok && openRouterResp.body) {
         return new Response(openRouterResp.body, {
-          headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-          }
-        });
-      }
-    } catch {}
-  }
-
-  // Check Server Gemini API key
-  const geminiApiKey = env.GEMINI_API_KEY;
-  if (geminiApiKey) {
-    try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse&key=${geminiApiKey}`;
-      const geminiResp = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.3 }
-        })
-      });
-
-      if (geminiResp.ok && geminiResp.body) {
-        // Transform Gemini SSE output to standard delta format
-        const { readable, writable } = new TransformStream();
-        const writer = writable.getWriter();
-        const reader = geminiResp.body.getReader();
-        const decoder = new TextDecoder();
-
-        (async () => {
-          let buffer = '';
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-
-              for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                  try {
-                    const parsed = JSON.parse(line.slice(6));
-                    const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (textChunk) {
-                      await writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ delta: textChunk })}\n\n`));
-                    }
-                  } catch {}
-                }
-              }
-            }
-            await writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ done: true, modelUsed: 'Gemini 2.0 Flash (Edge)', provider: 'Google Cloudflare Edge' })}\n\n`));
-          } catch {} finally {
-            try { await writer.close(); } catch {}
-          }
-        })();
-
-        return new Response(readable, {
           headers: {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
@@ -183,7 +146,7 @@ ${depthInstruction}`;
         await new Promise(r => setTimeout(r, 40));
       }
 
-      sendEvent({ done: true, modelUsed: 'Edge Smart Synthesizer', provider: 'Cloudflare Pages' });
+      sendEvent({ done: true, modelUsed: 'Edge Smart Synthesizer (请配置 OpenRouter 密钥)', provider: 'Local Synthesis' });
       controller.close();
     }
   });

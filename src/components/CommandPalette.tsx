@@ -51,7 +51,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const COMMANDS = [
     {
       id: 'cmd-admin',
-      title: '打开 API 网站管理面板 (/sfheoheejfifejfeppoj)',
+      title: '打开 API 网站管理面板 (需要密码)',
       icon: Server,
       color: 'text-purple-400',
       action: () => { if (onOpenAdminPanel) onOpenAdminPanel(); onClose(); }
@@ -64,18 +64,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       action: () => { onOpenHistory(); onClose(); }
     },
     {
-      id: 'cmd-model-gemini',
-      title: '将 AI 流式总结模型设为 Gemini 2.0 Flash',
+      id: 'cmd-model-router',
+      title: '将 AI 流式总结模型设为 OpenRouter Free Router (自动选免费)',
       icon: Cpu,
       color: 'text-indigo-400',
-      action: () => { onChangeModel('google/gemini-2.0-flash-001'); onClose(); }
+      action: () => { onChangeModel('openrouter/free'); onClose(); }
     },
     {
-      id: 'cmd-model-deepseek',
-      title: '将 AI 流式总结模型设为 DeepSeek R1',
+      id: 'cmd-model-gemma',
+      title: '将 AI 流式总结模型设为 Google Gemma 4 31B (Free)',
       icon: Cpu,
       color: 'text-purple-400',
-      action: () => { onChangeModel('deepseek/deepseek-r1'); onClose(); }
+      action: () => { onChangeModel('google/gemma-4-31b-it:free'); onClose(); }
     },
     {
       id: 'cmd-config',

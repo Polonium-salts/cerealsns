@@ -9,25 +9,38 @@ interface AISummaryCardProps {
   isStreaming: boolean;
   modelUsed?: string;
   searchResults: SearchResult[];
-  onRegenerate: (modelOverride?: string) => void;
+  onRegenerate: (modelOverride?: string, skillOverride?: AppConfig['summaryDepth']) => void;
   onFollowUpClick: (followUpQuery: string) => void;
   config: AppConfig;
+  onUpdateConfig?: (newConfig: Partial<AppConfig>) => void;
 }
 
 export const AISummaryCard: React.FC<AISummaryCardProps> = ({
   query,
   summaryText,
   isStreaming,
-  modelUsed = 'Gemini 3.6 Flash',
+  modelUsed = 'OpenRouter Free Router',
   searchResults,
   onRegenerate,
   onFollowUpClick,
   config,
+  onUpdateConfig,
 }) => {
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeCitation, setActiveCitation] = useState<SearchResult | null>(null);
   const [isPinned, setIsPinned] = useState(true);
+
+  const activeSkill = config.summaryDepth || 'standard';
+
+  const skillList: Array<{ id: AppConfig['summaryDepth']; label: string; icon: string; desc: string }> = [
+    { id: 'standard', label: '📌 综合精准', icon: '📌', desc: '包含核心结论、重点归纳与溯源分析' },
+    { id: 'brief', label: '⚡ 极速提炼', icon: '⚡', desc: '200字速读核心结论与关键要点' },
+    { id: 'academic', label: '🎓 学术溯源', icon: '🎓', desc: '强调背景理论、演进与事实交叉比对' },
+    { id: 'tech', label: '💻 技术全景', icon: '💻', desc: '技术架构、代码/API范式与 Markdown 对比表' },
+    { id: 'market', label: '📈 商业研报', icon: '📈', desc: '市场数据、玩家格局与商业对比表' },
+    { id: 'deep', label: '🔍 深度探究', icon: '🔍', desc: '多层逻辑梳理与前因后果长文复盘' },
+  ];
 
   // Preprocess text: Convert standalone [1], [2] into clickable [1](#cite-1) if not already markdown link
   const processedMarkdown = summaryText.replace(/(^|[^\[])\[(\d+)\](?!\()/g, (match, prefix, num) => {
@@ -88,26 +101,26 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 p-4 sm:p-5 shadow-lg mb-4">
       {/* Header Bar: Google AI Overview Style */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 mb-3">
         <div className="flex items-center space-x-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#1e2432] text-white shadow-md">
             <Sparkles className="h-4 w-4 text-amber-300" />
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-              <span>AI 概览回答</span>
-              <span className="inline-flex items-center space-x-1 rounded-full px-2 py-0.5 text-[10px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-900 shadow-sm" title="与网页搜索结果保持统一位置同步滑动">
-                <Pin className="h-2.5 w-2.5 text-emerald-600 fill-emerald-500" />
-                <span>同步滑动</span>
+              <span>AI 搜索概览结果</span>
+              <span className="inline-flex items-center space-x-1 rounded-full px-2 py-0.5 text-[10px] font-bold border border-indigo-300 bg-indigo-50 text-indigo-900 shadow-sm" title="基于实时搜索引擎检索结果精炼合成">
+                <Sparkles className="h-2.5 w-2.5 text-indigo-600" />
+                <span>精准提炼</span>
               </span>
               {isStreaming && (
-                <span className="inline-flex items-center space-x-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-300">
-                  <span>实时生成中...</span>
+                <span className="inline-flex items-center space-x-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-300 animate-pulse">
+                  <span>实时提炼中...</span>
                 </span>
               )}
             </h2>
             <p className="text-[11px] text-slate-500">
-              驱动模型: <span className="text-slate-800 font-medium">{modelUsed}</span>
+              知识提炼引擎: <span className="text-slate-800 font-medium">{modelUsed}</span>
             </p>
           </div>
         </div>
@@ -148,6 +161,42 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
             <RefreshCw className="h-3.5 w-3.5 text-slate-200" />
             <span>重新分析</span>
           </button>
+        </div>
+      </div>
+
+      {/* AI Search Skill Mode Selector Pill Row */}
+      <div className="mb-4 rounded-xl bg-slate-100/80 border border-slate-200/90 p-2">
+        <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1.5 px-1">
+          <span className="flex items-center space-x-1.5">
+            <Cpu className="h-3.5 w-3.5 text-indigo-600" />
+            <span>AI 搜索提炼 Skill 模式</span>
+          </span>
+          <span className="text-[10px] text-slate-500 font-normal">点击切换技能提炼视角</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {skillList.map((sk) => {
+            const isActive = activeSkill === sk.id;
+            return (
+              <button
+                key={sk.id}
+                onClick={() => {
+                  if (onUpdateConfig) {
+                    onUpdateConfig({ summaryDepth: sk.id });
+                  }
+                  onRegenerate(undefined, sk.id);
+                }}
+                disabled={isStreaming}
+                title={sk.desc}
+                className={`flex items-center space-x-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-all ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-sm font-semibold'
+                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <span>{sk.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -313,10 +362,10 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
         </div>
         <div className="flex flex-wrap gap-1.5">
           {[
-            { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
-            { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1' },
-            { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5' },
-            { id: 'openai/gpt-4o-mini', name: 'GPT-4o' },
+            { id: 'openrouter/free', name: 'Free Router (推荐)' },
+            { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 (Free)' },
+            { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'Nemotron 3 (Free)' },
+            { id: 'openai/gpt-oss-20b:free', name: 'gpt-oss-20b (Free)' },
           ].map((m) => (
             <button
               key={m.id}

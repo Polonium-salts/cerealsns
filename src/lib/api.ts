@@ -140,10 +140,59 @@ export function streamAISummary(
   };
 }
 
+// Admin Auth Management
+let currentAdminToken = sessionStorage.getItem('nexus_admin_auth_token') || '';
+
+export function getAdminAuthToken(): string {
+  if (!currentAdminToken) {
+    currentAdminToken = sessionStorage.getItem('nexus_admin_auth_token') || '';
+  }
+  return currentAdminToken;
+}
+
+export function setAdminAuthToken(token: string): void {
+  currentAdminToken = token;
+  sessionStorage.setItem('nexus_admin_auth_token', token);
+}
+
+export function clearAdminAuthToken(): void {
+  currentAdminToken = '';
+  sessionStorage.removeItem('nexus_admin_auth_token');
+}
+
+function getAdminHeaders(): Record<string, string> {
+  const token = getAdminAuthToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    headers['X-Admin-Token'] = token;
+  }
+  return headers;
+}
+
+export async function verifyAdminPassword(password: string): Promise<{ ok: boolean; token?: string; error?: string }> {
+  try {
+    const resp = await fetch('/api/admin/verify-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok && data.ok && data.token) {
+      setAdminAuthToken(data.token);
+      return { ok: true, token: data.token };
+    }
+    return { ok: false, error: data.error || '密码错误，无权访问管理面板' };
+  } catch (err: any) {
+    console.error('Password verification error:', err);
+    return { ok: false, error: '网络连接异常，验证失败' };
+  }
+}
+
 // Admin API Management Panel Helper Functions
 export async function fetchAdminStats(): Promise<import('../types').ApiAdminStats | null> {
   try {
-    const resp = await fetch('/api/admin/stats');
+    const resp = await fetch('/api/admin/stats', { headers: getAdminHeaders() });
     if (resp.ok) return resp.json();
   } catch (e) {
     console.warn('Failed to fetch admin stats:', e);
@@ -153,7 +202,7 @@ export async function fetchAdminStats(): Promise<import('../types').ApiAdminStat
 
 export async function fetchAdminApiKeys(): Promise<import('../types').ApiKeyItem[]> {
   try {
-    const resp = await fetch('/api/admin/apikeys');
+    const resp = await fetch('/api/admin/apikeys', { headers: getAdminHeaders() });
     if (resp.ok) return resp.json();
   } catch (e) {
     console.warn('Failed to fetch admin API keys:', e);
@@ -165,7 +214,7 @@ export async function createAdminApiKey(payload: { name: string; scopes: string[
   try {
     const resp = await fetch('/api/admin/apikeys', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(payload),
     });
     if (resp.ok) return resp.json();
@@ -179,7 +228,7 @@ export async function updateAdminApiKey(id: string, updates: Partial<import('../
   try {
     const resp = await fetch(`/api/admin/apikeys/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     });
     return resp.ok;
@@ -191,7 +240,7 @@ export async function updateAdminApiKey(id: string, updates: Partial<import('../
 
 export async function deleteAdminApiKey(id: string): Promise<boolean> {
   try {
-    const resp = await fetch(`/api/admin/apikeys/${id}`, { method: 'DELETE' });
+    const resp = await fetch(`/api/admin/apikeys/${id}`, { method: 'DELETE', headers: getAdminHeaders() });
     return resp.ok;
   } catch (e) {
     console.warn('Failed to delete API key:', e);
@@ -201,7 +250,7 @@ export async function deleteAdminApiKey(id: string): Promise<boolean> {
 
 export async function fetchAdminEndpoints(): Promise<import('../types').ApiEndpointItem[]> {
   try {
-    const resp = await fetch('/api/admin/endpoints');
+    const resp = await fetch('/api/admin/endpoints', { headers: getAdminHeaders() });
     if (resp.ok) return resp.json();
   } catch (e) {
     console.warn('Failed to fetch admin endpoints:', e);
@@ -213,7 +262,7 @@ export async function updateAdminEndpoint(id: string, updates: Partial<import('.
   try {
     const resp = await fetch(`/api/admin/endpoints/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     });
     return resp.ok;
@@ -229,7 +278,7 @@ export async function fetchAdminLogs(status?: string, search?: string): Promise<
     if (status) params.set('status', status);
     if (search) params.set('search', search);
 
-    const resp = await fetch(`/api/admin/logs?${params.toString()}`);
+    const resp = await fetch(`/api/admin/logs?${params.toString()}`, { headers: getAdminHeaders() });
     if (resp.ok) return resp.json();
   } catch (e) {
     console.warn('Failed to fetch admin logs:', e);
@@ -239,7 +288,7 @@ export async function fetchAdminLogs(status?: string, search?: string): Promise<
 
 export async function fetchAdminConfig(): Promise<import('../types').ApiAdminConfig | null> {
   try {
-    const resp = await fetch('/api/admin/config');
+    const resp = await fetch('/api/admin/config', { headers: getAdminHeaders() });
     if (resp.ok) return resp.json();
   } catch (e) {
     console.warn('Failed to fetch admin config:', e);
@@ -251,7 +300,7 @@ export async function saveAdminConfig(config: Partial<import('../types').ApiAdmi
   try {
     const resp = await fetch('/api/admin/config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(config),
     });
     return resp.ok;
@@ -265,7 +314,7 @@ export async function pingSearxngNode(url: string): Promise<{ ok: boolean; laten
   try {
     const resp = await fetch('/api/admin/searxng/ping', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify({ url }),
     });
     if (resp.ok) return resp.json();
@@ -279,6 +328,7 @@ export async function pingAllSearxngNodes(): Promise<import('../types').SearxngI
   try {
     const resp = await fetch('/api/admin/searxng/ping-all', {
       method: 'POST',
+      headers: getAdminHeaders(),
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -292,7 +342,7 @@ export async function pingAllSearxngNodes(): Promise<import('../types').SearxngI
 
 export async function purgeJsDelivrCdnCache(): Promise<{ ok: boolean; message?: string; purgedAt?: string }> {
   try {
-    const resp = await fetch('/api/admin/jsdelivr/purge', { method: 'POST' });
+    const resp = await fetch('/api/admin/jsdelivr/purge', { method: 'POST', headers: getAdminHeaders() });
     if (resp.ok) {
       const data = await resp.json();
       return { ok: true, message: data.message, purgedAt: data.purgedAt };

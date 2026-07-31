@@ -53,7 +53,10 @@ import {
   saveAdminConfig,
   pingSearxngNode,
   pingAllSearxngNodes,
-  purgeJsDelivrCdnCache
+  purgeJsDelivrCdnCache,
+  getAdminAuthToken,
+  verifyAdminPassword,
+  clearAdminAuthToken
 } from '../../lib/api';
 
 interface AdminApiPanelProps {
@@ -62,6 +65,15 @@ interface AdminApiPanelProps {
 
 export const AdminApiPanel: React.FC<AdminApiPanelProps> = ({ onBackToMain }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'keys' | 'endpoints' | 'logs' | 'playground' | 'settings'>('overview');
+
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return !!getAdminAuthToken();
+  });
+  const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // State data
   const [stats, setStats] = useState<ApiAdminStats | null>(null);
@@ -244,8 +256,39 @@ export const AdminApiPanel: React.FC<AdminApiPanelProps> = ({ onBackToMain }) =>
     setTimeout(() => setJsDelivrPurgeNotice(null), 5000);
   };
 
+  // Password Auth Handlers
+  const handleVerifyPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) {
+      setAuthError('请输入访问密码');
+      return;
+    }
+    setIsVerifying(true);
+    setAuthError(null);
+    const result = await verifyAdminPassword(passwordInput);
+    setIsVerifying(false);
+
+    if (result.ok) {
+      setIsAuthenticated(true);
+      setPasswordInput('');
+    } else {
+      setAuthError(result.error || '密码错误，无权访问管理面板');
+    }
+  };
+
+  const handleLogout = () => {
+    clearAdminAuthToken();
+    setIsAuthenticated(false);
+    setStats(null);
+    setApiKeys([]);
+    setEndpoints([]);
+    setLogs([]);
+    setConfig(null);
+  };
+
   // Initial Load
   const loadData = async () => {
+    if (!isAuthenticated) return;
     setIsLoading(true);
     const [st, keysData, epData, logsData, cfgData] = await Promise.all([
       fetchAdminStats(),
@@ -264,13 +307,14 @@ export const AdminApiPanel: React.FC<AdminApiPanelProps> = ({ onBackToMain }) =>
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     loadData();
     const interval = setInterval(() => {
       fetchAdminStats().then((s) => s && setStats(s));
       fetchAdminLogs(logStatusFilter, logSearchQuery).then((l) => setLogs(l));
     }, 5000);
     return () => clearInterval(interval);
-  }, [logStatusFilter, logSearchQuery]);
+  }, [isAuthenticated, logStatusFilter, logSearchQuery]);
 
   // Handle Copy
   const handleCopyKey = (id: string, fullKey: string) => {
@@ -389,6 +433,98 @@ export const AdminApiPanel: React.FC<AdminApiPanelProps> = ({ onBackToMain }) =>
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0d1117] text-slate-100 font-sans flex flex-col items-center justify-center p-4 relative overflow-hidden antialiased">
+        {/* Background ambient glow */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="w-full max-w-md bg-[#161b22] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative z-10">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-lg">
+              <Lock className="h-8 w-8" />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold text-white tracking-tight">API 管理面板访问认证</h2>
+              <p className="text-xs text-slate-400 mt-1">请输入后台访问密码以接入管理控制台</p>
+            </div>
+
+            <div className="w-full bg-purple-950/30 border border-purple-800/40 rounded-xl p-3 text-left flex items-start space-x-2 text-xs text-purple-200/90">
+              <ShieldAlert className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
+              <div>
+                <span>密码通过环境变量储存：请检查 <code className="bg-purple-900/50 px-1 py-0.5 rounded text-purple-300 font-mono">.env</code> 中的 <code className="text-amber-300 font-mono font-bold">PANEL_PASSWORD</code></span>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyPasswordSubmit} className="w-full space-y-4 pt-2">
+              <div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      if (authError) setAuthError(null);
+                    }}
+                    placeholder="请输入管理面板密码"
+                    autoFocus
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                    title={showPassword ? '隐藏密码' : '显示密码'}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+
+                {authError && (
+                  <div className="mt-2 text-xs text-rose-400 flex items-center space-x-1 font-medium">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isVerifying}
+                className="w-full py-3 px-4 rounded-xl font-semibold text-sm bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg hover:shadow-purple-500/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+              >
+                {isVerifying ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>验证安全密码中...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4" />
+                    <span>解锁进入控制台</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onBackToMain}
+                className="text-xs text-slate-400 hover:text-slate-200 flex items-center space-x-1 transition-colors"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>返回主站搜索</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-slate-100 font-sans flex flex-col antialiased">
       
@@ -416,8 +552,9 @@ export const AdminApiPanel: React.FC<AdminApiPanelProps> = ({ onBackToMain }) =>
               <div>
                 <div className="flex items-center space-x-2">
                   <h1 className="text-base font-bold text-white tracking-tight">API 网站管理面板</h1>
-                  <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    /sfheoheejfifejfeppoj
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center space-x-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    <span>已加密保护</span>
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">全局接口监控、密钥管理、限流配置与链路测试</p>
@@ -439,6 +576,15 @@ export const AdminApiPanel: React.FC<AdminApiPanelProps> = ({ onBackToMain }) =>
               title="刷新数据"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin text-purple-400' : ''}`} />
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-all flex items-center space-x-1 text-xs font-medium font-sans"
+              title="锁定控制台并注销权限"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">锁定控制台</span>
             </button>
           </div>
 

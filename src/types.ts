@@ -112,7 +112,7 @@ export interface AppConfig {
   customSearxngUrls: string[];
   activeEdgeProvider: 'Auto' | 'EdgeOne' | 'Cloudflare Worker';
   autoSummarize: boolean;
-  summaryDepth: 'brief' | 'standard' | 'deep' | 'academic';
+  summaryDepth: 'brief' | 'standard' | 'deep' | 'academic' | 'tech' | 'market';
   temperature: number;
   theme: 'dark' | 'light' | 'system';
 }
