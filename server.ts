@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
@@ -1122,9 +1123,32 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`NexusSearch AI Engine running on http://0.0.0.0:${PORT}`);
-  });
+  const listenWithRetry = (port: number, host: string, maxRetries = 20, delayMs = 500) => {
+    let attempts = 0;
+
+    const start = () => {
+      const server = app.listen(port, host, () => {
+        console.log(`NexusSearch AI Engine running on http://${host}:${port}`);
+      });
+
+      server.on('error', (err: any) => {
+        if (err.code === 'EADDRINUSE' && attempts < maxRetries) {
+          attempts++;
+          console.warn(`Port ${port} in use, retrying (${attempts}/${maxRetries}) in ${delayMs}ms...`);
+          try {
+            server.close();
+          } catch (_) {}
+          setTimeout(start, delayMs);
+        } else {
+          console.error('Server error:', err);
+        }
+      });
+    };
+
+    start();
+  };
+
+  listenWithRetry(PORT, '0.0.0.0');
 }
 
 startServer();
