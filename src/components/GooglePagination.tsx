@@ -18,56 +18,7 @@ export const GooglePagination: React.FC<GooglePaginationProps> = ({
   const pages = Array.from({ length: maxPages }, (_, i) => i + 1);
 
   return (
-    <div className="flex flex-col items-center justify-center pt-10 pb-16 select-none border-t border-slate-800/60 mt-10">
-      {/* Gooooooooooogle Iconic Pagination Banner */}
-      <div className="flex items-center space-x-0.5 text-3xl sm:text-4xl font-black tracking-tight mb-3 font-sans">
-        {/* Capital 'G' */}
-        <span className="text-[#4285f4]">G</span>
-
-        {/* 'o' letters for each page */}
-        {pages.map((p) => {
-          const isActive = p === currentPage;
-          return (
-            <button
-              key={p}
-              onClick={() => !isLoading && onPageChange(p)}
-              disabled={isLoading}
-              className={`inline-block transition-transform hover:scale-125 focus:outline-none ${
-                isActive ? 'scale-110 font-black' : 'opacity-80 hover:opacity-100'
-              }`}
-              title={`转到第 ${p} 页 (SearXNG Google)`}
-            >
-              <span
-                className={`${
-                  isActive
-                    ? 'text-[#ea4335] underline decoration-2 underline-offset-4'
-                    : p % 2 === 0
-                    ? 'text-[#fbbc05]'
-                    : 'text-[#ea4335]'
-                }`}
-              >
-                o
-              </span>
-            </button>
-          );
-        })}
-
-        {/* 'gle' */}
-        <span className="text-[#4285f4]">g</span>
-        <span className="text-[#34a853]">l</span>
-        <span className="text-[#ea4335]">e</span>
-
-        {/* Right Arrow */}
-        <button
-          onClick={() => !isLoading && currentPage < maxPages && onPageChange(currentPage + 1)}
-          disabled={isLoading || currentPage >= maxPages}
-          className="ml-1 text-[#8ab4f8] hover:text-white transition-colors disabled:opacity-30"
-          title="下一页"
-        >
-          <ChevronRight className="h-6 w-6 stroke-[3]" />
-        </button>
-      </div>
-
+    <div className="flex flex-col items-center justify-center pt-6 pb-12 select-none border-t border-slate-800/60 mt-8">
       {/* Page Numbers Row */}
       <div className="flex items-center space-x-1 sm:space-x-2 text-sm font-medium">
         {/* Previous Button */}

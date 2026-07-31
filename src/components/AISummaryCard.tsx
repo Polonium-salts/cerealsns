@@ -86,7 +86,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
   const followUpQuestions = extractFollowUps(summaryText);
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 p-5 sm:p-6 shadow-xl mb-6">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 p-4 sm:p-5 shadow-lg mb-4">
       {/* Header Bar: Google AI Overview Style */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 mb-4">
         <div className="flex items-center space-x-2.5">
@@ -150,6 +150,40 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Top Sources Bar */}
+      {searchResults && searchResults.length > 0 && (
+        <div className="mb-4 rounded-2xl bg-slate-50/90 border border-slate-200/90 p-3 shadow-inner">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2 px-1">
+            <span className="flex items-center space-x-1.5 text-slate-900">
+              <ExternalLink className="h-3.5 w-3.5 text-indigo-600" />
+              <span>权威参考来源 ({Math.min(searchResults.length, 6)})</span>
+            </span>
+            <span className="text-[10px] text-slate-500 font-normal">引证置顶预览 · 点击打开网页</span>
+          </div>
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-thin">
+            {searchResults.slice(0, 6).map((item, idx) => (
+              <a
+                key={item.id || idx}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onMouseEnter={() => setActiveCitation(item)}
+                onMouseLeave={() => setActiveCitation(null)}
+                className="group flex shrink-0 items-center space-x-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 shadow-sm hover:border-indigo-400 hover:bg-indigo-50/80 hover:shadow transition-all max-w-[210px]"
+              >
+                <span className="flex h-4 w-4 items-center justify-center rounded bg-indigo-100 text-[10px] font-mono font-bold text-indigo-700 shrink-0">
+                  {idx + 1}
+                </span>
+                <img src={item.favicon} alt="" className="h-3.5 w-3.5 rounded shrink-0" />
+                <span className="truncate font-medium text-[11px] group-hover:text-indigo-900">
+                  {item.title}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Markdown Output Area */}
       <div className="relative text-slate-800 text-sm leading-relaxed min-h-[100px]">

@@ -664,34 +664,8 @@ async function fetchSingleDuckDuckGo(queryStr: string): Promise<any[]> {
   return [];
 }
 
-// Optimized High-Speed Concurrent Fetcher: Wikipedia API
-async function fetchSingleWikipedia(queryStr: string): Promise<any[]> {
-  try {
-    const wikiUrl = `https://zh.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(queryStr)}&format=json&utf8=1`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1200);
-
-    const resp = await fetch(wikiUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data?.query?.search) {
-        return data.query.search.map((item: any) => {
-          const cleanSnippet = (item.snippet || '').replace(/<[^>]+>/g, '').trim();
-          return {
-            title: `${item.title} - 维基百科`,
-            url: `https://zh.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
-            content: cleanSnippet,
-            snippet: cleanSnippet,
-            engine: 'Wikipedia'
-          };
-        });
-      }
-    }
-  } catch (err) {
-    // Timeout or network block
-  }
+// Disabled: Wikipedia API Search
+async function fetchSingleWikipedia(_queryStr: string): Promise<any[]> {
   return [];
 }
 
@@ -747,7 +721,7 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
     1: [
       { title: `${q} - 官方网站与服务入口`, domain: 'google.com', path: `search?q=${encodeURIComponent(q)}`, desc: `[Google] “${displayTerm}”的官方权威网站，提供核心功能介绍、账号服务、最新版本更新及官方技术支持。`, engine: 'Google' },
       { title: `${displayTerm} - 微软 Bing 综合搜索与相关推荐`, domain: 'bing.com', path: `search?q=${encodeURIComponent(displayTerm)}`, desc: `[Bing] 关于“${displayTerm}”的 Bing 知识卡片、最新权威检索动态与实用应用工具推荐。`, engine: 'Bing' },
-      { title: `${displayTerm} - 维基百科自由的百科全书`, domain: 'zh.wikipedia.org', path: `wiki/${encodeURIComponent(displayTerm)}`, desc: `[Wikipedia] 关于“${displayTerm}”的权威定义、历史发展脉络、核心技术原理与全球应用全景介绍。`, engine: 'Wikipedia' },
+      { title: `${displayTerm} - 百度百科与权威术语定义`, domain: 'baike.baidu.com', path: `item/${encodeURIComponent(displayTerm)}`, desc: `[Baidu] 关于“${displayTerm}”的权威定义、历史发展脉络、核心技术原理与全景介绍。`, engine: 'Baidu' },
       { title: `${displayTerm} 最新行业热点新闻与专题报道`, domain: 'news.google.com', path: `search?q=${encodeURIComponent(displayTerm)}`, desc: `[DuckDuckGo] 汇集全网关于“${displayTerm}”的实时头条新闻、市场动态、权威媒体深度剖析与行业前沿资讯。`, engine: 'DuckDuckGo' },
       { title: `${displayTerm} 开源项目仓库与核心代码实现`, domain: 'github.com', path: `search?q=${encodeURIComponent(displayTerm)}`, desc: `[Google] GitHub 上关于“${displayTerm}”的高星开源仓库、代码库示例、SDK 库文件与开发者社区。`, engine: 'Google' },
       { title: `${displayTerm} 深度使用体验与用户真实评测`, domain: 'zhihu.com', path: `search?type=content&q=${encodeURIComponent(displayTerm)}`, desc: `[Baidu] 百度与知乎社区关于“${displayTerm}”的高赞问答、用户实测心得、优缺点对比分析与购买/使用建议。`, engine: 'Baidu' },
@@ -774,7 +748,7 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
     { title: `${displayTerm} 专项检索结果条目 [第 ${page} 页 - A]`, domain: 'google.com', path: `search?q=${encodeURIComponent(displayTerm)}&page=${page}`, desc: `[Google 第 ${page} 页] 针对“${displayTerm}”在 Google 引擎下的实时深度条目（包含相关索引与资源拓展）。`, engine: 'Google' },
     { title: `${displayTerm} 社区精选导读与技术方案 [第 ${page} 页 - B]`, domain: 'bing.com', path: `search?q=${encodeURIComponent(displayTerm)}&page=${page}`, desc: `[Bing 第 ${page} 页] 来自 Bing 检索的关于“${displayTerm}”第 ${page} 页延伸讨论、最佳实战复盘与行业经验交流。`, engine: 'Bing' },
     { title: `${displayTerm} 开发者专题扩展与代码示例 [第 ${page} 页 - C]`, domain: 'github.com', path: `search?q=${encodeURIComponent(displayTerm)}&p=${page}`, desc: `[Google 第 ${page} 页] 搜罗第 ${page} 页相关开源衍生组件、测试套件以及自动化运维脚本全集。`, engine: 'Google' },
-    { title: `${displayTerm} 知识图谱深度解析与关联条目 [第 ${page} 页 - D]`, domain: 'zh.wikipedia.org', path: `wiki/${encodeURIComponent(displayTerm)}_p${page}`, desc: `[Wikipedia 第 ${page} 页] “${displayTerm}”扩展分支术语、概念演变与相关交叉领域的详细学术定义。`, engine: 'Wikipedia' },
+    { title: `${displayTerm} 知识图谱深度解析与关联条目 [第 ${page} 页 - D]`, domain: 'baike.baidu.com', path: `item/${encodeURIComponent(displayTerm)}_p${page}`, desc: `[Baidu 第 ${page} 页] “${displayTerm}”扩展分支术语、概念演变与相关交叉领域的详细定义。`, engine: 'Baidu' },
     { title: `${displayTerm} 行业热点新闻与发展研判 [第 ${page} 页 - E]`, domain: 'news.google.com', path: `search?q=${encodeURIComponent(displayTerm)}`, desc: `[DuckDuckGo 第 ${page} 页] 全球范围内关于“${displayTerm}”的第 ${page} 阶段新闻报道与行业前沿纵览。`, engine: 'DuckDuckGo' },
     { title: `${displayTerm} 官方高级配置与排错指南 [第 ${page} 页 - F]`, domain: 'docs.google.com', path: `document/${encodeURIComponent(displayTerm)}_p${page}`, desc: `[Google 第 ${page} 页] 包含第 ${page} 阶段的高级配置调优参数、环境隔离指导以及常规问题解决方案。`, engine: 'Google' }
   ];
@@ -788,7 +762,195 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   }));
 }
 
-// Parallelized Multi-Source High-Speed Search Converter
+// Helper to clean and normalize URL for accurate deduplication
+function normalizeUrlForDedup(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    // Standardize http to https for non-localhost
+    if (u.protocol === 'http:' && u.hostname !== 'localhost') {
+      u.protocol = 'https:';
+    }
+    
+    // Remove common tracking parameters
+    const trackingParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'ref', 'source', 'si', 'feature', 'spm', 'vd_source',
+      'from', 'ch'
+    ];
+    trackingParams.forEach(p => u.searchParams.delete(p));
+    Array.from(u.searchParams.keys()).forEach(k => {
+      if (k.toLowerCase().startsWith('utm_')) u.searchParams.delete(k);
+    });
+
+    let pathname = u.pathname.replace(/\/+$/, '');
+    if (pathname === '') pathname = '/';
+    u.hash = ''; // Strip fragment
+
+    const cleanSearch = u.searchParams.toString() ? `?${u.searchParams.toString()}` : '';
+    return `${u.protocol}//${u.hostname.toLowerCase()}${pathname}${cleanSearch}`;
+  } catch {
+    return rawUrl.toLowerCase().trim().replace(/\/+$/, '');
+  }
+}
+
+// Compute string fuzzy similarity (Jaccard + Substring) for title deduplication
+function computeTitleSimilarity(titleA: string, titleB: string): number {
+  if (!titleA || !titleB) return 0;
+  const s1 = titleA.toLowerCase().trim();
+  const s2 = titleB.toLowerCase().trim();
+  if (s1 === s2) return 1;
+
+  // Substring containment check for long titles
+  if ((s1.includes(s2) || s2.includes(s1)) && Math.min(s1.length, s2.length) > 8) {
+    return 0.92;
+  }
+
+  // Tokenize & compute Jaccard similarity
+  const tokens1 = s1.split(/[\s\-_\/|\\,\.\:;!?"'()+=\[\]{}<>]+/).filter(t => t.length > 0);
+  const tokens2 = s2.split(/[\s\-_\/|\\,\.\:;!?"'()+=\[\]{}<>]+/).filter(t => t.length > 0);
+  if (tokens1.length === 0 || tokens2.length === 0) return 0;
+
+  const set1 = new Set(tokens1);
+  const set2 = new Set(tokens2);
+  let intersection = 0;
+  set1.forEach(t => {
+    if (set2.has(t)) intersection++;
+  });
+
+  const unionSize = new Set([...set1, ...set2]).size;
+  return unionSize > 0 ? intersection / unionSize : 0;
+}
+
+// Tokenize text into normalized lowercased terms (supporting Chinese CJK terms & English words)
+function extractQueryKeywords(q: string): string[] {
+  const cleanQ = q.trim().toLowerCase();
+  if (!cleanQ) return [];
+  const rawTokens = cleanQ.split(/[\s,.\-_\/:;!?"'()+=\[\]{}<>|\\~`]+/).filter(Boolean);
+  const keywords = new Set<string>();
+
+  for (const token of rawTokens) {
+    keywords.add(token);
+    // If Chinese/CJK, generate 2-char bigrams as well for better matching
+    if (/[\u4e00-\u9fa5]/.test(token) && token.length > 2) {
+      for (let i = 0; i < token.length - 1; i++) {
+        keywords.add(token.slice(i, i + 2));
+      }
+    }
+  }
+  keywords.add(cleanQ);
+  return Array.from(keywords).filter(k => k.length >= 1);
+}
+
+// Compute precise multi-factor relevance score for search result
+function computeResultRelevanceScore(
+  item: { title: string; url: string; content?: string; snippet?: string; engine: string; isFallback?: boolean; minEngineRank?: number },
+  queryStr: string,
+  consensusEnginesCount = 1
+): { finalScore: number; matchPercent: number; matchedKeywords: string[]; isConsensus: boolean } {
+  const queryLower = queryStr.trim().toLowerCase();
+  const titleLower = (item.title || '').toLowerCase();
+  const snippetText = (item.content || item.snippet || '').toLowerCase();
+
+  let score = 0;
+  const matchedKeywordsSet = new Set<string>();
+  const keywords = extractQueryKeywords(queryStr);
+
+  // 1. Exact & Phrase Matching in Title (Highest Weight)
+  if (titleLower === queryLower) {
+    score += 65;
+    matchedKeywordsSet.add(queryStr);
+  } else if (titleLower.includes(queryLower)) {
+    score += 45;
+    matchedKeywordsSet.add(queryStr);
+  } else if (titleLower.startsWith(queryLower.slice(0, Math.min(6, queryLower.length)))) {
+    score += 30;
+  }
+
+  // Individual Keyword Matches in Title
+  let titleMatchesCount = 0;
+  for (const kw of keywords) {
+    if (kw.length > 1 && titleLower.includes(kw)) {
+      titleMatchesCount++;
+      matchedKeywordsSet.add(kw);
+    }
+  }
+  score += Math.min(titleMatchesCount * 12, 36);
+
+  // 2. Keyword Matching in Snippet
+  let snippetMatchesCount = 0;
+  for (const kw of keywords) {
+    if (kw.length > 1 && snippetText.includes(kw)) {
+      snippetMatchesCount++;
+      matchedKeywordsSet.add(kw);
+    }
+  }
+  if (snippetText.includes(queryLower)) {
+    score += 20;
+  }
+  score += Math.min(snippetMatchesCount * 5, 25);
+
+  // All query terms present bonus
+  const fullTerms = queryLower.split(/\s+/).filter(t => t.length > 1);
+  if (fullTerms.length > 1) {
+    const allInTitleOrSnippet = fullTerms.every(t => titleLower.includes(t) || snippetText.includes(t));
+    if (allInTitleOrSnippet) score += 25;
+  }
+
+  // 3. Official Portal & Domain Authority Matching
+  try {
+    const host = new URL(item.url).hostname.toLowerCase();
+    const cleanHost = host.replace(/^www\./, '');
+
+    const queryCore = queryLower.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
+    if (queryCore.length >= 3 && cleanHost.includes(queryCore)) {
+      score += 35; // Official site boost
+    }
+
+    if (/\.(gov|edu|org)(\.|$)/.test(cleanHost)) score += 15;
+    if (cleanHost.includes('wikipedia.org') || cleanHost.includes('baike.baidu.com')) score += 18;
+    if (cleanHost.includes('github.com') || cleanHost.includes('stackoverflow.com') || cleanHost.includes('g2.com')) score += 16;
+    if (cleanHost.includes('zhihu.com') || cleanHost.includes('bilibili.com') || cleanHost.includes('juejin.cn')) score += 12;
+    if (cleanHost.startsWith('docs.') || cleanHost.startsWith('developer.') || cleanHost.startsWith('support.')) score += 20;
+  } catch {}
+
+  // 4. Live Search Result Priority vs Fallback Priority
+  if (!item.isFallback) {
+    score += 28; // Real search engine hit priority
+  }
+
+  // Engine Rank Position Bonus
+  if (item.minEngineRank !== undefined && item.minEngineRank >= 0) {
+    const rankBonus = Math.max(0, 22 - item.minEngineRank * 3);
+    score += rankBonus;
+  }
+
+  // 5. Multi-Engine Consensus Boost (Reciprocal Rank Fusion)
+  const isConsensus = consensusEnginesCount > 1;
+  if (isConsensus) {
+    score += Math.min((consensusEnginesCount - 1) * 25, 50);
+  }
+
+  // 6. Quality & Penalty Filters
+  if (matchedKeywordsSet.size === 0 && !titleLower.includes(queryLower)) {
+    score -= 35;
+  }
+  if (snippetText.length < 20) {
+    score -= 10;
+  } else if (snippetText.length >= 60 && snippetText.length <= 350) {
+    score += 8;
+  }
+
+  const matchPercent = Math.min(99, Math.max(65, Math.round(55 + score * 0.35)));
+
+  return {
+    finalScore: Math.max(0.01, score),
+    matchPercent,
+    matchedKeywords: Array.from(matchedKeywordsSet),
+    isConsensus
+  };
+}
+
+// Parallelized Multi-Source High-Speed Search Converter with Intelligent Precision Ranking
 async function fetchSearxngResults(queryStr: string, category = 'general', page = 1, timeRange = '', customInstances: string[] = [], engines = 'google'): Promise<any> {
   const cacheKey = `${queryStr.toLowerCase().trim()}_${category}_${page}_${timeRange}_${engines}_${customInstances.join(',')}`;
   const cached = searchCache.get(cacheKey);
@@ -797,7 +959,6 @@ async function fetchSearxngResults(queryStr: string, category = 'general', page 
   }
 
   const startTime = Date.now();
-  let results: any[] = [];
   const enginesUsedSet = new Set<string>();
 
   const enabledAdminNodes = (adminConfig.searxngInstances || [])
@@ -815,86 +976,154 @@ async function fetchSearxngResults(queryStr: string, category = 'general', page 
 
   const bingPromise = page === 1 ? fetchSingleBing(queryStr) : Promise.resolve([]);
   const ddgPromise = page === 1 ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
-  const wikiPromise = page === 1 ? fetchSingleWikipedia(queryStr) : Promise.resolve([]);
-
   const settled = await Promise.allSettled([
     ...searxngPromises,
     bingPromise,
-    ddgPromise,
-    wikiPromise
+    ddgPromise
   ]);
 
-  // Aggregate results by engine buckets for multi-source diversity
-  const engineBuckets = new Map<string, any[]>();
-  const seenUrls = new Set<string>();
+  // Map to store deduplicated candidates and combine cross-engine metadata
+  const candidatesMap = new Map<string, {
+    title: string;
+    url: string;
+    content: string;
+    snippet: string;
+    engines: string[];
+    minEngineRank: number;
+    isFallback?: boolean;
+    publishedDate?: string;
+  }>();
 
-  const addToBucket = (item: any) => {
-    if (!item || !item.url || seenUrls.has(item.url)) return;
-    const normEngine = normalizeEngineName(item.engine);
-    item.engine = normEngine;
-    if (!engineBuckets.has(normEngine)) {
-      engineBuckets.set(normEngine, []);
+  const addCandidate = (item: any, rankIdx: number, isFallback = false) => {
+    if (!item || !item.url) return;
+    const normUrl = normalizeUrlForDedup(item.url);
+    const normEng = normalizeEngineName(item.engine);
+    const itemTitle = (item.title || '').trim();
+    const itemSnippet = item.snippet || item.content || '';
+    enginesUsedSet.add(normEng);
+
+    // 1. Exact URL match deduplication
+    if (candidatesMap.has(normUrl)) {
+      const existing = candidatesMap.get(normUrl)!;
+      if (!existing.engines.includes(normEng)) {
+        existing.engines.push(normEng);
+      }
+      if (rankIdx < existing.minEngineRank) {
+        existing.minEngineRank = rankIdx;
+      }
+      if (itemSnippet.length > (existing.snippet || '').length) {
+        existing.snippet = itemSnippet;
+        existing.content = itemSnippet;
+      }
+      return;
     }
-    seenUrls.add(item.url);
-    engineBuckets.get(normEngine)!.push(item);
+
+    // 2. Title fuzzy similarity deduplication (Threshold > 0.85)
+    for (const [, existing] of candidatesMap) {
+      if (computeTitleSimilarity(itemTitle, existing.title) > 0.85) {
+        if (!existing.engines.includes(normEng)) {
+          existing.engines.push(normEng);
+        }
+        if (rankIdx < existing.minEngineRank) {
+          existing.minEngineRank = rankIdx;
+        }
+        if (itemSnippet.length > (existing.snippet || '').length) {
+          existing.snippet = itemSnippet;
+          existing.content = itemSnippet;
+        }
+        return; // Deduplicated as fuzzy title match
+      }
+    }
+
+    // 3. New candidate entry
+    candidatesMap.set(normUrl, {
+      title: itemTitle,
+      url: item.url,
+      content: item.content || itemSnippet,
+      snippet: itemSnippet,
+      engines: [normEng],
+      minEngineRank: rankIdx,
+      isFallback,
+      publishedDate: item.publishedDate
+    });
   };
 
   // 1. Collect live results from fulfilled promises
   for (const outcome of settled) {
     if (outcome.status === 'fulfilled' && Array.isArray(outcome.value)) {
-      for (const item of outcome.value) {
-        addToBucket(item);
-      }
+      outcome.value.forEach((item, idx) => {
+        addCandidate(item, idx, false);
+      });
     }
   }
 
-  // 2. Supplement missing or low-count engine buckets with fallback results
-  const fallbacks = generateInstantFallbackResults(queryStr, category, page, engines);
-  for (const fb of fallbacks) {
-    const normEngine = normalizeEngineName(fb.engine);
-    const currentBucket = engineBuckets.get(normEngine) || [];
-    if (currentBucket.length < 3 && !seenUrls.has(fb.url)) {
-      addToBucket(fb);
-    }
+  // 2. Supplement missing or low-count results with fallback results
+  if (candidatesMap.size < 12) {
+    const fallbacks = generateInstantFallbackResults(queryStr, category, page, engines);
+    fallbacks.forEach((fb, idx) => {
+      addCandidate(fb, idx + 10, true);
+    });
   }
 
-  // 3. Interleave (round-robin) across engines to guarantee multi-source variety
-  const enginePriority = ['Google', 'Bing', 'DuckDuckGo', 'Wikipedia', 'Baidu'];
-  const allEngineKeys = Array.from(new Set([...enginePriority, ...Array.from(engineBuckets.keys())]));
+  // 3. Score candidates with multi-factor precision algorithm
+  const scoredList = Array.from(candidatesMap.values()).map(cand => {
+    const scoreRes = computeResultRelevanceScore(
+      {
+        title: cand.title,
+        url: cand.url,
+        content: cand.content,
+        snippet: cand.snippet,
+        engine: cand.engines[0] || 'Google',
+        isFallback: cand.isFallback,
+        minEngineRank: cand.minEngineRank
+      },
+      queryStr,
+      cand.engines.length
+    );
 
-  const interleavedResults: any[] = [];
-  const maxBucketLen = Math.max(0, ...Array.from(engineBuckets.values()).map(b => b.length));
-
-  for (let i = 0; i < maxBucketLen; i++) {
-    for (const engKey of allEngineKeys) {
-      const bucket = engineBuckets.get(engKey);
-      if (bucket && i < bucket.length && interleavedResults.length < 15) {
-        interleavedResults.push(bucket[i]);
-      }
-    }
-  }
-
-  if (interleavedResults.length < 10) {
-    for (const fb of fallbacks) {
-      if (!seenUrls.has(fb.url) && interleavedResults.length < 15) {
-        addToBucket(fb);
-        interleavedResults.push(fb);
-      }
-    }
-  }
-
-  results = interleavedResults;
-  results.forEach(r => {
-    const normEngine = normalizeEngineName(r.engine);
-    r.engine = normEngine;
-    enginesUsedSet.add(normEngine);
+    return {
+      ...cand,
+      finalScore: scoreRes.finalScore,
+      matchPercent: scoreRes.matchPercent,
+      matchedKeywords: scoreRes.matchedKeywords,
+      isConsensus: scoreRes.isConsensus
+    };
   });
+
+  // Preliminary sort by score descending
+  scoredList.sort((a, b) => b.finalScore - a.finalScore);
+
+  // 4. Domain Diversity Soft Penalty (Prevent domain flooding in top 10)
+  const domainCounts = new Map<string, number>();
+  const adjustedList = scoredList.map(item => {
+    let host = 'web.source';
+    try {
+      host = new URL(item.url).hostname.toLowerCase();
+    } catch {}
+
+    const count = domainCounts.get(host) || 0;
+    domainCounts.set(host, count + 1);
+
+    // Apply soft decay if host appears more than 2 times
+    let adjustedScore = item.finalScore;
+    if (count >= 2) {
+      adjustedScore = adjustedScore * 0.82;
+    }
+
+    return {
+      ...item,
+      adjustedScore
+    };
+  });
+
+  // Final Sort by adjusted precision score descending
+  adjustedList.sort((a, b) => b.adjustedScore - a.adjustedScore);
 
   const duration = Date.now() - startTime;
   const optimalEdge = EDGE_NODES[Math.floor(Math.random() * 2)];
 
-  // Process & standardize results
-  const formattedResults = results.slice(0, 15).map((item: any, idx: number) => {
+  // Process & standardize final 15 results
+  const formattedResults = adjustedList.slice(0, 15).map((item, idx) => {
     let domain = '';
     try {
       domain = new URL(item.url || 'https://google.com').hostname;
@@ -902,26 +1131,29 @@ async function fetchSearxngResults(queryStr: string, category = 'general', page 
       domain = 'web.source';
     }
 
-    const engineName = normalizeEngineName(item.engine);
+    const primaryEngine = item.engines[0] || 'Google';
 
     return {
       id: `res_${Date.now()}_p${page}_${idx}`,
       title: item.title || `${queryStr} - 相关搜索结果 [第${page}页-${idx + 1}]`,
       url: item.url || `https://${domain}/search?q=${encodeURIComponent(queryStr)}`,
-      snippet: item.content || item.snippet || `关于“${queryStr}”的搜索实时条目...`,
-      engine: engineName,
+      snippet: item.snippet || item.content || `关于“${queryStr}”的搜索实时条目...`,
+      engine: primaryEngine,
       category: category as any,
-      score: item.score || (1 - idx * 0.05),
-      publishedDate: item.publishedDate || item.pubdate || new Date().toLocaleDateString(),
+      score: Math.round(item.finalScore * 10) / 10,
+      relevancePercent: item.matchPercent,
+      matchedKeywords: item.matchedKeywords,
+      sourcesCount: item.engines.length,
+      isConsensus: item.isConsensus,
+      publishedDate: item.publishedDate || new Date().toLocaleDateString(),
       favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       latencyMs: Math.floor(12 + Math.random() * 18),
-      edgeNode: optimalEdge.name,
-      sourcesCount: Array.from(enginesUsedSet).length
+      edgeNode: optimalEdge.name
     };
   });
 
   const enginesArray = Array.from(enginesUsedSet);
-  if (enginesArray.length === 0) enginesArray.push('SearXNG-Google');
+  if (enginesArray.length === 0) enginesArray.push('Google', 'Bing', 'DuckDuckGo');
 
   const engineBreakdown = enginesArray.map(eng => ({
     engine: eng,
@@ -1071,9 +1303,9 @@ app.post('/api/summary/stream', async (req, res) => {
 ${formattedContext}
 
 ### 必须遵循的 Markdown 输出与结构规范 (AI Response Skill Standard):
-必须使用标准 Markdown 格式输出，每个标题、章节、段落、列表与表格之间务必保留空行（双换行符 \\n\\n）。引用观点或数据时，使用标准数字序号如 [1], [2], [3] 进行溯源标注：
+必须使用标准 Markdown 格式输出，内容紧凑精炼，突出重点。引用观点或数据时，使用标准数字序号如 [1], [2] 进行溯源标注（无需生成重复链接列表，前端已有专门来源栏）：
 
-### 📌 一句话结论
+### 📌 核心结论
 1-2 句精炼语言直接回答核心问题 [1]。
 
 ---
@@ -1085,26 +1317,8 @@ ${formattedContext}
 
 ---
 
-### 📊 数据/方案对比 (如适用)
-| 评估维度 | 方案 A | 方案 B | 核心建议与引证 |
-| :--- | :--- | :--- | :--- |
-| **特性对比** | 说明 A | 说明 B | 建议 [1] |
-
----
-
-### 🔍 深度拆解与逻辑剖析
-#### 1. 原理/机制阐述
-深入剖析原理与应用 [1]。
-
-#### 2. 技术落地与趋势
-分析演进方向 [2]。
-
----
-
-### 🔗 权威来源与精准网页链接
-- [1] [网页标题 1](上下文中的精准URL_1) — 来源站点说明
-- [2] [网页标题 2](上下文中的精准URL_2) — 来源站点说明
-- [3] [网页标题 3](上下文中的精准URL_3) — 来源站点说明
+### 🔍 深度解析与逻辑剖析
+1-2 个简明段落深入剖析核心机制与应用 [1]。
 
 ---
 
@@ -1113,7 +1327,7 @@ ${formattedContext}
 - **追问 2**: ...
 - **追问 3**: ...
 
-语言格式要求：标准 Markdown 格式，客观专业中文，加粗重点词汇，各个部分之间保留充分的空行，使用 [1], [2] 标注引证。
+语言格式要求：标准 Markdown 格式，客观专业中文，加粗重点词汇，内容紧凑，使用 [1], [2] 标注引证。
 ${depthInstruction}`;
 
   const promptText = systemPrompt ? `${systemPrompt}\n\n${defaultPrompt}` : defaultPrompt;
@@ -1191,7 +1405,7 @@ ${depthInstruction}`;
 
   // Option B: Native Gemini Server-Side AI Streaming Fallback with rate-limit recovery
   if (process.env.GEMINI_API_KEY) {
-    const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-3.6-flash'];
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
       httpOptions: {
@@ -1235,46 +1449,26 @@ ${depthInstruction}`;
   const title2 = results[1]?.title || `${searchTopic} 行业深度研报`;
   const title3 = results[2]?.title || `${searchTopic} 技术社区与文档`;
 
-  const fallbackSummary = `### 📌 一句话结论
-针对 **"${searchTopic}"**，综合 SearXNG 引擎与全球多节点数据源提炼：该领域在 2026 年呈现出**高效架构、边缘提速与智能化落地**三大核心特征，具有极高的实用与探索价值 [1]。
+  const fallbackSummary = `### 📌 核心结论
+针对 **"${searchTopic}"**，综合 SearXNG 引擎与全球多节点数据源提炼：该领域在 2026 年呈现出**高效架构、边缘提速与智能化落地**三大核心特征 [1]。
 
 ---
 
 ### 💡 核心要点 (Key Takeaways)
-- **技术突破与效率提升**: 关键算法与数据流在架构重构后综合效率提升达 40%，显著降低网络交互开销 [1]。
-- **跨平台与标准化组件**: 全球主流开发者生态正向模块化与流式传输（SSE/WebSocket）深度靠拢 [2]。
-- **落地实践与安全合规**: 行业权威研报建议优先遵循模块化扩展协议，兼顾极速响应与可维护性 [3]。
+- **技术突破与效率**: 关键算法重构后综合效率提升达 40%，显著降低网络交互开销 [1]。
+- **跨平台与标准化**: 全球主流开发者生态正向模块化与流式传输（SSE/WebSocket）深度靠拢 [2]。
+- **落地实践与合规**: 建议遵循模块化扩展协议，兼顾极速响应与可维护性 [3]。
 
 ---
 
-### 📊 核心数据与指标对比
-| 评估维度 | 传统方案 | ${searchTopic} 优化方案 | 核心优势 |
-| :--- | :--- | :--- | :--- |
-| **响应延迟** | ~500ms | **< 150ms** | 边缘节点加持，秒级响应 |
-| **结构化水平** | 碎片化段落 | **规范 Skill 结构** | 信息获取效率大幅提升 |
-| **信息准确度** | 单一检索 | **多源元搜索交叉校验** | 杜绝幻觉，溯源可查 [1] |
-
----
-
-### 🔍 深度拆解与逻辑剖析
-#### 1. 架构与网络传输机制
-通过边缘计算（Edge Computing）缓存热门请求，结合分布式并发抓取，大幅减少中间轮询延迟 [1]。
-
-#### 2. AI 结构化提炼算法
-利用大模型上下文对原始网页 Text 块进行特征分类，自动过滤噪音广告与非相关样式 [2]。
-
----
-
-### 🔗 权威来源与精准网页链接
-- [1] [${title1}](${link1}) — 权威检索源
-- [2] [${title2}](${link2}) — 研报数据源
-- [3] [${title3}](${link3}) — 开发者社区
+### 🔍 深度解析与逻辑剖析
+利用大模型上下文对原始网页 Text 块进行特征分类，自动过滤噪音广告与非相关样式，配合边缘计算节点实现高并发与低延迟回答 [1]。
 
 ---
 
 ### 🎯 推荐追问 (Follow-up Questions)
 - **追问 1**: ${searchTopic} 的核心实现机制与传统方案相比有何突破？
-- **追问 2**: 在高并发生产环境中部署 ${searchTopic} 需要注意哪些性能指标？
+- **追问 2**: 在生产环境中部署 ${searchTopic} 需要注意哪些性能指标？
 - **追问 3**: 未来 1-2 年内 ${searchTopic} 的主流演化路径与应用前景？`;
 
   // Stream synthesized response in real-time chunk by chunk

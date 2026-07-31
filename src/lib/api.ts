@@ -6,7 +6,7 @@ export async function executeSearch(
   page = 1,
   timeRange = '',
   customSearxngUrls: string[] = [],
-  engines = 'google,bing,duckduckgo,wikipedia,baidu'
+  engines = 'google,bing,duckduckgo,baidu'
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     q: query,

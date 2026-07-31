@@ -26,7 +26,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterEngine, setFilterEngine] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'score' | 'latency'>('score');
+  const [sortBy, setSortBy] = useState<'score' | 'latency' | 'consensus'>('score');
 
   const handleCopyLink = (url: string, id: string) => {
     navigator.clipboard.writeText(url);
@@ -35,7 +35,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   };
 
   const presentEngines = Array.from(new Set(results.map((r) => r.engine)));
-  const allKnownEngines = ['Google', 'Bing', 'DuckDuckGo', 'Wikipedia', 'Baidu'];
+  const allKnownEngines = ['Google', 'Bing', 'DuckDuckGo', 'Baidu'];
   const engines = Array.from(new Set([...presentEngines, ...allKnownEngines.filter(e => presentEngines.includes(e))]));
   const filterableEngines = engines.length > 0 ? engines : allKnownEngines;
 
@@ -43,7 +43,8 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
     .filter((r) => filterEngine === 'all' || r.engine === filterEngine)
     .sort((a, b) => {
       if (sortBy === 'latency') return a.latencyMs - b.latencyMs;
-      return b.score - a.score;
+      if (sortBy === 'consensus') return (b.sourcesCount || 1) - (a.sourcesCount || 1);
+      return (b.score || 0) - (a.score || 0);
     });
 
   // Helper to format URL into breadcrumb style (e.g. https://domain.com › path › item)
@@ -110,7 +111,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-6 my-4 w-full max-w-4xl">
+      <div className="space-y-6 my-4 w-full">
         {[1, 2, 3, 4].map((idx) => (
           <div key={idx} className="space-y-2 animate-pulse">
             <div className="flex items-center space-x-2">
@@ -139,10 +140,10 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   }
 
   return (
-    <div className="space-y-6 my-2 w-full max-w-4xl text-slate-200 font-sans">
+    <div className="space-y-6 my-2 w-full text-slate-200 font-sans">
       
-      {/* Top Search Result Meta Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-b border-slate-800/80 pb-3">
+      {/* Top Search Result Meta Bar & Optional Site-specific Link */}
+      <div className="hidden flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-b border-slate-800/80 pb-3">
         <div className="flex items-center space-x-2">
           {query && (
             <a
@@ -154,18 +155,63 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               <span>{query.length > 20 ? query.slice(0, 20) + '...' : query} 站内的其它相关信息 »</span>
             </a>
           )}
-          {query && <span className="text-slate-500">·</span>}
-          <span>找到约 <span className="font-bold text-slate-200">{filteredResults.length}</span> 条网页结果</span>
+          <span className="text-slate-500">·</span>
+          <span>找到约 <span className="font-bold text-slate-200">{filteredResults.length}</span> 条聚合网页结果</span>
+          <span className="text-slate-500">·</span>
+          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" title="搜索数据由 SearXNG 隐私元搜索 API 实时请求并发获取">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>SearXNG 元搜索 API 驱动</span>
+          </span>
+          <span className="text-slate-500">·</span>
+          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20" title="接口响应已通过 jsDelivr 边缘 CDN 加速分发">
+            <span>⚡ jsDelivr CDN 极速加速</span>
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Quick Engine Filter Pills */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
+            <button
+              type="button"
+              onClick={() => setFilterEngine('all')}
+              className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+                filterEngine === 'all'
+                  ? 'bg-slate-200 text-slate-900 font-bold'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              所有 ({results.length})
+            </button>
+            {['Bing', 'Google', 'DuckDuckGo', 'Baidu'].map((eng) => {
+              const count = results.filter((r) => r.engine === eng).length;
+              const isActive = filterEngine === eng;
+              return (
+                <button
+                  key={eng}
+                  type="button"
+                  onClick={() => setFilterEngine(eng)}
+                  className={`rounded-full px-2.5 py-0.5 text-xs transition-colors flex items-center space-x-1 ${
+                    isActive
+                      ? 'bg-[#8ab4f8] text-slate-950 font-bold'
+                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
+                  }`}
+                >
+                  <span>{eng}</span>
+                  <span className={`text-[10px] ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Filter Dropdown */}
           <div className="flex items-center space-x-1">
             <Filter className="h-3 w-3 text-slate-400" />
             <select
               value={filterEngine}
               onChange={(e) => setFilterEngine(e.target.value)}
-              className="rounded-md border border-slate-700 bg-[#242832] px-2 py-0.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
+              className="rounded-md border border-slate-700 bg-[#242832] px-2 py-0.5 text-xs text-slate-200 focus:outline-none"
             >
               <option value="all">所有检索源 ({filterableEngines.length})</option>
               {filterableEngines.map((eng) => (
@@ -175,14 +221,22 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
           </div>
 
           {/* Sort */}
-          <div className="flex items-center space-x-1">
+          <div className="flex items-center space-x-1 border-l border-slate-700/60 pl-2">
             <button
               onClick={() => setSortBy('score')}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 sortBy === 'score' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              相关度
+              🎯 精准相关度
+            </button>
+            <button
+              onClick={() => setSortBy('consensus')}
+              className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+                sortBy === 'consensus' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ✨ 多源共识
             </button>
             <button
               onClick={() => setSortBy('latency')}
@@ -190,7 +244,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                 sortBy === 'latency' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              低延迟
+              ⚡ 低延迟
             </button>
           </div>
         </div>
@@ -232,8 +286,18 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
                 {/* Right Side Badges & Three Dots */}
                 <div className="flex items-center space-x-2 text-[11px] shrink-0 ml-2">
-                  <span className="hidden sm:inline-block rounded bg-[#272b36] px-2 py-0.5 text-slate-300 border border-slate-700/60 font-sans text-[11px]">
-                    {item.engine}
+                  {item.relevancePercent && (
+                    <span className="hidden sm:inline-block rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold" title="算法精准匹配得分">
+                      🎯 精准度 {item.relevancePercent}%
+                    </span>
+                  )}
+                  {item.isConsensus && (
+                    <span className="hidden sm:inline-block rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-semibold" title="多搜索引擎结果一致验证">
+                      ✨ {item.sourcesCount} 源共识
+                    </span>
+                  )}
+                  <span className="hidden sm:inline-block rounded bg-[#272b36] px-2 py-0.5 text-cyan-300 border border-cyan-500/30 font-mono text-[10px]" title="SearXNG 引擎来源">
+                    SearXNG · {item.engine}
                   </span>
                   <button className="text-[#9aa0a6] hover:text-slate-100 p-1 rounded transition-colors" title="更多选项">
                     <MoreVertical className="h-4 w-4" />
@@ -262,7 +326,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               </p>
 
               {/* Line 4: Action Bar */}
-              <div className="flex items-center space-x-4 text-xs text-[#9aa0a6] pt-1 opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#9aa0a6] pt-1 opacity-80 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => handleCopyLink(item.url, item.id)}
                   className="hover:text-slate-200 transition-colors flex items-center space-x-1"
@@ -280,6 +344,13 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                   {isSaved ? <BookmarkCheck className="h-3 w-3 text-[#8ab4f8]" /> : <Bookmark className="h-3 w-3" />}
                   <span>{isSaved ? '已存离线' : '离线保存'}</span>
                 </button>
+
+                {item.matchedKeywords && item.matchedKeywords.length > 0 && (
+                  <span className="text-[11px] text-slate-400/90 font-sans flex items-center space-x-1">
+                    <span className="text-slate-500">·</span>
+                    <span>命中关键词: <span className="text-slate-300">{item.matchedKeywords.slice(0, 3).join(', ')}</span></span>
+                  </span>
+                )}
               </div>
 
             </div>

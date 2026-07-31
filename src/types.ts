@@ -6,6 +6,10 @@ export interface SearchResult {
   engine: string;
   category: 'general' | 'science' | 'news' | 'it' | 'media';
   score: number;
+  relevancePercent?: number;
+  matchedKeywords?: string[];
+  sourcesCount?: number;
+  isConsensus?: boolean;
   publishedDate?: string;
   favicon?: string;
   latencyMs: number;

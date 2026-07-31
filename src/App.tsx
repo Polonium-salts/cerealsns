@@ -394,11 +394,11 @@ export default function App() {
               )}
             </div>
 
-            {/* Dual Column Layout: Search Engine Results on Left (16 ratio) & AI Answer on Right (9 ratio) */}
-            <div className="grid grid-cols-1 lg:grid-cols-[16fr_9fr] gap-6 xl:gap-8 items-start">
-              {/* Left Side: Search Engine Results (16 ratio) */}
-              <div className="w-full space-y-4 order-2 lg:order-1">
-                <div className="flex items-center justify-between pb-1 border-b border-slate-800">
+            {/* Dual Column Layout: Search Engine Results on Left (13 ratio) & AI Answer on Right (8 ratio) */}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
+              {/* Left Side: Search Engine Results (13 ratio) */}
+              <div className="w-full min-w-0 space-y-4 order-2 lg:order-1">
+                <div className="hidden items-center justify-between pb-1 border-b border-slate-800">
                   <h3 className="text-sm font-bold text-white flex items-center space-x-2">
                     <Layers className="h-4 w-4 text-blue-400" />
                     <span>搜索引擎网页结果</span>
@@ -416,8 +416,8 @@ export default function App() {
                 />
               </div>
 
-              {/* Right Side: AI Overview / AI Answer (9 ratio) */}
-              <div className="w-full space-y-4 order-1 lg:order-2">
+              {/* Right Side: AI Overview / AI Answer (8 ratio, scrolls together with search results) */}
+              <div className="w-full min-w-0 space-y-4 order-1 lg:order-2">
                 <AISummaryCard
                   query={query}
                   summaryText={summaryText}
