@@ -115,7 +115,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100 focus:border-indigo-500 focus:outline-none"
               >
                 <option value="openrouter/free">OpenRouter Free Router (自动选免费·推荐)</option>
-                <option value="google/gemma-4-31b-it:free">Google Gemma 4 31B (Free)</option>
+                <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free)</option>
                 <option value="nvidia/nemotron-3-super-120b-a12b:free">NVIDIA Nemotron 3 Super (Free)</option>
                 <option value="openai/gpt-oss-20b:free">OpenAI gpt-oss-20b (Free)</option>
                 <option value="cohere/north-mini-code:free">Cohere North Mini Code (Free)</option>

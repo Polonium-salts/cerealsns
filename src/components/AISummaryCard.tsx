@@ -363,7 +363,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
         <div className="flex flex-wrap gap-1.5">
           {[
             { id: 'openrouter/free', name: 'Free Router (推荐)' },
-            { id: 'google/gemma-4-31b-it:free', name: 'Gemma 4 (Free)' },
+            { id: 'deepseek/deepseek-r1:free', name: 'DeepSeek R1 (Free)' },
             { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'Nemotron 3 (Free)' },
             { id: 'openai/gpt-oss-20b:free', name: 'gpt-oss-20b (Free)' },
           ].map((m) => (

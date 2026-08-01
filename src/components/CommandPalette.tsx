@@ -71,11 +71,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       action: () => { onChangeModel('openrouter/free'); onClose(); }
     },
     {
-      id: 'cmd-model-gemma',
-      title: '将 AI 流式总结模型设为 Google Gemma 4 31B (Free)',
+      id: 'cmd-model-deepseek',
+      title: '将 AI 流式总结模型设为 DeepSeek R1 (Free)',
       icon: Cpu,
-      color: 'text-purple-400',
-      action: () => { onChangeModel('google/gemma-4-31b-it:free'); onClose(); }
+      color: 'text-blue-400',
+      action: () => { onChangeModel('deepseek/deepseek-r1:free'); onClose(); }
     },
     {
       id: 'cmd-config',

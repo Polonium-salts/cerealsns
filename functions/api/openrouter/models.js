@@ -11,14 +11,14 @@ export async function onRequestGet() {
       recommendedFor: '默认智能总结、快讯提炼与综合分析 (推荐)'
     },
     {
-      id: 'google/gemma-4-31b-it:free',
-      name: 'Google Gemma 4 31B (Free)',
-      provider: 'Google',
-      contextLength: 262144,
+      id: 'deepseek/deepseek-r1:free',
+      name: 'DeepSeek R1 (Free)',
+      provider: 'DeepSeek',
+      contextLength: 163840,
       pricing: { prompt: '$0.00/M', completion: '$0.00/M' },
-      latencyAvgMs: 280,
-      description: 'Google 256K 超长上下文密集多模态开源模型，完全免费。',
-      recommendedFor: '长文本长文章总结与多领域分析'
+      latencyAvgMs: 250,
+      description: 'DeepSeek 深度思考强化学习推导大模型，完全免费。',
+      recommendedFor: '深度逻辑思考、复杂长文本总结与研报分析'
     },
     {
       id: 'nvidia/nemotron-3-super-120b-a12b:free',

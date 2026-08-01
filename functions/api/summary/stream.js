@@ -72,7 +72,7 @@ ${depthInstruction}`;
 
   if (activeOpenRouterKey) {
     try {
-      const selectedModel = model || 'google/gemini-2.0-flash-001';
+      const selectedModel = model || 'deepseek/deepseek-r1:free';
       const openRouterResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -90,11 +90,57 @@ ${depthInstruction}`;
       });
 
       if (openRouterResp.ok && openRouterResp.body) {
-        return new Response(openRouterResp.body, {
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder('utf-8');
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            const reader = openRouterResp.body.getReader();
+            let buffer = '';
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (trimmed.startsWith('data: ')) {
+                    const jsonStr = trimmed.slice(6);
+                    if (jsonStr === '[DONE]') continue;
+                    try {
+                      const parsed = JSON.parse(jsonStr);
+                      const contentChunk = parsed.choices?.[0]?.delta?.content;
+                      if (contentChunk) {
+                        const eventString = `data: ${JSON.stringify({ delta: contentChunk })}\n\n`;
+                        controller.enqueue(encoder.encode(eventString));
+                      }
+                    } catch (e) {
+                      // ignore json parse error
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('Error reading OpenRouter stream:', err);
+            } finally {
+              const doneString = `data: ${JSON.stringify({ done: true, modelUsed: selectedModel, provider: 'OpenRouter' })}\n\n`;
+              controller.enqueue(encoder.encode(doneString));
+              controller.close();
+            }
+          }
+        });
+
+        return new Response(stream, {
           headers: {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
           }
         });
       }
