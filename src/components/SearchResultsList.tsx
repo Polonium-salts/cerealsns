@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, Bookmark, BookmarkCheck, Globe, Filter, MoreVertical } from 'lucide-react';
+import { Copy, Check, Bookmark, BookmarkCheck, Globe, Filter, MoreVertical, Sparkles, Bot, RefreshCw } from 'lucide-react';
 import type { SearchResult } from '../types';
 import { GooglePagination } from './GooglePagination';
 
@@ -12,6 +12,8 @@ interface SearchResultsListProps {
   currentPage?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  onAiTriggerSearXNGSearch?: () => void;
+  isAiSyncing?: boolean;
 }
 
 export const SearchResultsList: React.FC<SearchResultsListProps> = ({
@@ -23,6 +25,8 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   currentPage = 1,
   totalPages = 10,
   onPageChange,
+  onAiTriggerSearXNGSearch,
+  isAiSyncing = false,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterEngine, setFilterEngine] = useState<string>('all');
@@ -142,6 +146,42 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   return (
     <div className="space-y-6 my-2 w-full text-slate-200 font-sans">
       
+      {/* Page 1 AI Precision SearXNG Sync Banner (Hidden as requested) */}
+      {false && currentPage === 1 && (
+        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-900/25 via-indigo-900/20 to-[#18181b] p-3.5 sm:p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start space-x-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 mt-0.5">
+              <Sparkles className="h-4 w-4 text-purple-300 animate-pulse" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-white flex items-center space-x-1.5">
+                  <span>✨ 第 1 页：AI 智搜精选 & 已同步 SearXNG 全局接口</span>
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-200 border border-purple-500/30">
+                  AI 算法加权重排
+                </span>
+              </div>
+              <p className="text-[11px] text-neutral-300 leading-relaxed">
+                本页内容经过 AI 调取 SearXNG API 深度过滤与多维加权，权威内容优先展示，确保检索精准度。
+              </p>
+            </div>
+          </div>
+
+          {onAiTriggerSearXNGSearch && (
+            <button
+              onClick={onAiTriggerSearXNGSearch}
+              disabled={isAiSyncing}
+              className="shrink-0 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-600/80 hover:bg-purple-600 text-white text-xs font-semibold shadow-md border border-purple-400/30 transition-all disabled:opacity-50"
+              title="调起 AI 重新调用 SearXNG 接口并同步列表"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isAiSyncing ? 'animate-spin' : ''}`} />
+              <span>{isAiSyncing ? 'AI 检索同步中...' : 'AI 调取 SearXNG 重新同步'}</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Top Search Result Meta Bar & Optional Site-specific Link */}
       <div className="hidden flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-b border-slate-800/80 pb-3">
         <div className="flex items-center space-x-2">
@@ -286,11 +326,6 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
                 {/* Right Side Badges & Three Dots */}
                 <div className="flex items-center space-x-2 text-[11px] shrink-0 ml-2">
-                  {item.relevancePercent && (
-                    <span className="hidden sm:inline-block rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold" title="算法精准匹配得分">
-                      🎯 精准度 {item.relevancePercent}%
-                    </span>
-                  )}
                   {item.isConsensus && (
                     <span className="hidden sm:inline-block rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-semibold" title="多搜索引擎结果一致验证">
                       ✨ {item.sourcesCount} 源共识

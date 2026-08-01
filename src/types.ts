@@ -10,10 +10,14 @@ export interface SearchResult {
   matchedKeywords?: string[];
   sourcesCount?: number;
   isConsensus?: boolean;
+  isOfficial?: boolean;
   publishedDate?: string;
   favicon?: string;
   latencyMs: number;
   edgeNode: string;
+  isAiCurated?: boolean;
+  aiPrecisionTag?: string;
+  aiReasoning?: string;
 }
 
 export interface EngineStats {

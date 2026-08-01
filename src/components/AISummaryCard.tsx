@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Sparkles, Copy, Check, Download, RefreshCw, Volume2, VolumeX, ArrowRight, Cpu, Pin, ExternalLink } from 'lucide-react';
 import type { SearchResult, AppConfig } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
@@ -16,6 +17,8 @@ interface AISummaryCardProps {
   onFollowUpClick: (followUpQuery: string) => void;
   config: AppConfig;
   onUpdateConfig?: (newConfig: Partial<AppConfig>) => void;
+  onAiTriggerSearXNGSearch?: () => void;
+  isAiSyncing?: boolean;
 }
 
 export const AISummaryCard: React.FC<AISummaryCardProps> = ({
@@ -28,6 +31,8 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
   onFollowUpClick,
   config,
   onUpdateConfig,
+  onAiTriggerSearXNGSearch,
+  isAiSyncing = false,
 }) => {
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -45,8 +50,51 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
     { id: 'deep', label: '深度探究', icon: '🔍', desc: '多层逻辑梳理与前因后果长文复盘' },
   ];
 
-  // Preprocess text: Convert standalone [1], [^1^], [^1] into clickable citation links
-  const processedMarkdown = summaryText.replace(/\[\^?(\d+)\^?\]/g, '[$1](#cite-$1)');
+  // Preprocess markdown: Fix table syntax issues (concatenated rows |||, missing linebreaks) and citations
+  const formatMarkdownText = (rawText: string): string => {
+    if (!rawText) return '';
+    
+    // 1. Convert standalone [1], [^1^], [^1] into clickable citation links
+    let text = rawText.replace(/\[\^?(\d+)\^?\]/g, '[$1](#cite-$1)');
+
+    // 2. Fix multiple pipes concatenated without newlines (e.g., "||" or "|||") at table row boundaries
+    text = text.replace(/\|{2,}/g, '|\n|');
+
+    // 3. Fix missing newline between table row end pipe and next row start pipe
+    text = text.replace(/\|\s*\|\s*(?=[-:\s]*\|)/g, '|\n|');
+
+    // 4. Ensure line breaks before and after table blocks
+    const lines = text.split('\n');
+    const resultLines: string[] = [];
+    let inTable = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      const isTableLine = line.startsWith('|') && line.endsWith('|');
+
+      if (isTableLine) {
+        if (!inTable) {
+          inTable = true;
+          if (resultLines.length > 0 && resultLines[resultLines.length - 1].trim() !== '') {
+            resultLines.push('');
+          }
+        }
+        resultLines.push(line);
+      } else {
+        if (inTable) {
+          inTable = false;
+          if (line !== '') {
+            resultLines.push('');
+          }
+        }
+        resultLines.push(lines[i]);
+      }
+    }
+
+    return resultLines.join('\n');
+  };
+
+  const processedMarkdown = formatMarkdownText(summaryText);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(summaryText);
@@ -103,18 +151,18 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
     <Card className={`relative overflow-hidden border-[#27272a] bg-[#18181b] shadow-2xl transition-all ${isPinned ? 'lg:sticky lg:top-20' : ''}`}>
       {/* Header */}
       <CardHeader className="pb-3 border-b border-[#27272a] hidden">
-        <div className="flex items-center justify-between hidden">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#27272a] text-white border border-[#3f3f46]">
-              <Sparkles className="h-4 w-4 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
+              <Sparkles className="h-4 w-4 text-purple-300 animate-pulse" />
             </div>
             <div>
               <CardTitle className="text-sm font-bold text-white flex items-center space-x-2">
-                <span>AI 搜索概览结果</span>
+                <span>AI 智搜精选概览</span>
                 {isStreaming && (
                   <Badge variant="secondary" className="animate-pulse bg-[#27272a] text-neutral-200 border-[#3f3f46]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white mr-1.5 animate-ping" />
-                    思考生成中...
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-400 mr-1.5 animate-ping" />
+                    SearXNG 思考生成中...
                   </Badge>
                 )}
               </CardTitle>
@@ -129,6 +177,19 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
 
           {/* Top Actions */}
           <div className="flex items-center space-x-1">
+            {onAiTriggerSearXNGSearch && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAiTriggerSearXNGSearch}
+                disabled={isAiSyncing}
+                className="h-7 px-2.5 text-[11px] bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/30 hover:text-white transition-all flex items-center space-x-1 mr-1"
+                title="调起 AI 重新请求全局 SearXNG API 并同步左侧精准列表"
+              >
+                <RefreshCw className={`h-3 w-3 ${isAiSyncing ? 'animate-spin' : ''}`} />
+                <span>{isAiSyncing ? '同步中...' : 'SearXNG API 列表同步'}</span>
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -207,10 +268,36 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
 
       {/* Main Content Area */}
       <CardContent className="pt-4 space-y-4">
+        {/* Source References Pill Grid (Moved to top) */}
+        {searchResults.length > 0 && (
+          <div className="pb-3 border-b border-[#27272a]">
+            <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-2">
+              <span className="font-medium text-neutral-300">主要信息引用源 ({searchResults.slice(0, 5).length})：</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {searchResults.slice(0, 5).map((item, idx) => (
+                <a
+                  key={idx}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-xl bg-[#232326] hover:bg-[#27272a] border border-[#2e2e32] text-[10px] text-neutral-300 hover:text-white transition-colors truncate flex items-center space-x-1.5"
+                >
+                  <span className="h-4 w-4 rounded-full bg-[#27272a] text-white flex items-center justify-center font-bold text-[9px] shrink-0 border border-[#3f3f46]">
+                    {idx + 1}
+                  </span>
+                  <span className="truncate">{item.title}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Markdown Render Area */}
         <div className="prose prose-invert prose-sm max-w-none text-neutral-200 leading-relaxed text-xs sm:text-sm">
           {summaryText ? (
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 a: ({ href, children }) => {
                   if (href?.startsWith('#cite-')) {
@@ -305,31 +392,6 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                   <span className="line-clamp-1">{q}</span>
                   <ArrowRight className="h-3 w-3 text-neutral-400 group-hover:text-white transition-colors" />
                 </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Source References Pill Grid */}
-        {searchResults.length > 0 && (
-          <div className="pt-3 border-t border-[#27272a]">
-            <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-2">
-              <span>主要信息引用源 ({searchResults.slice(0, 5).length})：</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-              {searchResults.slice(0, 5).map((item, idx) => (
-                <a
-                  key={idx}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-xl bg-[#232326] hover:bg-[#27272a] border border-[#2e2e32] text-[10px] text-neutral-300 hover:text-white transition-colors truncate flex items-center space-x-1.5"
-                >
-                  <span className="h-4 w-4 rounded-full bg-[#27272a] text-white flex items-center justify-center font-bold text-[9px] shrink-0 border border-[#3f3f46]">
-                    {idx + 1}
-                  </span>
-                  <span className="truncate">{item.title}</span>
-                </a>
               ))}
             </div>
           </div>

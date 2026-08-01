@@ -9,7 +9,7 @@ import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminApiPanel } from './components/admin/AdminApiPanel';
 import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryItem } from './types';
-import { executeSearch, streamAISummary, fetchEdgeNodes } from './lib/api';
+import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
 import { loadAppConfigFromFirebase, saveAppConfigToFirebase } from './lib/firebase';
 import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Server, Shield } from 'lucide-react';
@@ -38,6 +38,7 @@ export default function App() {
   // Streaming AI summary state
   const [summaryText, setSummaryText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isAiSyncing, setIsAiSyncing] = useState(false);
   const [summaryModel, setSummaryModel] = useState('OpenRouter Free Auto');
   const cancelStreamRef = useRef<(() => void) | null>(null);
 
@@ -199,6 +200,24 @@ export default function App() {
   const handlePageChange = (newPage: number) => {
     handleExecuteSearch(query, category, timeRange, true, true, newPage, 'google');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // AI Tool Calling SearXNG API & Sync Search Results List
+  const handleAiTriggerSearXNGSearch = async () => {
+    if (!query.trim()) return;
+    setIsAiSyncing(true);
+    try {
+      const syncedData = await triggerAISearXNGToolSearch(query, category, config.customSearxngUrls);
+      setSearchData(syncedData);
+      setIsAiSyncing(false);
+      // Re-trigger AI summary stream with synced precise results
+      if (syncedData.results.length > 0) {
+        startStreamingSummary(query, syncedData.results, config.openrouterModel);
+      }
+    } catch (e) {
+      console.error('AI SearXNG sync failed:', e);
+      setIsAiSyncing(false);
+    }
   };
 
   // Start Streaming AI Summary
@@ -420,6 +439,8 @@ export default function App() {
                   currentPage={currentPage}
                   totalPages={searchData?.totalPages || 10}
                   onPageChange={handlePageChange}
+                  onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                  isAiSyncing={isAiSyncing}
                 />
               </div>
 
@@ -439,6 +460,8 @@ export default function App() {
                   onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
                   config={config}
                   onUpdateConfig={handleSaveConfig}
+                  onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                  isAiSyncing={isAiSyncing}
                 />
               </div>
             </div>
