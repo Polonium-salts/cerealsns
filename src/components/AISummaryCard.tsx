@@ -102,8 +102,8 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
   return (
     <Card className={`relative overflow-hidden border-[#27272a] bg-[#18181b] shadow-2xl transition-all ${isPinned ? 'lg:sticky lg:top-20' : ''}`}>
       {/* Header */}
-      <CardHeader className="pb-3 border-b border-[#27272a]">
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-3 border-b border-[#27272a] hidden">
+        <div className="flex items-center justify-between hidden">
           <div className="flex items-center space-x-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#27272a] text-white border border-[#3f3f46]">
               <Sparkles className="h-4 w-4 text-white" />
@@ -232,13 +232,23 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                     </a>
                   );
                 },
-                h1: ({ children }) => <h1 className="text-base font-bold text-white my-2">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-sm font-bold text-neutral-100 my-1.5">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-xs font-bold text-neutral-200 my-1">{children}</h3>,
-                p: ({ children }) => <p className="my-1.5">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc list-inside my-1.5 space-y-1">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside my-1.5 space-y-1">{children}</ol>,
-                li: ({ children }) => <li className="text-neutral-300">{children}</li>,
+                h1: ({ children }) => <h1 className="text-base font-bold text-white my-2.5">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-sm font-bold text-neutral-100 my-2">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-xs sm:text-sm font-bold text-white mt-3 mb-1.5 flex items-center space-x-1.5 border-b border-[#27272a] pb-1">{children}</h3>,
+                p: ({ children }) => <p className="my-1.5 text-neutral-300 leading-relaxed text-xs sm:text-sm">{children}</p>,
+                strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                hr: () => <hr className="my-3 border-[#27272a]" />,
+                ul: ({ children }) => <ul className="list-disc list-inside my-2 space-y-1.5 text-neutral-300">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside my-2 space-y-1.5 text-neutral-300">{children}</ol>,
+                li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs sm:text-sm">{children}</li>,
+                table: ({ children }) => (
+                  <div className="overflow-x-auto my-3 rounded-xl border border-[#27272a] bg-[#232326] p-1">
+                    <table className="w-full text-left text-xs border-collapse">{children}</table>
+                  </div>
+                ),
+                thead: ({ children }) => <thead className="bg-[#1c1c1f] text-white border-b border-[#27272a]">{children}</thead>,
+                th: ({ children }) => <th className="p-2 font-bold text-white">{children}</th>,
+                td: ({ children }) => <td className="p-2 border-t border-[#27272a] text-neutral-300">{children}</td>,
                 code: ({ children }) => (
                   <code className="rounded-lg bg-[#232326] px-1.5 py-0.5 text-[11px] font-mono text-neutral-200 border border-[#2e2e32]">
                     {children}

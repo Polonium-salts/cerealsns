@@ -798,195 +798,256 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   }));
 }
 
-// Helper: Query Cleaning Skill 1.1 & Intent Recognition Skill 1.3
-function cleanSearchQuery(q: string): string {
-  if (!q) return '';
-  // 保留中文、英文、数字、空格和 -+ 号，长度 ≤ 100 字符，合并连续空格
-  let cleaned = q.replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s\-+]/g, '');
-  if (cleaned.length > 100) {
-    cleaned = cleaned.substring(0, 100);
+// 一、查询预处理层 (QueryProcessor)
+class QueryProcessor {
+  static clean(q: string): string {
+    if (!q) return '';
+    return q
+      .replace(/[^\w\s\u4e00-\u9fa5\-\+\.\/\\:]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 100);
   }
-  return cleaned.replace(/\s+/g, ' ').trim();
-}
 
-function detectQueryIntent(q: string): { intent: string; engines: string } {
-  if (/error|bug|exception|github|python|javascript|react/i.test(q)) {
-    return { intent: 'code', engines: 'duckduckgo,brave,bing' };
-  }
-  if (/论文|paper|arxiv|scholar|research/i.test(q)) {
-    return { intent: 'academic', engines: 'google_scholar,brave,bing' };
-  }
-  if (/新闻|news|最新|today|202[5-9]/i.test(q)) {
-    return { intent: 'news', engines: 'duckduckgo,bing' };
-  }
-  if (/图片|image|photo|png|jpg/i.test(q)) {
-    return { intent: 'image', engines: 'duckduckgo,bing' };
-  }
-  if (/[\u4e00-\u9fa5]{4,}/.test(q)) {
-    return { intent: 'zh', engines: 'bing,duckduckgo' };
-  }
-  return { intent: 'general', engines: 'duckduckgo,brave,bing' };
-}
+  static detectIntent(q: string): string {
+    const patterns: Record<string, RegExp> = {
+      code: /\b(error|bug|exception|crash|debug|github|stackoverflow|npm|pip|cargo|gradle|react|vue|angular|django|flask|spring)\b/i,
+      academic: /\b(论文|paper|arxiv|scholar|thesis|dissertation|doi|journal|conference|research|survey)\b/i,
+      news: /\b(新闻|news|最新|breaking|today|yesterday|刚刚|报道|快讯)\b/i,
+      image: /\b(图片|image|photo|pic|png|jpg|jpeg|gif|壁纸|screenshot)\b/i,
+      video: /\b(视频|video|youtube|bilibili|b站|抖音|tiktok|教程)\b/i,
+      shopping: /\b(价格|多少钱|buy|purchase|amazon|taobao|jd|购物)\b/i,
+      zh: /[\u4e00-\u9fa5]{2,}/,
+    };
 
-// Helper to clean and normalize URL for accurate deduplication (Skill 2.1)
-function normalizeUrlForDedup(rawUrl: string): string {
-  try {
-    const u = new URL(rawUrl);
-    // Standardize http to https for non-localhost
-    if (u.protocol === 'http:' && u.hostname !== 'localhost') {
-      u.protocol = 'https:';
+    for (const [intent, regex] of Object.entries(patterns)) {
+      if (regex.test(q)) return intent;
     }
-    
-    // Remove common tracking parameters (utm_*, fbclid, gclid, ref, source, si, feature, etc.)
-    const trackingParams = [
-      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-      'fbclid', 'gclid', 'ref', 'source', 'si', 'feature', 'spm', 'vd_source',
-      'from', 'ch'
-    ];
-    trackingParams.forEach(p => u.searchParams.delete(p));
-    Array.from(u.searchParams.keys()).forEach(k => {
-      if (k.toLowerCase().startsWith('utm_')) u.searchParams.delete(k);
-    });
+    return 'general';
+  }
 
-    let pathname = u.pathname.replace(/\/+$/, '');
-    if (pathname === '') pathname = '/';
-    u.hash = ''; // Strip fragment
+  static expand(q: string, intent: string): string {
+    const expansions: Record<string, string> = {
+      code: `${q} (site:stackoverflow.com OR site:github.com OR site:developer.mozilla.org)`,
+      academic: `${q} (site:arxiv.org OR site:scholar.google.com OR filetype:pdf)`,
+      news: `${q} after:2025-01-01`,
+    };
+    return expansions[intent] || q;
+  }
 
-    const cleanSearch = u.searchParams.toString() ? `?${u.searchParams.toString()}` : '';
-    return `${u.protocol}//${u.hostname.toLowerCase()}${pathname}${cleanSearch}`;
-  } catch {
-    return rawUrl.toLowerCase().trim().replace(/\/+$/, '');
+  static getEngines(intent: string): string[] {
+    const map: Record<string, string[]> = {
+      code: ['duckduckgo', 'bing', 'brave'],
+      academic: ['google_scholar', 'bing', 'brave'],
+      news: ['bing', 'duckduckgo'],
+      image: ['bing', 'duckduckgo'],
+      video: ['bing', 'duckduckgo'],
+      general: ['duckduckgo', 'brave', 'bing'],
+      zh: ['bing', 'duckduckgo'],
+    };
+    return map[intent] || map.general;
   }
 }
 
-// Compute Jaccard Title Similarity (Skill 2.2: Threshold > 0.88)
-function computeTitleSimilarity(titleA: string, titleB: string): number {
-  if (!titleA || !titleB) return 0;
-  const s1 = titleA.toLowerCase().trim();
-  const s2 = titleB.toLowerCase().trim();
-  if (s1 === s2) return 1;
-
-  const tokens1 = s1.split(/[\s\-_\/|\\,\.\:;!?"'()+=\[\]{}<>]+/).filter(Boolean);
-  const tokens2 = s2.split(/[\s\-_\/|\\,\.\:;!?"'()+=\[\]{}<>]+/).filter(Boolean);
-  if (tokens1.length === 0 || tokens2.length === 0) return 0;
-
-  const set1 = new Set(tokens1);
-  const set2 = new Set(tokens2);
-  let intersection = 0;
-  set1.forEach(t => {
-    if (set2.has(t)) intersection++;
-  });
-
-  const unionSize = new Set([...set1, ...set2]).size;
-  return unionSize > 0 ? intersection / unionSize : 0;
-}
-
-// Tokenize text into normalized lowercased terms
-function extractQueryKeywords(q: string): string[] {
-  const cleanQ = q.trim().toLowerCase();
-  if (!cleanQ) return [];
-  const rawTokens = cleanQ.split(/[\s,.\-_\/:;!?"'()+=\[\]{}<>|\\~`]+/).filter(Boolean);
-  const keywords = new Set<string>();
-
-  for (const token of rawTokens) {
-    keywords.add(token);
-    if (/[\u4e00-\u9fa5]/.test(token) && token.length > 2) {
-      for (let i = 0; i < token.length - 1; i++) {
-        keywords.add(token.slice(i, i + 2));
+// 二、URL 规范化 (URLNormalizer)
+class URLNormalizer {
+  static normalize(url: string): string | null {
+    try {
+      const u = new URL(url);
+      if (u.protocol === 'http:' && u.hostname !== 'localhost') {
+        u.protocol = 'https:';
       }
+      u.hostname = u.hostname.replace(/^www\./, '').toLowerCase();
+
+      const spamParams = [
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+        'utm_id', 'utm_reader', 'utm_place', 'utm_user',
+        'fbclid', 'gclid', 'dclid', 'msclkid',
+        'ref', 'referrer', 'source', 'from',
+        'si', 'feature', 's', 't', 'r',
+        'spm', 'scm', 'pvid', 'scm_id', 'scm_url',
+        'cota', 'fr', 'frw', 'seid', 'vd_source',
+      ];
+      spamParams.forEach(p => u.searchParams.delete(p));
+      Array.from(u.searchParams.keys()).forEach(k => {
+        if (k.toLowerCase().startsWith('utm_')) u.searchParams.delete(k);
+      });
+
+      if (!u.searchParams.toString()) u.search = '';
+      u.hash = '';
+      u.pathname = u.pathname.replace(/\/+$/, '') || '/';
+
+      return u.toString();
+    } catch {
+      return null;
     }
   }
-  keywords.add(cleanQ);
-  return Array.from(keywords).filter(k => k.length >= 1);
+
+  static getDomain(url: string): string {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+    } catch {
+      return '';
+    }
+  }
 }
 
-// Skill 2.3 重排序评分公式:
-// score = title_match * 15 + content_match * 5 + domain_authority + engine_weight + quality_bonus
-function computeResultRelevanceScore(
-  item: { title: string; url: string; content?: string; snippet?: string; engine: string },
-  queryStr: string
-): { finalScore: number; matchPercent: number; matchedKeywords: string[] } {
-  const queryLower = queryStr.trim().toLowerCase();
-  const titleLower = (item.title || '').toLowerCase();
-  const snippetText = (item.content || item.snippet || '').toLowerCase();
+// 三、结果去重 + 质量评分 + 重排 (ResultProcessor)
+class ResultProcessor {
+  domainScores: Record<string, number>;
 
-  const keywords = extractQueryKeywords(queryStr);
-  const matchedKeywordsSet = new Set<string>();
-
-  // 1. Title Match Score
-  let titleMatchFactor = 0;
-  if (titleLower.includes(queryLower)) {
-    titleMatchFactor = 1;
-    matchedKeywordsSet.add(queryStr);
-  } else {
-    let matches = 0;
-    for (const kw of keywords) {
-      if (kw.length > 1 && titleLower.includes(kw)) {
-        matches++;
-        matchedKeywordsSet.add(kw);
-      }
-    }
-    titleMatchFactor = keywords.length > 0 ? matches / keywords.length : 0;
+  constructor() {
+    this.domainScores = {
+      'github.com': 50,
+      'stackoverflow.com': 50,
+      'developer.mozilla.org': 45,
+      'wikipedia.org': 45,
+      'docs.python.org': 45,
+      'react.dev': 45,
+      'vuejs.org': 45,
+      'angular.io': 45,
+      'zhihu.com': 20,
+      'juejin.cn': 18,
+      'segmentfault.com': 15,
+      'csdn.net': 2,
+      'blog.csdn.net': 2,
+      'baijiahao.baidu.com': -100, // 黑名单/屏蔽
+      'mp.weixin.qq.com': -30,
+      'sohu.com': -20,
+      'sina.com.cn': -20,
+      '163.com': -15,
+      'toutiao.com': -40,
+    };
   }
-  const titleScore = titleMatchFactor * 15;
 
-  // 2. Content Match Score
-  let contentMatchFactor = 0;
-  if (snippetText.includes(queryLower)) {
-    contentMatchFactor = 1;
-    matchedKeywordsSet.add(queryStr);
-  } else {
-    let matches = 0;
-    for (const kw of keywords) {
-      if (kw.length > 1 && snippetText.includes(kw)) {
-        matches++;
-        matchedKeywordsSet.add(kw);
+  deduplicate(results: any[]) {
+    const seen = new Map<string, any>();
+    const domainCount = new Map<string, number>();
+
+    for (const item of results) {
+      if (!item || !item.url) continue;
+      const normalized = URLNormalizer.normalize(item.url);
+      if (!normalized) continue;
+
+      const domain = URLNormalizer.getDomain(normalized);
+
+      // 域名黑名单 (<= -50 直接屏蔽)
+      if ((this.domainScores[domain] || 0) <= -50) continue;
+
+      // 域名频次控制（同一域名最多 2 条）
+      const dc = domainCount.get(domain) || 0;
+      if (dc >= 2) continue;
+
+      // URL 精确去重：保留质量更好的
+      const existing = seen.get(normalized);
+      if (existing) {
+        if (this.qualityScore(item) > this.qualityScore(existing)) {
+          seen.set(normalized, item);
+        }
+        continue;
       }
+
+      // 标题模糊去重
+      if (this.isTitleDuplicate(item, seen)) continue;
+
+      seen.set(normalized, item);
+      domainCount.set(domain, dc + 1);
     }
-    contentMatchFactor = keywords.length > 0 ? matches / keywords.length : 0;
+
+    return Array.from(seen.values());
   }
-  const contentScore = contentMatchFactor * 5;
 
-  // 3. Domain Authority Score
-  let domainAuthority = 0;
-  try {
-    const host = new URL(item.url).hostname.toLowerCase();
-    if (host.includes('wikipedia.org')) domainAuthority = 20;
-    else if (host.includes('github.com') || host.includes('stackoverflow.com')) domainAuthority = 18;
-    else if (host.includes('developer.mozilla.org')) domainAuthority = 16;
-    else if (host.includes('zhihu.com')) domainAuthority = 12;
-    else if (host.includes('juejin.cn')) domainAuthority = 10;
-    else if (host.includes('csdn.net')) domainAuthority = 5;
-    else if (host.includes('baijiahao.baidu.com')) domainAuthority = -10;
-  } catch {}
+  isTitleDuplicate(item: any, seenMap: Map<string, any>) {
+    const title = (item.title || '').toLowerCase().trim();
+    if (!title) return false;
 
-  // 4. Engine Weight Score
-  let engineWeight = 0;
-  const eng = (item.engine || '').toLowerCase();
-  if (eng.includes('duck')) engineWeight = 3;
-  else if (eng.includes('brave')) engineWeight = 2;
-  else if (eng.includes('bing')) engineWeight = 2;
-  else if (eng.includes('google')) engineWeight = 1;
+    for (const existing of seenMap.values()) {
+      const eTitle = (existing.title || '').toLowerCase().trim();
+      if (this.similarity(title, eTitle) > 0.88) return true;
+    }
+    return false;
+  }
 
-  // 5. Quality Bonus
-  let qualityBonus = 0;
-  if (snippetText.length >= 60 && snippetText.length <= 400) qualityBonus = 5;
+  similarity(a: string, b: string) {
+    if (a === b) return 1;
+    if ((a.includes(b) || b.includes(a)) && Math.min(a.length, b.length) > 6) return 0.95;
 
-  const totalScore = titleScore + contentScore + domainAuthority + engineWeight + qualityBonus;
-  const matchPercent = Math.min(99, Math.max(65, Math.round(60 + totalScore * 0.8)));
+    const setA = new Set(a.split(/\s+/).filter(Boolean));
+    const setB = new Set(b.split(/\s+/).filter(Boolean));
+    if (!setA.size || !setB.size) return 0;
 
-  return {
-    finalScore: Math.max(0.1, totalScore),
-    matchPercent,
-    matchedKeywords: Array.from(matchedKeywordsSet)
-  };
+    const intersection = new Set([...setA].filter(x => setB.has(x)));
+    const union = new Set([...setA, ...setB]);
+    return intersection.size / union.size;
+  }
+
+  qualityScore(item: any) {
+    let score = 0;
+    const content = (item.content || item.snippet || '').length;
+    if (content > 300) score += 15;
+    else if (content > 100) score += 8;
+    else if (content < 30) score -= 10;
+
+    if ((item.title || '').length > 10) score += 5;
+    return score;
+  }
+
+  rerank(results: any[], query: string) {
+    const queryLower = query.toLowerCase();
+    const queryWords = queryLower.split(/\s+/).filter(Boolean);
+
+    return results.map(r => ({
+      ...r,
+      _score: this.calculateScore(r, queryLower, queryWords),
+    })).sort((a, b) => b._score - a._score);
+  }
+
+  calculateScore(item: any, query: string, queryWords: string[]) {
+    let score = 0;
+    const title = (item.title || '').toLowerCase();
+    const content = (item.content || item.snippet || '').toLowerCase();
+    const domain = URLNormalizer.getDomain(item.url);
+
+    // 1. 标题匹配（最高权重）
+    if (title === query) score += 200;
+    else if (title.includes(query)) score += 100;
+    else {
+      const matched = queryWords.filter(w => title.includes(w)).length;
+      score += matched * 25;
+    }
+
+    // 2. 内容匹配
+    if (content.includes(query)) score += 40;
+    else {
+      const matched = queryWords.filter(w => content.includes(w)).length;
+      score += matched * 8;
+    }
+
+    // 3. 域名权威分
+    score += this.domainScores[domain] || 5;
+
+    // 4. 时效性（标题含今年年份加分）
+    const year = new Date().getFullYear();
+    if (title.includes(String(year))) score += 20;
+    if (title.includes(String(year - 1))) score += 10;
+
+    // 5. 内容质量
+    score += this.qualityScore(item);
+
+    // 6. 引擎权重
+    const engineWeight: Record<string, number> = { duckduckgo: 5, brave: 5, bing: 3, google_scholar: 8 };
+    score += engineWeight[item.engine] || 2;
+
+    return score;
+  }
 }
 
 // Parallelized Multi-Source High-Speed Search Converter with Intelligent Precision Ranking
 async function fetchSearxngResults(rawQueryStr: string, category = 'general', page = 1, timeRange = '', customInstances: string[] = [], enginesOverride = ''): Promise<any> {
-  const queryStr = cleanSearchQuery(rawQueryStr);
-  const { intent, engines: intentEngines } = detectQueryIntent(queryStr);
-  const engines = enginesOverride || intentEngines;
+  const queryStr = QueryProcessor.clean(rawQueryStr);
+  const intent = QueryProcessor.detectIntent(queryStr);
+  const expandedQuery = QueryProcessor.expand(queryStr, intent);
+  const engines = enginesOverride || QueryProcessor.getEngines(intent).join(',');
 
   const cacheKey = `${queryStr.toLowerCase().trim()}_${category}_${page}_${timeRange}_${engines}_${customInstances.join(',')}`;
   const cached = searchCache.get(cacheKey);
@@ -1004,10 +1065,10 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   const instancesToTry = [...customInstances.filter(Boolean), ...enabledAdminNodes, ...DEFAULT_SEARXNG_INSTANCES];
   const topInstances = Array.from(new Set(instancesToTry)).slice(0, 4);
 
-  // Fire ALL requests concurrently in PARALLEL
+  // Fire ALL requests concurrently in PARALLEL with expandedQuery
   const searxngPromises = topInstances.map(inst => {
     const cleanInstance = inst.endsWith('/') ? inst.slice(0, -1) : inst;
-    return fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines);
+    return fetchSingleSearxngInstance(cleanInstance, expandedQuery, category, page, timeRange, engines);
   });
 
   const bingPromise = page === 1 ? fetchSingleBing(queryStr) : Promise.resolve([]);
@@ -1018,136 +1079,39 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     ddgPromise
   ]);
 
-  // Map to store deduplicated candidates and combine cross-engine metadata
-  const candidatesMap = new Map<string, {
-    title: string;
-    url: string;
-    content: string;
-    snippet: string;
-    engines: string[];
-    minEngineRank: number;
-    isFallback?: boolean;
-    publishedDate?: string;
-  }>();
+  const rawCandidateList: any[] = [];
 
-  // Track domain counts for Skill 2.2 Domain frequency control (max 2 entries per domain)
-  const domainEntryCounts = new Map<string, number>();
-
-  const addCandidate = (item: any, rankIdx: number, isFallback = false) => {
-    if (!item || !item.url) return;
-    const normUrl = normalizeUrlForDedup(item.url);
-    const normEng = normalizeEngineName(item.engine);
-    const itemTitle = (item.title || '').trim();
-    const itemSnippet = item.snippet || item.content || '';
-    enginesUsedSet.add(normEng);
-
-    let domain = 'web.source';
-    try { domain = new URL(item.url).hostname.toLowerCase(); } catch {}
-
-    // Skill 2.2: 同一域名最多保留 2 条
-    const currentDomainCount = domainEntryCounts.get(domain) || 0;
-
-    // 1. Exact URL match deduplication
-    if (candidatesMap.has(normUrl)) {
-      const existing = candidatesMap.get(normUrl)!;
-      if (!existing.engines.includes(normEng)) {
-        existing.engines.push(normEng);
-      }
-      if (itemSnippet.length > (existing.snippet || '').length) {
-        existing.snippet = itemSnippet;
-        existing.content = itemSnippet;
-      }
-      return;
-    }
-
-    // 2. Skill 2.2: Title fuzzy similarity deduplication (Jaccard similarity > 0.88 treated as duplicate)
-    for (const [, existing] of candidatesMap) {
-      if (computeTitleSimilarity(itemTitle, existing.title) > 0.88) {
-        if (!existing.engines.includes(normEng)) {
-          existing.engines.push(normEng);
-        }
-        if (itemSnippet.length > (existing.snippet || '').length) {
-          existing.snippet = itemSnippet;
-          existing.content = itemSnippet;
-        }
-        return; // Deduplicated as title match
-      }
-    }
-
-    // Check domain frequency limit (Max 2)
-    if (currentDomainCount >= 2 && !isFallback) {
-      return;
-    }
-
-    domainEntryCounts.set(domain, currentDomainCount + 1);
-
-    // 3. New candidate entry
-    candidatesMap.set(normUrl, {
-      title: itemTitle,
-      url: item.url,
-      content: item.content || itemSnippet,
-      snippet: itemSnippet,
-      engines: [normEng],
-      minEngineRank: rankIdx,
-      isFallback,
-      publishedDate: item.publishedDate
-    });
-  };
-
-  // 1. Collect live results
+  // Collect live results
   for (const outcome of settled) {
     if (outcome.status === 'fulfilled' && Array.isArray(outcome.value)) {
-      outcome.value.forEach((item, idx) => {
-        addCandidate(item, idx, false);
+      outcome.value.forEach((item) => {
+        if (item && item.url) {
+          enginesUsedSet.add(normalizeEngineName(item.engine));
+          rawCandidateList.push(item);
+        }
       });
     }
   }
 
-  // 2. Supplement missing or low-count results with fallback results if < 8
-  if (candidatesMap.size < 8) {
+  // Supplement missing or low-count results with fallback results if < 8
+  if (rawCandidateList.length < 8) {
     const fallbacks = generateInstantFallbackResults(queryStr, category, page, engines);
-    fallbacks.forEach((fb, idx) => {
-      addCandidate(fb, idx + 10, true);
-    });
+    rawCandidateList.push(...fallbacks);
   }
 
-  // 3. Score candidates using Skill 2.3 Reranking scoring formula
-  const scoredList = Array.from(candidatesMap.values()).map(cand => {
-    const scoreRes = computeResultRelevanceScore(
-      {
-        title: cand.title,
-        url: cand.url,
-        content: cand.content,
-        snippet: cand.snippet,
-        engine: cand.engines[0] || 'Google',
-      },
-      queryStr
-    );
-
-    return {
-      ...cand,
-      finalScore: scoreRes.finalScore,
-      matchPercent: scoreRes.matchPercent,
-      matchedKeywords: scoreRes.matchedKeywords
-    };
-  });
-
-  // Sort by final score descending
-  scoredList.sort((a, b) => b.finalScore - a.finalScore);
+  // Process raw candidate results: Deduplicate & Rerank
+  const processor = new ResultProcessor();
+  const dedupedResults = processor.deduplicate(rawCandidateList);
+  const rankedResults = processor.rerank(dedupedResults, queryStr);
 
   const duration = Date.now() - startTime;
   const optimalEdge = EDGE_NODES[Math.floor(Math.random() * 2)];
 
   // Process & standardize final results
-  const formattedResults = scoredList.slice(0, 15).map((item, idx) => {
-    let domain = '';
-    try {
-      domain = new URL(item.url || 'https://google.com').hostname;
-    } catch {
-      domain = 'web.source';
-    }
-
-    const primaryEngine = item.engines[0] || 'Google';
+  const formattedResults = rankedResults.slice(0, 15).map((item, idx) => {
+    const domain = URLNormalizer.getDomain(item.url) || 'web.source';
+    const primaryEngine = normalizeEngineName(item.engine || 'Google');
+    const matchedKws = queryStr.split(/\s+/).filter(w => (item.title || '').toLowerCase().includes(w.toLowerCase()));
 
     return {
       id: `res_${Date.now()}_p${page}_${idx}`,
@@ -1156,10 +1120,10 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
       snippet: item.snippet || item.content || `关于“${queryStr}”的搜索实时条目...`,
       engine: primaryEngine,
       category: category as any,
-      score: Math.round(item.finalScore * 10) / 10,
-      relevancePercent: item.matchPercent,
-      matchedKeywords: item.matchedKeywords,
-      sourcesCount: item.engines.length,
+      score: Math.round((item._score || 50) * 10) / 10,
+      relevancePercent: Math.min(99, Math.max(65, Math.round(60 + (item._score || 50) * 0.25))),
+      matchedKeywords: matchedKws,
+      sourcesCount: 1,
       publishedDate: item.publishedDate || new Date().toLocaleDateString(),
       favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       latencyMs: Math.floor(12 + Math.random() * 18),
@@ -1178,8 +1142,8 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
 
   const responseData = {
     query: queryStr,
-    category,
     intent,
+    expandedQuery,
     page,
     totalPages: 10,
     results: formattedResults,
@@ -1325,7 +1289,7 @@ app.post('/api/summary/stream', async (req, res) => {
   }
 
   // Input Length Limit & Cleaning (Skill 4.1)
-  const searchTopic = cleanSearchQuery(rawSearchTopic).substring(0, 500);
+  const searchTopic = QueryProcessor.clean(rawSearchTopic).substring(0, 500);
 
   // Set SSE Headers
   res.setHeader('Content-Type', 'text/event-stream');
@@ -1365,34 +1329,60 @@ app.post('/api/summary/stream', async (req, res) => {
     return;
   }
 
-  const formattedContext = results.slice(0, 10).map((r: any, idx: number) => {
-    const cleanSnippet = (r.snippet || r.content || '').substring(0, 450);
-    return `[${idx + 1}] 标题: ${r.title}\n网址: ${r.url}\n摘要: ${cleanSnippet}`;
+  // Skill 3.2 Snippet Cleaning & Boilerplate Removal
+  const sanitizeSnippet = (text: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/(点击查看|阅读全文|关注公众号|版权所有|Copyright\s*©|ALL\s*RIGHTS\s*RESERVED|联系电话|扫码关注|免责声明).*/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Skill 3.3 Dynamic Factual Context Reranking for AI Prompt
+  const cleanAndRankedResults = results
+    .map((r: any) => ({
+      ...r,
+      cleanSnippet: sanitizeSnippet(r.snippet || r.content || '')
+    }))
+    .filter((r: any) => r.cleanSnippet.length > 15)
+    .slice(0, 8);
+
+  const formattedContext = cleanAndRankedResults.map((r: any, idx: number) => {
+    const snippetText = r.cleanSnippet.substring(0, 450);
+    const domainStr = URLNormalizer.getDomain(r.url);
+    return `[${idx + 1}] 标题: ${r.title}\n网址来源: ${domainStr} (${r.url})\n摘要内容: ${snippetText}`;
   }).join('\n\n');
 
-  // Skill 3.1 规范 System Prompt
-  const defaultSkillSystemPrompt = `你是一个搜索摘要助手。请严格遵守以下规则：
+  // Skill 3.1 规范 AI 搜索概览 System Prompt
+  const defaultSkillSystemPrompt = `你是一个专业的 AI 搜索引擎知识提炼专家 (CerealsNS Precision Search Synthesis Skill Engine)。
+你的核心任务是：严格基于下方提供的真实网页搜索结果，针对用户的搜索问题 "${searchTopic}"，生成一份专业、结构极简清晰、直观易读且无幻觉的 **AI 搜索概览回答**。
 
-【输出格式】
-- 使用 Markdown 格式
-- 总字数控制在 150 字以内
-- 必须分点列出关键信息，每点前用 "- "
+【必须遵循的 Markdown 输出排版规范】：
+1. **结构化段落划分**（使用 Markdown 标题 \`###\`，严格分为以下模块）：
+   - ### 📌 核心结论
+     用 1-2 句极其精练、直击问题本质的话给出权威答复 [^1^]。
+   
+   - ### 💡 关键要点
+     分点列出 3-4 个核心结论或关键突破。每点必须包含**加粗粗体核心词**作为小标题开篇，如 "- **核心机制**：具体说明事实或方案... [^1^][^2^]"。
 
-【内容安全】
-- 只基于提供的搜索结果回答，不要编造未提及的信息
-- 如果搜索结果不足以回答，必须回复："根据现有搜索结果，暂时无法确定该问题的答案。"
-- 禁止输出政治敏感、色情、暴力、赌博相关内容
-- 禁止提供医疗、法律、投资建议
+   - ### 🔍 深度解析与维度对比（如适用）
+     结合搜索上下文展开深入逻辑剖析。如果是方案、产品或技术比较，**必须使用 Markdown 标准表格** 呈现核心指标与优缺点对比。
 
-【引用规范】
-- 每个关键事实后必须标注来源编号，格式为 [^1^]、[^2^]
-- 编号对应搜索结果中的序号
-- 不要引用未在搜索结果中出现的内容
+   - ### 🎯 推荐追问
+     提出 2-3 个对用户有启发性的延伸探索追问，如 "- 追问 1: ..."
 
-【语言风格】
-- 使用中文回答中文查询，英文回答英文查询
-- 语气客观中立，不使用夸张形容词
-- 避免使用"我认为"、"我觉得"等主观表达`;
+2. **真实无幻觉 (Fact-Grounded)**：
+   - 观点、数据与事实必须 100% 来源于给出的网页搜索结果，切勿捏造未在结果中提及的结论。
+   - 若搜索上下文完全不足以回答该问题，必须直接回复："根据现有搜索结果，暂时无法确定该问题的答案。"
+   - 严禁输出政治敏感、色情、暴力、赌博相关内容，禁止给出医疗处方或法律风险保证。
+
+3. **严格脚标引用规范 (Strict Citation)**：
+   - 在关键事实、数据或要点句尾，必须使用标准脚标 \`[^1^]\`、\`[^2^]\` 标注信息来源编号（编号严格对应搜索结果序号 [1], [2]）。
+   - 禁止引用未在搜索结果中出现的序号。
+
+4. **语言风格**：
+   - 使用中文回答中文查询，英文回答英文查询。
+   - 语气客观严谨、文字简练、排版美观，避免使用"我认为"、"我觉得"等主观用语。`;
 
   const promptText = systemPrompt ? `${systemPrompt}\n\n搜索词: ${searchTopic}\n\n搜索结果:\n${formattedContext}` : `搜索词: ${searchTopic}\n\n搜索结果:\n${formattedContext}`;
 
@@ -1427,7 +1417,7 @@ app.post('/api/summary/stream', async (req, res) => {
             { role: 'user', content: promptText }
           ],
           stream: true,
-          max_tokens: 300,
+          max_tokens: 650,
           temperature: 0.3,
           top_p: 0.9,
           presence_penalty: 0.4,
@@ -1473,12 +1463,30 @@ app.post('/api/summary/stream', async (req, res) => {
     }
   }
 
-  // Local Streaming Synthesizer with Skill 3.1 compliant Markdown formatting
-  const snippet1 = (results[0]?.snippet || '').substring(0, 100);
+  // Local Streaming Synthesizer with Skill 3.1 & 3.2 compliant Markdown formatting
+  const item1 = cleanAndRankedResults[0];
+  const item2 = cleanAndRankedResults[1];
+  const item3 = cleanAndRankedResults[2];
 
-  const fallbackSummary = `- 针对 **"${searchTopic}"** 的检索，搜索结果显示该主题涵盖关键事实与最新进展 [^1^]。
-- **核心数据/事实**: ${snippet1 || '多源一致验证，信息可靠性高'} [^1^][^2^]。
-- **观点归纳**: 跨引擎比对表明，其技术架构与实践路径已具备广泛行业标准 [^2^][^3^]。`;
+  const snip1 = item1 ? item1.cleanSnippet.substring(0, 140) : '根据检索，该主题涵盖核心定义与应用范式。';
+  const snip2 = item2 ? item2.cleanSnippet.substring(0, 140) : '相关技术方案与行业标准已有多源一致验证。';
+  const snip3 = item3 ? item3.cleanSnippet.substring(0, 140) : '建议结合权威文档与实践经验进行综合复核。';
+
+  const fallbackSummary = `### 📌 核心结论
+针对 **"${searchTopic}"** 的检索，综合多源搜索引擎总结：该领域在最新技术演进与实践应用中呈现规范化发展趋势 [^1^]。
+
+---
+
+### 💡 关键要点
+- **主要依据与事实**: ${snip1} [^1^]
+- **技术/方案突破**: ${snip2} ${item2 ? '[^2^]' : ''}
+- **落地总结与建议**: ${snip3} ${item3 ? '[^3^]' : ''}
+
+---
+
+### 🎯 推荐追问
+- **追问 1**: ${searchTopic} 的核心实现原理与传统技术相比有何优势？
+- **追问 2**: 在实际部署与工程落地中有哪些注意事项？`;
 
   const chunks = fallbackSummary.match(/[\s\S]{1,12}/g) || [fallbackSummary];
   for (const chunk of chunks) {
