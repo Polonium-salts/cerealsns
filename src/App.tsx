@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Navbar } from './components/Navbar';
+import { Navbar, CATEGORIES } from './components/Navbar';
 import { GoogleLogo } from './components/GoogleLogo';
 import { SearchBar } from './components/SearchBar';
 import { AISummaryCard } from './components/AISummaryCard';
@@ -309,9 +309,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#11151c] text-slate-100 font-sans selection:bg-slate-200 selection:text-slate-900 flex flex-col relative">
+    <div className="min-h-screen bg-[#0a0a0c] text-neutral-200 font-sans selection:bg-white selection:text-black flex flex-col relative">
       
-      {/* Top Header Navbar */}
+      {/* Top Header Navbar with SearchBar & Category Selector below SearchBar */}
       <Navbar
         config={config}
         optimalNode={optimalNode}
@@ -335,12 +335,23 @@ export default function App() {
             handleExecuteSearch(query.trim(), catId, timeRange, true);
           }
         }}
+        activeTimeRange={timeRange}
+        onSelectTimeRange={(trId) => {
+          setTimeRange(trId);
+          if (query.trim()) {
+            handleExecuteSearch(query.trim(), category, trId, true);
+          }
+        }}
+        searchQuery={query}
+        onSearch={handleExecuteSearch}
+        isLoading={isLoading}
+        fetchTimeMs={searchData?.stats?.fetchTimeMs}
       />
 
       {/* Main Container */}
       <main className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col">
         
-        {/* State A: Homepage View (Minimalist Google Layout matching screenshot) */}
+        {/* State A: Homepage View */}
         {!isSearchActive && (
           <div className="flex-1 flex flex-col items-center justify-center py-12 sm:py-20 my-auto">
             
@@ -360,9 +371,31 @@ export default function App() {
               />
             </div>
 
+            {/* Category Selection Information - Native Pills */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-2xl px-2">
+              {CATEGORIES.map((cat) => {
+                const isSelected = category === cat.id;
+                const IconComp = cat.icon;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCategory(cat.id)}
+                    className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-white text-black font-semibold shadow-md'
+                        : 'bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] border border-[#2e2e32]'
+                    }`}
+                  >
+                    <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-black' : 'text-neutral-400'}`} />
+                    <span>{cat.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Footer Edge Latency Info */}
-            <div className="mt-8 text-center text-xs text-slate-400 flex items-center justify-center space-x-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+            <div className="mt-10 text-center text-xs text-neutral-500 flex items-center justify-center space-x-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>EdgeOne 节点加速中</span>
               <span>·</span>
               <span>18ms 延迟</span>
@@ -374,35 +407,10 @@ export default function App() {
         {isSearchActive && (
           <div className="max-w-[1440px] w-full mx-auto py-2 space-y-6">
             
-            {/* Search Bar in Active State */}
-            <div className="flex items-center justify-between gap-4">
-              <div className="max-w-3xl flex-1">
-                <SearchBar
-                  initialQuery={query}
-                  activeCategory={category}
-                  activeTimeRange={timeRange}
-                  onSearch={handleExecuteSearch}
-                  isLoading={isLoading}
-                  isCompactMode
-                />
-              </div>
-              {searchData && (
-                <div className="text-xs text-slate-400 hidden sm:block whitespace-nowrap">
-                  检索耗时: <span className="font-mono text-emerald-400 font-bold">{searchData.stats.fetchTimeMs} ms</span>
-                </div>
-              )}
-            </div>
-
-            {/* Dual Column Layout: Search Engine Results on Left (13 ratio) & AI Answer on Right (8 ratio) */}
+            {/* Dual Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
-              {/* Left Side: Search Engine Results (13 ratio) */}
+              {/* Left Side: Search Engine Results */}
               <div className="w-full min-w-0 space-y-4 order-2 lg:order-1">
-                <div className="hidden items-center justify-between pb-1 border-b border-slate-800">
-                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                    <Layers className="h-4 w-4 text-blue-400" />
-                    <span>搜索引擎网页结果</span>
-                  </h3>
-                </div>
                 <SearchResultsList
                   results={searchData?.results || []}
                   isLoading={isLoading}
@@ -415,7 +423,7 @@ export default function App() {
                 />
               </div>
 
-              {/* Right Side: AI Overview / AI Answer (8 ratio, scrolls together with search results) */}
+              {/* Right Side: AI Overview / AI Answer */}
               <div className="w-full min-w-0 space-y-4 order-1 lg:order-2">
                 <AISummaryCard
                   query={query}
@@ -445,9 +453,9 @@ export default function App() {
         <div className="fixed bottom-6 right-6 z-30 flex items-center space-x-3">
           <button
             onClick={() => setIsConfigOpen(true)}
-            className="flex items-center space-x-2 rounded-full border border-[#4a4261] bg-[#312a42] px-4 py-2 text-xs font-semibold text-slate-200 shadow-2xl hover:bg-[#3c3452] hover:border-[#635a7e] transition-all"
+            className="flex items-center space-x-2 rounded-full border border-[#3f3f46] bg-[#27272a] px-4 py-2 text-xs font-semibold text-white shadow-2xl hover:bg-[#3f3f46] transition-all"
           >
-            <Pencil className="h-3.5 w-3.5 text-purple-300" />
+            <Pencil className="h-3.5 w-3.5 text-neutral-300" />
             <span>自定义 Chrome</span>
           </button>
         </div>

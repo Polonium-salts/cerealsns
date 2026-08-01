@@ -32,14 +32,59 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showImageLensModal, setShowImageLensModal] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
 
+  // Skill 7.3 Autocomplete fetching with 150ms debounce
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const resp = await fetch(`/api/autocomplete?q=${encodeURIComponent(trimmed)}`);
+        if (resp.ok) {
+          const list = await resp.json();
+          if (Array.isArray(list) && list.length > 0) {
+            setSuggestions(list);
+            setShowSuggestions(true);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
+        }
+      } catch (err) {
+        setSuggestions([]);
+      }
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Handle click outside to dismiss suggestions
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowSuggestions(false);
     if (query.trim()) {
       onSearch(query.trim(), activeCategory, timeRange, aiMode);
     }
@@ -80,17 +125,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <div className={`w-full mx-auto ${isCompactMode ? 'max-w-3xl' : 'max-w-2xl my-4'} transition-all`}>
+    <div ref={containerRef} className={`w-full mx-auto ${isCompactMode ? 'max-w-3xl' : 'max-w-2xl my-4'} transition-all relative`}>
       <form onSubmit={handleSubmit} className="relative space-y-2">
-        {/* White & Starry Sky Gray High Contrast Pill Search Bar */}
-        <div className="relative flex items-center rounded-full border border-slate-300 bg-white text-slate-900 px-4 py-2.5 shadow-xl hover:border-slate-400 focus-within:border-slate-700 focus-within:ring-2 focus-within:ring-slate-400/30 transition-all duration-200">
+        {/* High-Contrast Dark Native Pill Search Bar */}
+        <div className="relative flex items-center rounded-full border border-[#2e2e32] bg-[#1c1c1f] text-white px-4 py-2.5 shadow-xl hover:border-[#3f3f46] focus-within:border-white focus-within:ring-1 focus-within:ring-white/20 transition-all duration-200">
           
           {/* Left Plus / Search Icon */}
-          <div className="pr-2 text-slate-500">
+          <div className="pr-2 text-neutral-400">
             {isLoading ? (
-              <Sparkles className="h-5 w-5 text-slate-800" />
+              <Sparkles className="h-5 w-5 text-white animate-spin" />
             ) : (
-              <Plus className="h-5 w-5 text-slate-500" />
+              <Plus className="h-5 w-5 text-neutral-400" />
             )}
           </div>
 
@@ -99,8 +144,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => {
+              if (suggestions.length > 0) setShowSuggestions(true);
+            }}
             placeholder="询问 CerealsNS AI 或输入搜索内容..."
-            className="w-full bg-transparent px-2 py-1 text-base text-slate-900 placeholder-slate-400 focus:outline-none"
+            className="w-full bg-transparent px-2 py-1 text-base text-white placeholder-neutral-500 focus:outline-none"
           />
 
           {/* Clear Button */}
@@ -108,7 +156,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors mr-1"
+              className="p-1.5 text-neutral-400 hover:text-white transition-colors mr-1"
               title="清空搜索词"
             >
               <X className="h-4 w-4" />
@@ -119,8 +167,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <button
             type="button"
             onClick={handleVoiceSearch}
-            className={`p-1.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors ${
-              isListening ? 'text-blue-600 bg-blue-50 font-bold' : ''
+            className={`p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors ${
+              isListening ? 'text-white bg-[#27272a] font-bold' : ''
             }`}
             title="语音输入"
           >
@@ -131,7 +179,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <button
             type="button"
             onClick={() => setShowImageLensModal(true)}
-            className="p-1.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors"
             title="CerealsNS 智慧镜头 (以图搜图与多模态)"
           >
             <Camera className="h-5 w-5" />
@@ -141,35 +189,59 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-1.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors ${
-              showFilters ? 'bg-slate-200 text-slate-900' : ''
+            className={`p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors ${
+              showFilters ? 'bg-[#27272a] text-white' : ''
             }`}
             title="筛选与时间区间"
           >
             <SlidersHorizontal className="h-4 w-4" />
           </button>
 
-          {/* AI Mode Toggle Pill - Starry Slate Gray Badge */}
+          {/* AI Mode Toggle Pill - High-Contrast Solid White or Dark Pill */}
           <button
             type="button"
             onClick={() => setAiMode(!aiMode)}
-            className={`ml-1 flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-200 ${
+            className={`ml-1 flex items-center space-x-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
               aiMode
-                ? 'bg-[#1e2432] text-white border border-slate-700 shadow-sm'
-                : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+                ? 'bg-white text-black shadow-md hover:bg-neutral-200'
+                : 'bg-[#27272a] text-neutral-300 hover:bg-[#3f3f46]'
             }`}
             title={aiMode ? 'AI 模式已开启（结合 LLM 流式总结）' : '快搜模式（仅网页索引）'}
           >
-            <Sparkles className={`h-3.5 w-3.5 ${aiMode ? 'text-amber-300' : 'text-slate-400'}`} />
+            <Sparkles className={`h-3.5 w-3.5 ${aiMode ? 'text-black' : 'text-neutral-400'}`} />
             <span className="whitespace-nowrap">AI 模式</span>
           </button>
         </div>
 
+        {/* Skill 7.3 Autocomplete Suggestions Dropdown Popup */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 overflow-hidden rounded-2xl border border-[#27272a] bg-[#18181b]/95 backdrop-blur-md shadow-2xl divide-y divide-[#27272a]">
+            {suggestions.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setQuery(item);
+                  setShowSuggestions(false);
+                  onSearch(item, activeCategory, timeRange, aiMode);
+                }}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-neutral-200 hover:text-white hover:bg-[#27272a] transition-colors text-left group"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <Search className="h-3.5 w-3.5 text-neutral-500 group-hover:text-white transition-colors" />
+                  <span>{item}</span>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-neutral-600 group-hover:text-white opacity-0 group-hover:opacity-100 transition-all" />
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Sub-label for SearXNG API engine */}
         {!isCompactMode && (
-          <div className="flex items-center justify-center space-x-2 pt-1.5 text-[11px] text-slate-400">
-            <span className="inline-flex items-center space-x-1 rounded-full bg-cyan-950/60 px-2.5 py-0.5 text-cyan-300 border border-cyan-800/60 font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <div className="flex items-center justify-center space-x-2 pt-1.5 text-[11px] text-neutral-400">
+            <span className="inline-flex items-center space-x-1 rounded-full bg-[#18181b] px-3 py-1 text-neutral-300 border border-[#27272a] font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>SearXNG 隐私元搜索 API 驱动</span>
             </span>
             <span>·</span>
@@ -179,9 +251,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
         {/* Time Filters Drawer */}
         {showFilters && (
-          <div className="rounded-2xl border border-slate-300 bg-white p-3 shadow-xl flex items-center justify-between text-xs text-slate-800">
-            <span className="text-slate-700 font-medium flex items-center space-x-1.5">
-              <Clock className="h-3.5 w-3.5 text-slate-800" />
+          <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-3 shadow-2xl flex items-center justify-between text-xs text-white">
+            <span className="text-neutral-300 font-medium flex items-center space-x-1.5">
+              <Clock className="h-3.5 w-3.5 text-neutral-400" />
               <span>搜索时间区间范围：</span>
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -197,8 +269,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   }}
                   className={`rounded-full px-3 py-1 text-xs transition-colors ${
                     timeRange === tr.id
-                      ? 'bg-[#1e2432] text-white font-bold'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      ? 'bg-white text-black font-bold'
+                      : 'bg-[#27272a] text-neutral-300 hover:bg-[#3f3f46]'
                   }`}
                 >
                   {tr.name}
@@ -211,28 +283,28 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Google Lens Modal */}
       {showImageLensModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1e2432] text-white shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-3xl border border-[#27272a] bg-[#18181b] p-6 shadow-2xl text-center space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#27272a] text-white shadow-lg">
               <Camera className="h-6 w-6" />
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-slate-900">CerealsNS 智慧镜头 AI 识图</h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <h3 className="text-lg font-bold text-white">CerealsNS 智慧镜头 AI 识图</h3>
+              <p className="text-xs text-neutral-400 mt-1">
                 上传或拖拽图片，让 CerealsNS AI 分析图像内容、提取文字或识别相关主题
               </p>
             </div>
 
-            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 hover:border-slate-600 transition-colors cursor-pointer bg-slate-50">
-              <p className="text-xs font-medium text-slate-700">点击上传或将图像拖放到此处</p>
-              <p className="text-[10px] text-slate-400 mt-1">支持 PNG, JPG, WEBP 大于 100KB</p>
+            <div className="border-2 border-dashed border-[#27272a] rounded-2xl p-6 hover:border-[#3f3f46] transition-colors cursor-pointer bg-[#141416]">
+              <p className="text-xs font-medium text-neutral-300">点击上传或将图像拖放到此处</p>
+              <p className="text-[10px] text-neutral-500 mt-1">支持 PNG, JPG, WEBP 大于 100KB</p>
             </div>
 
             <div className="flex justify-end space-x-2 pt-2">
               <button
                 onClick={() => setShowImageLensModal(false)}
-                className="rounded-full bg-slate-100 px-5 py-2 text-xs text-slate-700 hover:bg-slate-200 transition-colors"
+                className="rounded-full bg-[#27272a] px-5 py-2 text-xs text-neutral-300 hover:bg-[#3f3f46] hover:text-white transition-colors"
               >
                 关闭
               </button>
@@ -242,7 +314,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   setShowImageLensModal(false);
                   onSearch('识别此架构图与技术草图', activeCategory, timeRange, aiMode);
                 }}
-                className="rounded-full bg-[#1e2432] px-5 py-2 text-xs font-bold text-white hover:bg-slate-800 transition-colors"
+                className="rounded-full bg-white px-5 py-2 text-xs font-bold text-black hover:bg-neutral-200 transition-colors"
               >
                 体验示例图片分析
               </button>

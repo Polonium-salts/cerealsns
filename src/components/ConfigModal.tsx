@@ -55,20 +55,20 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl rounded-2xl border border-[#27272a] bg-[#18181b] p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-[#27272a] pb-4">
           <div className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-950 text-indigo-400 border border-indigo-800/50">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#232326] text-white border border-[#2e2e32]">
               <Settings className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-white flex items-center space-x-2">
                 <span>系统配置与 AI 大模型密钥</span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-neutral-400">
                 配置 OpenRouter API 密钥、精细调节流式总结深度与 SearXNG 节点源
               </p>
             </div>
@@ -76,7 +76,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
 
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded-full border border-[#27272a] p-2 text-neutral-400 hover:bg-[#27272a] hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>

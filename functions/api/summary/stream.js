@@ -77,12 +77,21 @@ ${depthInstruction}`;
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${activeOpenRouterKey}`,
-          'HTTP-Referer': env.APP_URL || 'https://cerealsns.pages.dev',
+          'HTTP-Referer': env.APP_URL || env.SITE_URL || 'https://cerealsns.pages.dev',
           'X-Title': 'CerealsNS Engine',
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: selectedModel,
+          models: [
+            selectedModel,
+            'mistralai/mistral-7b-instruct:free',
+            'meta-llama/llama-3.1-8b-instruct:free'
+          ],
+          provider: {
+            order: ['DeepInfra', 'Fireworks', 'Together', 'OpenRouter'],
+            allow_fallbacks: true
+          },
           messages: [{ role: 'user', content: promptText }],
           stream: true,
           temperature: 0.3
@@ -114,7 +123,9 @@ ${depthInstruction}`;
                     if (jsonStr === '[DONE]') continue;
                     try {
                       const parsed = JSON.parse(jsonStr);
-                      const contentChunk = parsed.choices?.[0]?.delta?.content;
+                      // Support both regular delta content and reasoning delta content (e.g. DeepSeek R1)
+                      const deltaObj = parsed.choices?.[0]?.delta;
+                      const contentChunk = deltaObj?.content || deltaObj?.reasoning;
                       if (contentChunk) {
                         const eventString = `data: ${JSON.stringify({ delta: contentChunk })}\n\n`;
                         controller.enqueue(encoder.encode(eventString));
@@ -143,8 +154,13 @@ ${depthInstruction}`;
             'Access-Control-Allow-Origin': '*',
           }
         });
+      } else {
+        const errBody = await openRouterResp.text().catch(() => '');
+        console.warn('OpenRouter non-OK response:', openRouterResp.status, errBody);
       }
-    } catch {}
+    } catch (err) {
+      console.error('OpenRouter connection error:', err);
+    }
   }
 
   // Fallback SSE Streamer using ReadableStream

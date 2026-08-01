@@ -325,6 +325,24 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                 {highlightSnippet(item.snippet, query)}
               </p>
 
+              {/* Line 3.5: Matched Keywords Pills Tag Bar */}
+              {item.matchedKeywords && item.matchedKeywords.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] text-slate-400 font-medium flex items-center space-x-1">
+                    <span className="text-emerald-400">🎯</span>
+                    <span>匹配词:</span>
+                  </span>
+                  {item.matchedKeywords.slice(0, 5).map((kw, kwIdx) => (
+                    <span
+                      key={kwIdx}
+                      className="inline-flex items-center rounded-md bg-[#252a38] px-2 py-0.5 text-[10px] font-medium text-emerald-300 border border-emerald-500/25 shadow-xs"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {/* Line 4: Action Bar */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#9aa0a6] pt-1 opacity-80 group-hover:opacity-100 transition-opacity">
                 <button
@@ -344,13 +362,6 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                   {isSaved ? <BookmarkCheck className="h-3 w-3 text-[#8ab4f8]" /> : <Bookmark className="h-3 w-3" />}
                   <span>{isSaved ? '已存离线' : '离线保存'}</span>
                 </button>
-
-                {item.matchedKeywords && item.matchedKeywords.length > 0 && (
-                  <span className="text-[11px] text-slate-400/90 font-sans flex items-center space-x-1">
-                    <span className="text-slate-500">·</span>
-                    <span>命中关键词: <span className="text-slate-300">{item.matchedKeywords.slice(0, 3).join(', ')}</span></span>
-                  </span>
-                )}
               </div>
 
             </div>

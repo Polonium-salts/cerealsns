@@ -259,6 +259,155 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
   return [];
 }
 
+// Helper to clean and normalize URL for accurate deduplication
+function normalizeUrlForDedup(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol === 'http:' && u.hostname !== 'localhost') {
+      u.protocol = 'https:';
+    }
+    const trackingParams = [
+      'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+      'fbclid', 'gclid', 'ref', 'source', 'si', 'feature', 'spm', 'vd_source',
+      'from', 'ch'
+    ];
+    trackingParams.forEach(p => u.searchParams.delete(p));
+    Array.from(u.searchParams.keys()).forEach(k => {
+      if (k.toLowerCase().startsWith('utm_')) u.searchParams.delete(k);
+    });
+
+    let pathname = u.pathname.replace(/\/+$/, '');
+    if (pathname === '') pathname = '/';
+    u.hash = '';
+
+    const cleanSearch = u.searchParams.toString() ? `?${u.searchParams.toString()}` : '';
+    return `${u.protocol}//${u.hostname.toLowerCase()}${pathname}${cleanSearch}`;
+  } catch {
+    return (rawUrl || '').toLowerCase().trim().replace(/\/+$/, '');
+  }
+}
+
+function computeTitleSimilarity(titleA, titleB) {
+  if (!titleA || !titleB) return 0;
+  const s1 = titleA.toLowerCase().trim();
+  const s2 = titleB.toLowerCase().trim();
+  if (s1 === s2) return 1;
+
+  if ((s1.includes(s2) || s2.includes(s1)) && Math.min(s1.length, s2.length) > 8) {
+    return 0.92;
+  }
+
+  const tokens1 = s1.split(/[\s\-_\/|\\,\.\:;!?"'()+=\[\]{}<>]+/).filter(t => t.length > 0);
+  const tokens2 = s2.split(/[\s\-_\/|\\,\.\:;!?"'()+=\[\]{}<>]+/).filter(t => t.length > 0);
+  if (tokens1.length === 0 || tokens2.length === 0) return 0;
+
+  const set1 = new Set(tokens1);
+  const set2 = new Set(tokens2);
+  let intersection = 0;
+  set1.forEach(t => {
+    if (set2.has(t)) intersection++;
+  });
+
+  const unionSize = new Set([...set1, ...set2]).size;
+  return unionSize > 0 ? intersection / unionSize : 0;
+}
+
+// Tokenize query into keywords (supporting Chinese CJK terms & English words)
+function extractQueryKeywords(q) {
+  const cleanQ = (q || '').trim().toLowerCase();
+  if (!cleanQ) return [];
+  const rawTokens = cleanQ.split(/[\s,.\-_\/:;!?"'()+=\[\]{}<>|\\~`]+/).filter(Boolean);
+  const stopWords = new Set(['的', '了', '与', '在', '是', '有', '和', '如何', '怎么', '什么', 'the', 'a', 'an', 'in', 'on', 'of', 'for', 'how', 'what', 'why', 'where']);
+  const keywords = new Set();
+
+  for (const token of rawTokens) {
+    if (!stopWords.has(token)) {
+      keywords.add(token);
+    }
+    if (/[\u4e00-\u9fa5]/.test(token) && token.length > 2) {
+      for (let i = 0; i < token.length - 1; i++) {
+        const sub = token.slice(i, i + 2);
+        if (!stopWords.has(sub)) keywords.add(sub);
+      }
+    }
+  }
+  if (!stopWords.has(cleanQ)) keywords.add(cleanQ);
+  return Array.from(keywords).filter(k => k.length >= 1);
+}
+
+// Compute precise multi-factor relevance score for search result
+function computeResultRelevanceScore(item, queryStr, consensusEnginesCount = 1) {
+  const queryLower = (queryStr || '').trim().toLowerCase();
+  const titleLower = (item.title || '').toLowerCase();
+  const snippetText = (item.content || item.snippet || '').toLowerCase();
+
+  let score = 0;
+  const matchedKeywordsSet = new Set();
+  const keywords = extractQueryKeywords(queryStr);
+
+  // 1. Title Exact & Partial Matching
+  if (titleLower === queryLower) {
+    score += 65;
+    matchedKeywordsSet.add(queryStr);
+  } else if (titleLower.includes(queryLower)) {
+    score += 45;
+    matchedKeywordsSet.add(queryStr);
+  } else if (titleLower.startsWith(queryLower.slice(0, Math.min(6, queryLower.length)))) {
+    score += 30;
+  }
+
+  // Keyword Hits in Title
+  let titleMatchesCount = 0;
+  for (const kw of keywords) {
+    if (kw.length > 1 && titleLower.includes(kw)) {
+      titleMatchesCount++;
+      matchedKeywordsSet.add(kw);
+    }
+  }
+  score += Math.min(titleMatchesCount * 12, 36);
+
+  // 2. Keyword Hits in Snippet
+  let snippetMatchesCount = 0;
+  for (const kw of keywords) {
+    if (kw.length > 1 && snippetText.includes(kw)) {
+      snippetMatchesCount++;
+      matchedKeywordsSet.add(kw);
+    }
+  }
+  if (snippetText.includes(queryLower)) {
+    score += 20;
+  }
+  score += Math.min(snippetMatchesCount * 5, 25);
+
+  // Multi-engine consensus bonus
+  if (consensusEnginesCount > 1) {
+    score += Math.min((consensusEnginesCount - 1) * 15, 30);
+  }
+
+  // Domain authority boost
+  try {
+    const host = new URL(item.url).hostname.toLowerCase();
+    const cleanHost = host.replace(/^www\./, '');
+    const queryCore = queryLower.replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
+    if (queryCore.length >= 3 && cleanHost.includes(queryCore)) {
+      score += 35;
+    }
+    if (/\.(gov|edu|org)(\.|$)/.test(cleanHost)) score += 15;
+    if (cleanHost.includes('wikipedia.org') || cleanHost.includes('baike.baidu.com')) score += 18;
+    if (cleanHost.includes('github.com') || cleanHost.includes('stackoverflow.com')) score += 16;
+    if (cleanHost.includes('zhihu.com') || cleanHost.includes('bilibili.com')) score += 12;
+  } catch {}
+
+  const matchPercent = Math.min(99, Math.max(65, Math.round(55 + score * 0.42)));
+
+  return {
+    finalScore: score,
+    matchPercent,
+    matchedKeywords: Array.from(matchedKeywordsSet),
+    isConsensus: consensusEnginesCount > 1
+  };
+}
+
 export async function onRequestGet(context) {
   const { request } = context;
   const url = new URL(request.url);
@@ -374,6 +523,7 @@ export async function onRequestGet(context) {
     }
 
     const engineName = normalizeEngineName(item.engine);
+    const rel = computeResultRelevanceScore(item, q, Array.from(enginesUsedSet).length);
 
     return {
       id: `res_${Date.now()}_p${page}_${idx}`,
@@ -382,14 +532,17 @@ export async function onRequestGet(context) {
       snippet: item.content || item.snippet || `关于“${q}”的搜索实时条目...`,
       engine: engineName,
       category,
-      score: item.score || (1 - idx * 0.05),
+      score: rel.finalScore,
+      relevancePercent: rel.matchPercent,
+      matchedKeywords: rel.matchedKeywords,
+      isConsensus: rel.isConsensus,
       publishedDate: item.publishedDate || item.pubdate || new Date().toLocaleDateString(),
       favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       latencyMs: Math.floor(12 + Math.random() * 18),
       edgeNode: 'Cloudflare Pages Edge',
       sourcesCount: Array.from(enginesUsedSet).length
     };
-  });
+  }).sort((a, b) => b.score - a.score);
 
   const enginesArray = Array.from(enginesUsedSet);
   if (enginesArray.length === 0) enginesArray.push('Google');
