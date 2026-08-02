@@ -9,7 +9,7 @@ export async function onRequest(context) {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Token, X-Admin-Password, X-API-Key, X-Requested-With',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-Requested-With',
         'Access-Control-Max-Age': '86400',
       },
     });
@@ -21,7 +21,7 @@ export async function onRequest(context) {
     const newHeaders = new Headers(response.headers);
     newHeaders.set('Access-Control-Allow-Origin', '*');
     newHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Token, X-Admin-Password, X-API-Key, X-Requested-With');
+    newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Requested-With');
 
     return new Response(response.body, {
       status: response.status,

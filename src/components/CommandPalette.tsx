@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Command, Globe, History, Settings, Cpu, Sparkles, X, ArrowRight, Server } from 'lucide-react';
+import { Search, Command, Globe, History, Settings, Cpu, Sparkles, X, ArrowRight } from 'lucide-react';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -7,7 +7,6 @@ interface CommandPaletteProps {
   onExecuteQuery: (query: string) => void;
   onOpenHistory: () => void;
   onOpenConfig: () => void;
-  onOpenAdminPanel?: () => void;
   onChangeModel: (model: string) => void;
 }
 
@@ -17,7 +16,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onExecuteQuery,
   onOpenHistory,
   onOpenConfig,
-  onOpenAdminPanel,
   onChangeModel,
 }) => {
   const [input, setInput] = useState('');
@@ -49,13 +47,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   };
 
   const COMMANDS = [
-    {
-      id: 'cmd-admin',
-      title: '打开 API 网站管理面板 (需要密码)',
-      icon: Server,
-      color: 'text-purple-400',
-      action: () => { if (onOpenAdminPanel) onOpenAdminPanel(); onClose(); }
-    },
     {
       id: 'cmd-history',
       title: '检索本地 IndexedDB 离线搜索历史',

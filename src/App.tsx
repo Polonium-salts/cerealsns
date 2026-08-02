@@ -7,11 +7,10 @@ import { SearchResultsList } from './components/SearchResultsList';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
-import { AdminApiPanel } from './components/admin/AdminApiPanel';
 import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryItem } from './types';
 import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes, fetchAppConfig, saveAppConfig } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
-import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Server, Shield } from 'lucide-react';
+import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Shield } from 'lucide-react';
 
 const DEFAULT_CONFIG: AppConfig = {
   openrouterApiKey: '',
@@ -47,11 +46,10 @@ export default function App() {
   const [optimalNode, setOptimalNode] = useState<EdgeNode | null>(null);
   const [savedOfflineIds, setSavedOfflineIds] = useState<Set<string>>(new Set());
 
-  // Modals & Drawers & Admin Route
+  // Modals & Drawers
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   // 1. Initial configuration & Edge node setup
   useEffect(() => {
@@ -75,16 +73,9 @@ export default function App() {
     init();
   }, []);
 
-  // 2. Sync search query & route path /sfheoheejfifejfeppoj from URL
+  // 2. Sync search query & route path from URL
   useEffect(() => {
     const syncFromUrl = () => {
-      if (window.location.pathname === '/sfheoheejfifejfeppoj') {
-        setIsAdminPanelOpen(true);
-        return;
-      } else {
-        setIsAdminPanelOpen(false);
-      }
-
       const params = new URLSearchParams(window.location.search);
       const urlQuery = params.get('q');
       const urlCat = params.get('cat') || 'general';
@@ -116,14 +107,6 @@ export default function App() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
-
-  // Navigate to Admin Panel (/sfheoheejfifejfeppoj)
-  const handleOpenAdminPanel = () => {
-    setIsAdminPanelOpen(true);
-    if (window.location.pathname !== '/sfheoheejfifejfeppoj') {
-      window.history.pushState({}, '', '/sfheoheejfifejfeppoj');
-    }
-  };
 
   // Save config changes
   const handleSaveConfig = async (newConfig: Partial<AppConfig>) => {
@@ -313,19 +296,6 @@ export default function App() {
 
   const isSearchActive = Boolean(searchData || isLoading);
 
-  if (isAdminPanelOpen) {
-    return (
-      <AdminApiPanel
-        onBackToMain={() => {
-          setIsAdminPanelOpen(false);
-          if (window.location.pathname === '/sfheoheejfifejfeppoj') {
-            window.history.pushState({}, '', '/');
-          }
-        }}
-      />
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-neutral-200 font-sans selection:bg-white selection:text-black flex flex-col relative">
       
@@ -503,7 +473,6 @@ export default function App() {
         onExecuteQuery={(q) => handleExecuteSearch(q, category, timeRange, true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenConfig={() => setIsConfigOpen(true)}
-        onOpenAdminPanel={handleOpenAdminPanel}
         onChangeModel={(m) => handleSaveConfig({ openrouterModel: m })}
       />
 
