@@ -1,11 +1,48 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import { Sparkles, Copy, Check, Download, RefreshCw, Volume2, VolumeX, ArrowRight, Cpu, Pin, ExternalLink } from 'lucide-react';
 import type { SearchResult, AppConfig } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+
+// Helper Component for Code Blocks with Language & Copy Button
+const CodeBlock: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => {
+  const [copied, setCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const lang = match ? match[1] : '';
+
+  const codeString = String(children).replace(/\n$/, '');
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(codeString);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative group my-3 rounded-xl border border-[#2e2e32] bg-[#18181b] overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#232326] border-b border-[#2e2e32] text-[11px] font-mono text-neutral-400 select-none">
+        <span className="font-semibold text-purple-300">{lang ? lang.toUpperCase() : 'CODE'}</span>
+        <button
+          type="button"
+          onClick={handleCopyCode}
+          className="flex items-center space-x-1 px-2 py-0.5 rounded bg-[#2a2a2e] hover:bg-[#3f3f46] text-neutral-300 hover:text-white transition-colors"
+        >
+          {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+          <span>{copied ? '已复制' : '复制代码'}</span>
+        </button>
+      </div>
+      <div className="p-3.5 overflow-x-auto text-xs font-mono text-neutral-200 leading-relaxed whitespace-pre">
+        <code>{codeString}</code>
+      </div>
+    </div>
+  );
+};
 
 interface AISummaryCardProps {
   query: string;
@@ -50,20 +87,29 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
     { id: 'deep', label: '深度探究', icon: '🔍', desc: '多层逻辑梳理与前因后果长文复盘' },
   ];
 
-  // Preprocess markdown: Fix table syntax issues (concatenated rows |||, missing linebreaks) and citations
+  // Preprocess markdown: Fix table syntax issues, protect code blocks, and format citations & math equations
   const formatMarkdownText = (rawText: string): string => {
     if (!rawText) return '';
-    
-    // 1. Convert standalone [1], [^1^], [^1] into clickable citation links
-    let text = rawText.replace(/\[\^?(\d+)\^?\]/g, '[$1](#cite-$1)');
 
-    // 2. Fix multiple pipes concatenated without newlines (e.g., "||" or "|||") at table row boundaries
+    // 1. Extract code blocks (fenced ```...``` and inline `...`) to protect code syntax from corruption
+    const codeBlocks: string[] = [];
+    let text = rawText.replace(/```[\s\S]*?```|`[^`\n]+`/g, (match) => {
+      codeBlocks.push(match);
+      return `__MD_CODE_BLOCK_${codeBlocks.length - 1}__`;
+    });
+
+    // 2. Convert standalone citations [1], [^1], [^1^] into clickable links (ignoring markdown links like [1](http) or definitions [1]: http)
+    text = text.replace(/\[\^?(\d+)\^?\](?!\(|:)/g, '[$1](#cite-$1)');
+
+    // 3. Convert LaTeX math delimiters \[ ... \] -> $$ ... $$ and \( ... \) -> $ ... $
+    text = text.replace(/\\\[([\s\S]*?)\\\]/g, '$$$$ $1 $$$$');
+    text = text.replace(/\\\(([\s\S]*?)\\\)/g, '$$ $1 $$');
+
+    // 4. Fix table pipes concatenated without newlines (e.g. || or |||) at table boundaries
     text = text.replace(/\|{2,}/g, '|\n|');
-
-    // 3. Fix missing newline between table row end pipe and next row start pipe
     text = text.replace(/\|\s*\|\s*(?=[-:\s]*\|)/g, '|\n|');
 
-    // 4. Ensure line breaks before and after table blocks
+    // 5. Ensure clean line breaks before and after table blocks
     const lines = text.split('\n');
     const resultLines: string[] = [];
     let inTable = false;
@@ -90,8 +136,14 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
         resultLines.push(lines[i]);
       }
     }
+    text = resultLines.join('\n');
 
-    return resultLines.join('\n');
+    // 6. Restore protected code blocks
+    text = text.replace(/__MD_CODE_BLOCK_(\d+)__/g, (_, idx) => {
+      return codeBlocks[parseInt(idx, 10)] || '';
+    });
+
+    return text;
   };
 
   const processedMarkdown = formatMarkdownText(summaryText);
@@ -297,7 +349,8 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
         <div className="prose prose-invert prose-sm max-w-none text-neutral-200 leading-relaxed text-xs sm:text-sm">
           {summaryText ? (
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeRaw, rehypeKatex]}
               components={{
                 a: ({ href, children }) => {
                   if (href?.startsWith('#cite-')) {
@@ -314,33 +367,68 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                     );
                   }
                   return (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-white underline hover:text-neutral-300">
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-purple-300 underline hover:text-purple-200 transition-colors">
                       {children}
                     </a>
                   );
                 },
-                h1: ({ children }) => <h1 className="text-base font-bold text-white my-2.5">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-sm font-bold text-neutral-100 my-2">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-xs sm:text-sm font-bold text-white mt-3 mb-1.5 flex items-center space-x-1.5 border-b border-[#27272a] pb-1">{children}</h3>,
+                h1: ({ children }) => <h1 className="text-base sm:text-lg font-bold text-white my-3 border-b border-[#27272a] pb-1.5 flex items-center space-x-2">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-sm sm:text-base font-bold text-neutral-100 my-2.5 flex items-center space-x-2">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-xs sm:text-sm font-bold text-white mt-3 mb-1.5 border-b border-[#27272a] pb-1">{children}</h3>,
+                h4: ({ children }) => <h4 className="text-xs font-bold text-neutral-200 mt-2 mb-1">{children}</h4>,
                 p: ({ children }) => <p className="my-1.5 text-neutral-300 leading-relaxed text-xs sm:text-sm">{children}</p>,
                 strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                em: ({ children }) => <em className="italic text-neutral-300">{children}</em>,
                 hr: () => <hr className="my-3 border-[#27272a]" />,
-                ul: ({ children }) => <ul className="list-disc list-inside my-2 space-y-1.5 text-neutral-300">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside my-2 space-y-1.5 text-neutral-300">{children}</ol>,
-                li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs sm:text-sm">{children}</li>,
+                ul: ({ children }) => <ul className="list-disc list-outside ml-5 my-2 space-y-1 text-neutral-300 text-xs sm:text-sm">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-outside ml-5 my-2 space-y-1 text-neutral-300 text-xs sm:text-sm">{children}</ol>,
+                li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs sm:text-sm my-0.5">{children}</li>,
+                blockquote: ({ children }) => (
+                  <blockquote className="my-2.5 border-l-4 border-purple-500/70 bg-[#232326] py-2 px-3.5 rounded-r-xl text-neutral-300 italic text-xs sm:text-sm">
+                    {children}
+                  </blockquote>
+                ),
                 table: ({ children }) => (
                   <div className="overflow-x-auto my-3 rounded-xl border border-[#27272a] bg-[#232326] p-1">
                     <table className="w-full text-left text-xs border-collapse">{children}</table>
                   </div>
                 ),
                 thead: ({ children }) => <thead className="bg-[#1c1c1f] text-white border-b border-[#27272a]">{children}</thead>,
-                th: ({ children }) => <th className="p-2 font-bold text-white">{children}</th>,
-                td: ({ children }) => <td className="p-2 border-t border-[#27272a] text-neutral-300">{children}</td>,
-                code: ({ children }) => (
-                  <code className="rounded-lg bg-[#232326] px-1.5 py-0.5 text-[11px] font-mono text-neutral-200 border border-[#2e2e32]">
-                    {children}
-                  </code>
+                tbody: ({ children }) => <tbody className="divide-y divide-[#27272a] text-neutral-200">{children}</tbody>,
+                tr: ({ children }) => <tr className="hover:bg-[#27272a]/50 transition-colors">{children}</tr>,
+                th: ({ children }) => <th className="p-2.5 font-bold text-white border-b border-[#3f3f46]">{children}</th>,
+                td: ({ children }) => <td className="p-2.5 border-t border-[#27272a] text-neutral-300 align-top">{children}</td>,
+                pre: ({ children }) => <>{children}</>,
+                code: ({ inline, className, children, ...props }: any) => {
+                  const isBlock = !inline && (className || String(children).includes('\n'));
+                  if (isBlock) {
+                    return <CodeBlock className={className}>{children}</CodeBlock>;
+                  }
+                  return (
+                    <code className="rounded-md bg-[#232326] px-1.5 py-0.5 text-[11px] font-mono text-purple-200 border border-[#2e2e32] mx-0.5" {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                img: ({ src, alt }) => (
+                  <img src={src} alt={alt || ''} className="max-w-full h-auto rounded-xl border border-[#27272a] my-2" referrerPolicy="no-referrer" />
                 ),
+                details: ({ children }) => (
+                  <details className="my-2 rounded-xl border border-[#27272a] bg-[#232326] p-2.5 text-xs text-neutral-200">{children}</details>
+                ),
+                summary: ({ children }) => (
+                  <summary className="cursor-pointer font-bold text-white hover:text-purple-300 transition-colors select-none">{children}</summary>
+                ),
+                mark: ({ children }) => (
+                  <mark className="bg-amber-400/30 text-amber-200 px-1 py-0.5 rounded border border-amber-400/40">{children}</mark>
+                ),
+                del: ({ children }) => <del className="line-through text-neutral-400">{children}</del>,
+                input: (props: any) =>
+                  props.type === 'checkbox' ? (
+                    <input type="checkbox" checked={props.checked} readOnly className="mr-1.5 h-3.5 w-3.5 rounded bg-[#27272a] border-[#3f3f46] text-purple-500" />
+                  ) : (
+                    <input {...props} />
+                  ),
               }}
             >
               {processedMarkdown}

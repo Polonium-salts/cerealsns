@@ -19,7 +19,6 @@ interface NavbarProps {
   onOpenHistory: () => void;
   onOpenCommandPalette: () => void;
   onResetSearch: () => void;
-  firebaseConnected: boolean;
   isSearchActive: boolean;
   activeCategory: string;
   onSelectCategory: (catId: string) => void;
@@ -55,7 +54,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenHistory,
   onOpenCommandPalette,
   onResetSearch,
-  firebaseConnected,
   isSearchActive,
   activeCategory,
   onSelectCategory,

@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 
@@ -22,8 +23,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Read env SEARXNG_INSTANCES from environment variables
+const envSearxng = process.env.SEARXNG_INSTANCES || '';
+const parsedEnvSearxng = envSearxng ? envSearxng.split(',').map(s => s.trim()).filter(Boolean) : [];
+
 // List of public SearXNG instances for distributed meta search query
-const DEFAULT_SEARXNG_INSTANCES = [
+const DEFAULT_SEARXNG_INSTANCES = Array.from(new Set([
+  ...parsedEnvSearxng,
   'https://xka.cz',
   'https://searx.prvcy.eu',
   'https://searx.ro',
@@ -34,7 +40,8 @@ const DEFAULT_SEARXNG_INSTANCES = [
   'https://searx.tiekoetter.com',
   'https://search.ononoki.org',
   'https://searx.f42.me'
-];
+]));
+
 
 // Simulated Edge Computing Global Edge Nodes (EdgeOne & Cloudflare Workers)
 const EDGE_NODES = [
@@ -429,6 +436,37 @@ app.get('/api/health', (req, res) => {
     openrouterConfigured: !!process.env.OPENROUTER_API_KEY,
   });
 });
+
+// Local File / Memory KV Store for site_config.json
+const CONFIG_FILE_PATH = path.join(process.cwd(), 'site_config.json');
+let siteConfigStore: Record<string, any> = {};
+
+try {
+  if (fs.existsSync(CONFIG_FILE_PATH)) {
+    siteConfigStore = JSON.parse(fs.readFileSync(CONFIG_FILE_PATH, 'utf-8'));
+  }
+} catch (e) {
+  console.warn('Could not read site_config.json:', e);
+}
+
+app.get('/api/config', (req, res) => {
+  res.json({
+    storageType: 'local_file_kv',
+    config: siteConfigStore,
+  });
+});
+
+app.post('/api/config', (req, res) => {
+  try {
+    const body = req.body || {};
+    siteConfigStore = { ...siteConfigStore, ...body, updatedAt: new Date().toISOString() };
+    fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(siteConfigStore, null, 2), 'utf-8');
+    res.json({ success: true, storageType: 'local_file_kv', config: siteConfigStore });
+  } catch (e: any) {
+    res.status(500).json({ error: 'Failed to save site config: ' + e.message });
+  }
+});
+
 
 // API 2: Available OpenRouter / Fallback LLM Models
 app.get('/api/openrouter/models', (req, res) => {

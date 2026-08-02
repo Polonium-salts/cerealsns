@@ -1,15 +1,59 @@
 const DEFAULT_SEARXNG_INSTANCES = [
-  'https://xka.cz',
   'https://searx.prvcy.eu',
-  'https://searx.ro',
-  'https://searx.info',
+  'https://searx.f42.me',
   'https://searx.be',
+  'https://searx.ro',
   'https://searxng.site',
   'https://searx.work',
   'https://searx.tiekoetter.com',
   'https://search.ononoki.org',
-  'https://searx.f42.me'
+  'https://xka.cz',
+  'https://searx.space'
 ];
+
+// Cloudflare Worker Isolate In-Memory Health & Latency Auto-Switcher
+const instanceHealthMap = new Map();
+
+function getSortedHealthyInstances(instances) {
+  const now = Date.now();
+  const uniqueInstances = Array.from(new Set(instances.filter(Boolean)));
+
+  return uniqueInstances.sort((a, b) => {
+    const healthA = instanceHealthMap.get(a) || { failCount: 0, lastFailTime: 0, avgLatency: 500 };
+    const healthB = instanceHealthMap.get(b) || { failCount: 0, lastFailTime: 0, avgLatency: 500 };
+
+    // Cooldown failed instances for 60 seconds
+    const isCoolingA = healthA.failCount >= 2 && (now - healthA.lastFailTime < 60000);
+    const isCoolingB = healthB.failCount >= 2 && (now - healthB.lastFailTime < 60000);
+
+    if (isCoolingA && !isCoolingB) return 1;
+    if (!isCoolingA && isCoolingB) return -1;
+
+    if (healthA.failCount !== healthB.failCount) {
+      return healthA.failCount - healthB.failCount;
+    }
+    return healthA.avgLatency - healthB.avgLatency;
+  });
+}
+
+function recordInstanceHealth(instanceUrl, success, latencyMs) {
+  const now = Date.now();
+  const current = instanceHealthMap.get(instanceUrl) || { failCount: 0, lastFailTime: 0, avgLatency: 500 };
+
+  if (success) {
+    instanceHealthMap.set(instanceUrl, {
+      failCount: Math.max(0, current.failCount - 1),
+      lastFailTime: current.lastFailTime,
+      avgLatency: Math.round((current.avgLatency + latencyMs) / 2)
+    });
+  } else {
+    instanceHealthMap.set(instanceUrl, {
+      failCount: current.failCount + 1,
+      lastFailTime: now,
+      avgLatency: current.avgLatency + 1000
+    });
+  }
+}
 
 function normalizeEngineName(engineRaw) {
   if (!engineRaw) return 'Google';
@@ -223,17 +267,20 @@ async function fetchSingleWikipedia(queryStr) {
   return [];
 }
 
-async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines = 'google') {
+async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines = 'google', acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8') {
+  const startTime = Date.now();
   try {
     const targetEngines = engines || 'google';
-    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&engines=${encodeURIComponent(targetEngines)}&category_${category}=1&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
+    const langParam = /[\u4e00-\u9fa5]/.test(queryStr) ? 'zh-CN' : 'auto';
+    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&engines=${encodeURIComponent(targetEngines)}&language=${langParam}&safesearch=0&category_${category}=1&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1500);
+    const timer = setTimeout(() => controller.abort(), 2200);
 
     const resp = await fetch(jsonUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/html'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/html',
+        'Accept-Language': acceptLang
       },
       signal: controller.signal
     });
@@ -247,6 +294,7 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
         try {
           const data = JSON.parse(bodyText);
           if (data && Array.isArray(data.results) && data.results.length > 0) {
+            recordInstanceHealth(cleanInstance, true, Date.now() - startTime);
             return data.results.map((r) => ({
               ...r,
               engine: normalizeEngineName(r.engine || r.engines?.[0] || 'Google')
@@ -256,6 +304,7 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
       }
     }
   } catch {}
+  recordInstanceHealth(cleanInstance, false, Date.now() - startTime);
   return [];
 }
 
@@ -409,8 +458,25 @@ function computeResultRelevanceScore(item, queryStr, consensusEnginesCount = 1) 
 }
 
 export async function onRequestGet(context) {
-  const { request } = context;
+  const { request, env = {}, waitUntil } = context;
   const url = new URL(request.url);
+
+  // 1. Cloudflare Native Cache API Lookup (0ms edge hit)
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const cacheKey = new URL(request.url);
+
+  if (cache && request.method === 'GET') {
+    try {
+      const cachedResponse = await cache.match(cacheKey);
+      if (cachedResponse) {
+        const response = new Response(cachedResponse.body, cachedResponse);
+        response.headers.set('X-CF-Cache-Status', 'HIT');
+        return response;
+      }
+    } catch (e) {
+      console.warn('Edge cache match error:', e);
+    }
+  }
 
   const q = url.searchParams.get('q') || '';
   const category = url.searchParams.get('category') || 'general';
@@ -420,6 +486,20 @@ export async function onRequestGet(context) {
   const customUrlsParam = url.searchParams.get('custom_urls') || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
 
+  // Read environment variable SEARXNG_INSTANCES from Cloudflare Pages Dashboard
+  const cfEnvSearxng = env.SEARXNG_INSTANCES || '';
+  const envInstances = cfEnvSearxng ? cfEnvSearxng.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  // Read from Cloudflare KV if bound
+  const kv = env.NEXUS_CONFIG_KV || env.CONFIG_KV || env.SEARXNG_KV || env.KV;
+  let kvInstances = [];
+  if (kv) {
+    try {
+      const kvList = await kv.get('searxng_instances', { type: 'json' });
+      if (Array.isArray(kvList)) kvInstances = kvList;
+    } catch {}
+  }
+
   if (!q.trim()) {
     return new Response(JSON.stringify({ error: 'Search query is required' }), {
       status: 400,
@@ -427,16 +507,31 @@ export async function onRequestGet(context) {
     });
   }
 
+  // Extract Cloudflare Edge Geo Context (request.cf)
+  const userCountry = request.cf?.country || 'CN';
+  const userColo = request.cf?.colo || 'EDGE';
+  const acceptLang = (userCountry === 'CN' || userCountry === 'HK' || userCountry === 'TW')
+    ? 'zh-CN,zh;q=0.9,en;q=0.8'
+    : `${userCountry.toLowerCase()},en-US;q=0.9,en;q=0.8`;
+
   const startTime = Date.now();
   let results = [];
   const enginesUsedSet = new Set();
 
-  const instancesToTry = [...customInstances.filter(Boolean), ...DEFAULT_SEARXNG_INSTANCES];
-  const topInstances = Array.from(new Set(instancesToTry)).slice(0, 4);
+  // Combine and rank instances by health and latency
+  const rawInstancesToTry = [
+    ...customInstances.filter(Boolean),
+    ...kvInstances.filter(Boolean),
+    ...envInstances.filter(Boolean),
+    ...DEFAULT_SEARXNG_INSTANCES
+  ];
+
+  const sortedHealthyNodes = getSortedHealthyInstances(rawInstancesToTry);
+  const topInstances = sortedHealthyNodes.slice(0, 4);
 
   const searxngPromises = topInstances.map(inst => {
     const cleanInstance = inst.endsWith('/') ? inst.slice(0, -1) : inst;
-    return fetchSingleSearxngInstance(cleanInstance, q, category, page, timeRange, engines);
+    return fetchSingleSearxngInstance(cleanInstance, q, category, page, timeRange, engines, acceptLang);
   });
 
   const bingPromise = page === 1 ? fetchSingleBing(q) : Promise.resolve([]);
@@ -464,20 +559,23 @@ export async function onRequestGet(context) {
     engineBuckets.get(normEngine).push(item);
   };
 
+  let totalRealResults = 0;
   for (const outcome of settled) {
     if (outcome.status === 'fulfilled' && Array.isArray(outcome.value)) {
       for (const item of outcome.value) {
         addToBucket(item);
+        totalRealResults++;
       }
     }
   }
 
-  const fallbacks = generateInstantFallbackResults(q, category, page, engines);
-  for (const fb of fallbacks) {
-    const normEngine = normalizeEngineName(fb.engine);
-    const currentBucket = engineBuckets.get(normEngine) || [];
-    if (currentBucket.length < 3 && !seenUrls.has(fb.url)) {
-      addToBucket(fb);
+  // Only use template fallbacks if real live search returned fewer than 3 total items
+  if (totalRealResults < 3) {
+    const fallbacks = generateInstantFallbackResults(q, category, page, engines);
+    for (const fb of fallbacks) {
+      if (!seenUrls.has(fb.url)) {
+        addToBucket(fb);
+      }
     }
   }
 
@@ -575,11 +673,23 @@ export async function onRequestGet(context) {
     ]
   };
 
-  return new Response(JSON.stringify(responseData), {
+  const responseObj = new Response(JSON.stringify(responseData), {
     status: 200,
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=300, s-maxage=600',
+      'X-CF-Cache-Status': 'MISS',
+      'X-CF-Colo': userColo,
+      'X-CF-Country': userCountry,
+      'X-Searxng-Auto-Switcher': 'Cloudflare-Pages-Edge-Optimized'
     }
   });
+
+  if (cache && typeof waitUntil === 'function') {
+    waitUntil(cache.put(cacheKey, responseObj.clone()));
+  } else if (cache && context.waitUntil) {
+    context.waitUntil(cache.put(cacheKey, responseObj.clone()));
+  }
+
+  return responseObj;
 }

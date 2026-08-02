@@ -88,69 +88,20 @@ export async function ensureAuth(): Promise<boolean> {
 const CONFIG_DOC_ID = 'global_nexus_config';
 
 export async function loadAppConfigFromFirebase(): Promise<Partial<AppConfig> | null> {
-  try {
-    const authed = await ensureAuth();
-    if (!authed) return null;
-
-    const docRef = doc(db, 'configs', CONFIG_DOC_ID);
-    const snap = await withTimeout(getDoc(docRef), 3000);
-    if (snap.exists()) {
-      return snap.data() as Partial<AppConfig>;
-    }
-  } catch (err) {
-    handleFirestoreError(err, OperationType.GET, `configs/${CONFIG_DOC_ID}`);
-  }
+  // Firebase storage removed per system requirement; using KV/API storage instead
   return null;
 }
 
-export async function saveAppConfigToFirebase(config: Partial<AppConfig>): Promise<boolean> {
-  try {
-    const authed = await ensureAuth();
-    if (!authed) return false;
-
-    const docRef = doc(db, 'configs', CONFIG_DOC_ID);
-    await withTimeout(
-      setDoc(
-        docRef,
-        {
-          ...config,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      ),
-      3000
-    );
-    return true;
-  } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, `configs/${CONFIG_DOC_ID}`);
-    return false;
-  }
+export async function saveAppConfigToFirebase(_config: Partial<AppConfig>): Promise<boolean> {
+  // Firebase storage removed per system requirement; using KV/API storage instead
+  return false;
 }
 
 export async function fetchCuratedSearches() {
-  try {
-    const authed = await ensureAuth();
-    if (!authed) return [];
-
-    const q = query(collection(db, 'curated_searches'), orderBy('createdAt', 'desc'), limit(10));
-    const snap = await withTimeout(getDocs(q), 3000);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, 'curated_searches');
-    return [];
-  }
+  return [];
 }
 
-// Test connection on boot to detect offline/unreachable backend early
 export async function testFirestoreConnection(): Promise<boolean> {
-  try {
-    await withTimeout(getDocFromServer(doc(db, 'test', 'connection')), 2000);
-    return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.info('Firestore operates in offline/local state.');
-    }
-    return false;
-  }
+  return false;
 }
 

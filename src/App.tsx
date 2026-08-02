@@ -9,9 +9,8 @@ import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminApiPanel } from './components/admin/AdminApiPanel';
 import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryItem } from './types';
-import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes } from './lib/api';
+import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes, fetchAppConfig, saveAppConfig } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
-import { loadAppConfigFromFirebase, saveAppConfigToFirebase } from './lib/firebase';
 import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Server, Shield } from 'lucide-react';
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -44,7 +43,7 @@ export default function App() {
 
   // App Configuration State
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
-  const [firebaseConnected, setFirebaseConnected] = useState(false);
+  const [configStorageType, setConfigStorageType] = useState<string>('memory');
   const [optimalNode, setOptimalNode] = useState<EdgeNode | null>(null);
   const [savedOfflineIds, setSavedOfflineIds] = useState<Set<string>>(new Set());
 
@@ -61,11 +60,11 @@ export default function App() {
       const nodeData = await fetchEdgeNodes();
       if (nodeData.optimalRoute) setOptimalNode(nodeData.optimalRoute);
 
-      // Fetch config from Firebase
-      const fbConfig = await loadAppConfigFromFirebase();
-      if (fbConfig) {
-        setConfig((prev) => ({ ...prev, ...fbConfig }));
-        setFirebaseConnected(true);
+      // Fetch config from KV / API endpoint
+      const kvResult = await fetchAppConfig();
+      if (kvResult && kvResult.config && Object.keys(kvResult.config).length > 0) {
+        setConfig((prev) => ({ ...prev, ...kvResult.config }));
+        if (kvResult.storageType) setConfigStorageType(kvResult.storageType);
       } else {
         const local = localStorage.getItem('nexus_app_config');
         if (local) {
@@ -131,8 +130,8 @@ export default function App() {
     const updated = { ...config, ...newConfig };
     setConfig(updated);
     localStorage.setItem('nexus_app_config', JSON.stringify(updated));
-    const success = await saveAppConfigToFirebase(updated);
-    setFirebaseConnected(success);
+    const result = await saveAppConfig(updated);
+    if (result.storageType) setConfigStorageType(result.storageType);
   };
 
   // Execute Search
@@ -345,7 +344,6 @@ export default function App() {
             window.history.pushState({}, '', '/');
           }
         }}
-        firebaseConnected={firebaseConnected}
         isSearchActive={isSearchActive}
         activeCategory={category}
         onSelectCategory={(catId) => {
@@ -490,7 +488,7 @@ export default function App() {
         onClose={() => setIsConfigOpen(false)}
         config={config}
         onSaveConfig={handleSaveConfig}
-        firebaseConnected={firebaseConnected}
+        storageType={configStorageType}
       />
 
       <HistoryDrawer

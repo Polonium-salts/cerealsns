@@ -448,3 +448,37 @@ export async function purgeJsDelivrCdnCache(): Promise<{ ok: boolean; message?: 
   return { ok: false, message: 'Purge request failed' };
 }
 
+// Site Config KV / Storage API
+export async function fetchAppConfig(): Promise<{ config: Partial<AppConfig>; storageType?: string } | null> {
+  try {
+    const resp = await fetch('/api/config');
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.config && typeof data.config === 'object') {
+        return { config: data.config, storageType: data.storageType };
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch config from /api/config:', e);
+  }
+  return null;
+}
+
+export async function saveAppConfig(config: Partial<AppConfig>): Promise<{ success: boolean; storageType?: string }> {
+  try {
+    const resp = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      return { success: true, storageType: data.storageType };
+    }
+  } catch (e) {
+    console.warn('Failed to save config to /api/config:', e);
+  }
+  return { success: false };
+}
+
+

@@ -7,7 +7,7 @@ interface ConfigModalProps {
   onClose: () => void;
   config: AppConfig;
   onSaveConfig: (newConfig: Partial<AppConfig>) => void;
-  firebaseConnected: boolean;
+  storageType?: string;
 }
 
 export const ConfigModal: React.FC<ConfigModalProps> = ({
@@ -15,7 +15,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   onClose,
   config,
   onSaveConfig,
-  firebaseConnected,
+  storageType,
 }) => {
   const [apiKey, setApiKey] = useState(config.openrouterApiKey || '');
   const [model, setModel] = useState(config.openrouterModel || 'openrouter/free');
@@ -252,7 +252,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
           <div className="flex items-center justify-between border-t border-slate-800 pt-4">
             <div className="flex items-center space-x-2 text-[11px] text-slate-400">
               <Cloud className="h-4 w-4 text-indigo-400" />
-              <span>{firebaseConnected ? '配置将实时同步至 Firebase 云端' : '已保存在本地浏览器配置'}</span>
+              <span>{storageType === 'cloudflare_kv' ? '配置已持久化保存至 Cloudflare KV 空间' : '配置已保存至 KV / 本地存储'}</span>
             </div>
 
             <button
