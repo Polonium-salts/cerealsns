@@ -1,6 +1,4 @@
 const DEFAULT_SEARXNG_INSTANCES = [
-  'https://searx.prvcy.eu',
-  'https://searx.f42.me',
   'https://searx.be',
   'https://searx.ro',
   'https://searxng.site',
@@ -8,7 +6,10 @@ const DEFAULT_SEARXNG_INSTANCES = [
   'https://searx.tiekoetter.com',
   'https://search.ononoki.org',
   'https://xka.cz',
-  'https://searx.space'
+  'https://searx.space',
+  'https://search.bus-hit.me',
+  'https://searx.ctf.so',
+  'https://searx.peropero.online'
 ];
 
 // Cloudflare Worker Isolate In-Memory Health & Latency Auto-Switcher
@@ -60,9 +61,9 @@ function normalizeEngineName(engineRaw) {
   const lower = engineRaw.toLowerCase();
   if (lower.includes('google') || lower.includes('searxng')) return 'Google';
   if (lower.includes('bing')) return 'Bing';
+  if (lower.includes('baidu')) return 'Baidu';
   if (lower.includes('duck')) return 'DuckDuckGo';
   if (lower.includes('wiki')) return 'Wikipedia';
-  if (lower.includes('baidu')) return 'Baidu';
   if (lower.includes('qwant')) return 'Qwant';
   if (lower.includes('yahoo')) return 'Yahoo';
   return engineRaw.charAt(0).toUpperCase() + engineRaw.slice(1);
@@ -243,7 +244,7 @@ async function fetchSingleWikipedia(queryStr) {
   try {
     const wikiUrl = `https://zh.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(queryStr)}&format=json&utf8=1`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1200);
+    const timer = setTimeout(() => controller.abort(), 1500);
 
     const resp = await fetch(wikiUrl, { signal: controller.signal });
     clearTimeout(timer);
@@ -267,14 +268,90 @@ async function fetchSingleWikipedia(queryStr) {
   return [];
 }
 
-async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines = 'google', acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8') {
+async function fetchSingleBaidu(queryStr) {
+  try {
+    const baiduUrl = `https://www.baidu.com/s?wd=${encodeURIComponent(queryStr)}&ie=utf-8&tn=json`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1800);
+
+    const resp = await fetch(baiduUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+
+    if (resp.ok) {
+      const data = await resp.json().catch(() => null);
+      const entries = data?.feed?.entry || data?.feed?.results || [];
+      if (Array.isArray(entries) && entries.length > 0) {
+        return entries.map((entry) => ({
+          title: (entry.title || '').replace(/<[^>]+>/g, '').trim(),
+          url: entry.url || `https://www.baidu.com/s?wd=${encodeURIComponent(queryStr)}`,
+          content: (entry.abs || entry.snippet || entry.title || '').replace(/<[^>]+>/g, '').trim(),
+          snippet: (entry.abs || entry.snippet || entry.title || '').replace(/<[^>]+>/g, '').trim(),
+          engine: 'Baidu'
+        })).filter(item => item.title && item.url);
+      }
+    }
+  } catch {}
+  return [];
+}
+
+async function fetchSingleQwant(queryStr) {
+  try {
+    const qwantUrl = `https://api.qwant.com/v3/search/web?q=${encodeURIComponent(queryStr)}&count=10&locale=zh_CN`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1800);
+
+    const resp = await fetch(qwantUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+
+    if (resp.ok) {
+      const data = await resp.json().catch(() => null);
+      const items = data?.data?.result?.data?.mainline?.items || [];
+      const realResults = [];
+      for (const item of items) {
+        if (item.type === 'web' && item.title && item.url) {
+          realResults.push({
+            title: item.title,
+            url: item.url,
+            content: item.desc || item.snippet || '',
+            snippet: item.desc || item.snippet || '',
+            engine: 'Qwant'
+          });
+        }
+      }
+      return realResults;
+    }
+  } catch {}
+  return [];
+}
+
+async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines = '', acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8') {
   const startTime = Date.now();
   try {
-    const targetEngines = engines || 'google';
     const langParam = /[\u4e00-\u9fa5]/.test(queryStr) ? 'zh-CN' : 'auto';
-    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&engines=${encodeURIComponent(targetEngines)}&language=${langParam}&safesearch=0&category_${category}=1&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
+    let engineQueryParam = '';
+    
+    // If engines param contains a single specific engine (like 'bing' or 'google'), pass engines=...
+    if (engines && !engines.includes(',') && engines !== 'all') {
+      engineQueryParam = `&engines=${encodeURIComponent(engines)}`;
+    } else {
+      // For general searches, let SearXNG use its active multi-engine aggregator
+      engineQueryParam = `&categories=${encodeURIComponent(category || 'general')}`;
+    }
+
+    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json${engineQueryParam}&language=${langParam}&safesearch=0&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2200);
+    const timer = setTimeout(() => controller.abort(), 2800);
 
     const resp = await fetch(jsonUrl, {
       headers: {
@@ -537,12 +614,18 @@ export async function onRequestGet(context) {
   const bingPromise = page === 1 ? fetchSingleBing(q) : Promise.resolve([]);
   const ddgPromise = page === 1 ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
   const wikiPromise = page === 1 ? fetchSingleWikipedia(q) : Promise.resolve([]);
+  const baiduPromise = page === 1 ? fetchSingleBaidu(q) : Promise.resolve([]);
+  const qwantPromise = page === 1 ? fetchSingleQwant(q) : Promise.resolve([]);
+
+  const fallbacks = generateInstantFallbackResults(q, category, page, engines);
 
   const settled = await Promise.allSettled([
     ...searxngPromises,
     bingPromise,
     ddgPromise,
-    wikiPromise
+    wikiPromise,
+    baiduPromise,
+    qwantPromise
   ]);
 
   const engineBuckets = new Map();
@@ -571,7 +654,6 @@ export async function onRequestGet(context) {
 
   // Only use template fallbacks if real live search returned fewer than 3 total items
   if (totalRealResults < 3) {
-    const fallbacks = generateInstantFallbackResults(q, category, page, engines);
     for (const fb of fallbacks) {
       if (!seenUrls.has(fb.url)) {
         addToBucket(fb);
@@ -579,7 +661,7 @@ export async function onRequestGet(context) {
     }
   }
 
-  const enginePriority = ['Google', 'Bing', 'DuckDuckGo', 'Wikipedia', 'Baidu'];
+  const enginePriority = ['Google', 'Bing', 'Baidu', 'Wikipedia', 'DuckDuckGo', 'Qwant'];
   const allEngineKeys = Array.from(new Set([...enginePriority, ...Array.from(engineBuckets.keys())]));
 
   const interleavedResults = [];

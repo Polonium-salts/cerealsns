@@ -1133,10 +1133,13 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
 
   const bingPromise = page === 1 ? fetchSingleBing(queryStr) : Promise.resolve([]);
   const ddgPromise = page === 1 ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
+  const wikiPromise = page === 1 ? fetchSingleWikipedia(queryStr) : Promise.resolve([]);
+
   const settled = await Promise.allSettled([
     ...searxngPromises,
     bingPromise,
-    ddgPromise
+    ddgPromise,
+    wikiPromise
   ]);
 
   // Collect live results
