@@ -1503,8 +1503,15 @@ app.post('/api/summary/stream', async (req, res) => {
               try {
                 const parsed = JSON.parse(jsonStr);
                 const deltaObj = parsed.choices?.[0]?.delta;
-                const contentChunk = deltaObj?.content || deltaObj?.reasoning;
+                const contentChunk = deltaObj?.content || '';
                 if (contentChunk) {
+                  if (
+                    contentChunk.includes('We need to determine safety') ||
+                    contentChunk.includes('User Safety:') ||
+                    contentChunk.includes('Response Safety:')
+                  ) {
+                    continue;
+                  }
                   sendEvent(contentChunk);
                 }
               } catch (e) {

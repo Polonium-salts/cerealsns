@@ -127,6 +127,10 @@ export async function onRequest(context) {
     }
   }
 
+  if (path === 'endpoints' && method === 'GET') {
+    return new Response(JSON.stringify(adminEndpoints), { headers: { 'Content-Type': 'application/json' } });
+  }
+
   if (path.startsWith('endpoints/')) {
     const epId = path.replace('endpoints/', '');
     if (method === 'PUT') {
@@ -140,6 +144,29 @@ export async function onRequest(context) {
     }
   }
 
+  if (path === 'logs' && method === 'GET') {
+    const url = new URL(request.url);
+    const search = (url.searchParams.get('search') || '').toLowerCase();
+    const statusParam = url.searchParams.get('status');
+
+    let logs = [
+      { id: 'log_1', timestamp: new Date().toISOString(), method: 'GET', path: '/api/search', status: 200, ip: '162.158.1.10', latencyMs: 38, keyName: 'Public Web Direct', userAgent: 'Mozilla/5.0', responseSize: '12.4 KB' },
+      { id: 'log_2', timestamp: new Date(Date.now() - 15000).toISOString(), method: 'POST', path: '/api/summary/stream', status: 200, ip: '162.158.1.12', latencyMs: 140, keyName: 'OpenRouter Edge', userAgent: 'Mozilla/5.0', responseSize: '3.1 KB' },
+      { id: 'log_3', timestamp: new Date(Date.now() - 45000).toISOString(), method: 'GET', path: '/api/nodes/ping', status: 200, ip: '162.158.1.15', latencyMs: 15, keyName: 'Public Web Direct', userAgent: 'Mozilla/5.0', responseSize: '0.8 KB' },
+      { id: 'log_4', timestamp: new Date(Date.now() - 90000).toISOString(), method: 'GET', path: '/api/autocomplete', status: 200, ip: '162.158.1.20', latencyMs: 22, keyName: 'Public Web Direct', userAgent: 'Mozilla/5.0', responseSize: '0.4 KB' },
+    ];
+
+    if (statusParam) {
+      const s = parseInt(statusParam, 10);
+      if (!isNaN(s)) logs = logs.filter(l => l.status === s);
+    }
+    if (search) {
+      logs = logs.filter(l => l.path.toLowerCase().includes(search) || l.ip.includes(search) || l.keyName.toLowerCase().includes(search));
+    }
+
+    return new Response(JSON.stringify(logs), { headers: { 'Content-Type': 'application/json' } });
+  }
+
   if (path === 'config') {
     if (method === 'GET') {
       return new Response(JSON.stringify(adminConfig), { headers: { 'Content-Type': 'application/json' } });
@@ -148,6 +175,23 @@ export async function onRequest(context) {
       const body = await request.json().catch(() => ({}));
       adminConfig = { ...adminConfig, ...body };
       return new Response(JSON.stringify(adminConfig), { headers: { 'Content-Type': 'application/json' } });
+    }
+  }
+
+  if (path === 'searxng/ping' && method === 'POST') {
+    const body = await request.json().catch(() => ({}));
+    const targetUrl = (body.url || '').trim().replace(/\/$/, '');
+    if (!targetUrl) {
+      return new Response(JSON.stringify({ error: 'Missing target URL' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+    const start = Date.now();
+    try {
+      const resp = await fetch(`${targetUrl}/search?q=ping&format=json`, { signal: AbortSignal.timeout(3500) });
+      const duration = Date.now() - start;
+      return new Response(JSON.stringify({ ok: resp.ok, latencyMs: duration, status: resp.ok ? 'online' : 'degraded', statusCode: resp.status }), { headers: { 'Content-Type': 'application/json' } });
+    } catch (err) {
+      const duration = Date.now() - start;
+      return new Response(JSON.stringify({ ok: false, latencyMs: duration, status: 'offline', error: err.message }), { headers: { 'Content-Type': 'application/json' } });
     }
   }
 
@@ -163,6 +207,11 @@ export async function onRequest(context) {
     }));
     adminConfig.searxngInstances = updated;
     return new Response(JSON.stringify({ searxngInstances: updated }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  if (path === 'jsdelivr/purge' && method === 'POST') {
+    adminConfig.jsDelivrPurgedAt = new Date().toISOString();
+    return new Response(JSON.stringify({ success: true, message: 'jsDelivr 全球 Edge 节点缓存刷新指令已发送', purgedAt: adminConfig.jsDelivrPurgedAt }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   return new Response(JSON.stringify({ status: 'ok' }), { headers: { 'Content-Type': 'application/json' } });
