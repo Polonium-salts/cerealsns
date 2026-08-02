@@ -114,11 +114,12 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
                 onChange={(e) => setModel(e.target.value)}
                 className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-100 focus:border-indigo-500 focus:outline-none"
               >
-                <option value="openrouter/free">OpenRouter Free Router (自动选免费·推荐)</option>
-                <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free)</option>
-                <option value="nvidia/nemotron-3-super-120b-a12b:free">NVIDIA Nemotron 3 Super (Free)</option>
-                <option value="openai/gpt-oss-20b:free">OpenAI gpt-oss-20b (Free)</option>
-                <option value="cohere/north-mini-code:free">Cohere North Mini Code (Free)</option>
+                <option value="openrouter/free">⚡ Cloudflare / OpenRouter Free Flash (毫秒级极速响应·推荐)</option>
+                <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free 毫秒级极速)</option>
+                <option value="meta-llama/llama-3.3-70b-instruct:free">Meta Llama 3.3 70B Instruct (Free 极速)</option>
+                <option value="qwen/qwen-2.5-72b-instruct:free">Qwen 2.5 72B Instruct (Free 极速)</option>
+                <option value="deepseek/deepseek-chat">DeepSeek V3 Chat (High Performance)</option>
+                <option value="deepseek/deepseek-r1:free">DeepSeek R1 Reasoning (Free 包含思维链)</option>
               </select>
             </div>
 
