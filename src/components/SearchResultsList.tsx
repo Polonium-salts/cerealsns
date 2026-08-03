@@ -39,7 +39,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   };
 
   const presentEngines = Array.from(new Set(results.map((r) => r.engine)));
-  const allKnownEngines = ['Google', 'Bing', 'DuckDuckGo', 'Baidu'];
+  const allKnownEngines = ['Google', 'Bing', 'Baidu', 'DuckDuckGo', 'Yandex'];
   const engines = Array.from(new Set([...presentEngines, ...allKnownEngines.filter(e => presentEngines.includes(e))]));
   const filterableEngines = engines.length > 0 ? engines : allKnownEngines;
 
@@ -222,7 +222,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
             >
               所有 ({results.length})
             </button>
-            {['Bing', 'Google', 'DuckDuckGo', 'Baidu'].map((eng) => {
+            {['Google', 'Bing', 'Baidu', 'DuckDuckGo', 'Yandex'].map((eng) => {
               const count = results.filter((r) => r.engine === eng).length;
               const isActive = filterEngine === eng;
               return (
@@ -298,7 +298,14 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
           const breadcrumb = formatBreadcrumb(item.url);
 
           return (
-            <div key={item.id} className="group space-y-1">
+            <div
+              key={item.id}
+              className={`group space-y-1 p-3.5 sm:p-4 rounded-2xl transition-all ${
+                item.isOfficial
+                  ? 'bg-emerald-950/20 border-l-4 border-l-emerald-500 border border-emerald-500/30 shadow-md'
+                  : 'hover:bg-slate-800/30'
+              }`}
+            >
               
               {/* Line 1: Favicon + Site Name + URL Breadcrumb + Options Menu */}
               <div className="flex items-center justify-between text-xs text-slate-300">
@@ -317,6 +324,11 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center space-x-1.5">
                       <span className="text-sm font-normal text-slate-100 truncate">{siteName}</span>
+                      {item.isOfficial && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          🏠 官网
+                        </span>
+                      )}
                     </div>
                     <span className="text-[11px] text-[#9aa0a6] truncate max-w-[340px] sm:max-w-[560px] font-sans">
                       {breadcrumb}

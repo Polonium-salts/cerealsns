@@ -4,6 +4,7 @@ import { GoogleLogo } from './components/GoogleLogo';
 import { SearchBar } from './components/SearchBar';
 import { AISummaryCard } from './components/AISummaryCard';
 import { SearchResultsList } from './components/SearchResultsList';
+import { ImageSearchResults } from './components/ImageSearchResults';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
@@ -125,7 +126,7 @@ export default function App() {
     aiModeEnabled = true,
     updateHistory = true,
     targetPage = 1,
-    targetEngines = 'google'
+    targetEngines = 'google,bing,baidu,duckduckgo,yandex'
   ) => {
     if (!searchQuery.trim()) return;
 
@@ -180,7 +181,7 @@ export default function App() {
   };
 
   const handlePageChange = (newPage: number) => {
-    handleExecuteSearch(query, category, timeRange, true, true, newPage, 'google');
+    handleExecuteSearch(query, category, timeRange, true, true, newPage, 'google,bing,baidu,duckduckgo,yandex');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -394,45 +395,58 @@ export default function App() {
         {isSearchActive && (
           <div className="max-w-[1440px] w-full mx-auto py-2 space-y-6">
             
-            {/* Dual Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
-              {/* Left Side: Search Engine Results */}
-              <div className="w-full min-w-0 space-y-4 order-2 lg:order-1">
-                <SearchResultsList
-                  results={searchData?.results || []}
-                  isLoading={isLoading}
-                  query={query}
-                  onSaveToOffline={handleSaveSingleResult}
-                  savedIds={savedOfflineIds}
-                  currentPage={currentPage}
-                  totalPages={searchData?.totalPages || 10}
-                  onPageChange={handlePageChange}
-                  onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
-                  isAiSyncing={isAiSyncing}
-                />
-              </div>
+            {category === 'images' ? (
+              <ImageSearchResults
+                results={searchData?.results || []}
+                isLoading={isLoading}
+                query={query}
+                onSaveToOffline={handleSaveSingleResult}
+                savedIds={savedOfflineIds}
+                currentPage={currentPage}
+                totalPages={searchData?.totalPages || 10}
+                onPageChange={handlePageChange}
+              />
+            ) : (
+              /* Dual Column Layout */
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
+                {/* Left Side: Search Engine Results */}
+                <div className="w-full min-w-0 space-y-4 order-2 lg:order-1">
+                  <SearchResultsList
+                    results={searchData?.results || []}
+                    isLoading={isLoading}
+                    query={query}
+                    onSaveToOffline={handleSaveSingleResult}
+                    savedIds={savedOfflineIds}
+                    currentPage={currentPage}
+                    totalPages={searchData?.totalPages || 10}
+                    onPageChange={handlePageChange}
+                    onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                    isAiSyncing={isAiSyncing}
+                  />
+                </div>
 
-              {/* Right Side: AI Overview / AI Answer */}
-              <div className="w-full min-w-0 space-y-4 order-1 lg:order-2">
-                <AISummaryCard
-                  query={query}
-                  summaryText={summaryText}
-                  isStreaming={isStreaming}
-                  modelUsed={summaryModel}
-                  searchResults={searchData?.results || []}
-                  onRegenerate={(modelOverride, skillOverride) => {
-                    if (searchData?.results) {
-                      startStreamingSummary(query, searchData.results, modelOverride, skillOverride);
-                    }
-                  }}
-                  onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
-                  config={config}
-                  onUpdateConfig={handleSaveConfig}
-                  onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
-                  isAiSyncing={isAiSyncing}
-                />
+                {/* Right Side: AI Overview / AI Answer */}
+                <div className="w-full min-w-0 space-y-4 order-1 lg:order-2">
+                  <AISummaryCard
+                    query={query}
+                    summaryText={summaryText}
+                    isStreaming={isStreaming}
+                    modelUsed={summaryModel}
+                    searchResults={searchData?.results || []}
+                    onRegenerate={(modelOverride, skillOverride) => {
+                      if (searchData?.results) {
+                        startStreamingSummary(query, searchData.results, modelOverride, skillOverride);
+                      }
+                    }}
+                    onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
+                    config={config}
+                    onUpdateConfig={handleSaveConfig}
+                    onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                    isAiSyncing={isAiSyncing}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
         )}

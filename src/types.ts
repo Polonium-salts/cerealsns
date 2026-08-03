@@ -4,7 +4,7 @@ export interface SearchResult {
   url: string;
   snippet: string;
   engine: string;
-  category: 'general' | 'science' | 'news' | 'it' | 'media';
+  category: 'general' | 'science' | 'news' | 'it' | 'media' | 'images';
   score: number;
   relevancePercent?: number;
   matchedKeywords?: string[];
@@ -18,6 +18,11 @@ export interface SearchResult {
   isAiCurated?: boolean;
   aiPrecisionTag?: string;
   aiReasoning?: string;
+  img_src?: string;
+  thumbnail_src?: string;
+  thumbnail?: string;
+  resolution?: string;
+  author?: string;
 }
 
 export interface EngineStats {

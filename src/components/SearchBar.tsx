@@ -129,16 +129,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       <form onSubmit={handleSubmit} className="relative space-y-2">
         {/* High-Contrast Dark Native Pill Search Bar */}
         <div className="relative flex items-center rounded-full border border-[#2e2e32] bg-[#1c1c1f] text-white px-4 py-2.5 shadow-xl hover:border-[#3f3f46] focus-within:border-white focus-within:ring-1 focus-within:ring-white/20 transition-all duration-200">
-          
-          {/* Left Plus / Search Icon */}
-          <div className="pr-2 text-neutral-400">
-            {isLoading ? (
-              <Sparkles className="h-5 w-5 text-white animate-spin" />
-            ) : (
-              <Plus className="h-5 w-5 text-neutral-400" />
-            )}
-          </div>
-
           <input
             ref={inputRef}
             type="text"

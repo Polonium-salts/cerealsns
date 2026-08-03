@@ -33,10 +33,10 @@ interface NavbarProps {
 export const CATEGORIES = [
   { id: 'general', name: '全部', icon: Search },
   { id: 'ai', name: 'AI 概览', icon: Sparkles },
+  { id: 'images', name: '图片搜索', icon: Image },
   { id: 'it', name: 'IT与编程', icon: Code },
   { id: 'science', name: '学术论文', icon: BookOpen },
   { id: 'news', name: '新闻', icon: Newspaper },
-  { id: 'media', name: '多媒体', icon: Image },
 ];
 
 export const TIME_RANGES = [

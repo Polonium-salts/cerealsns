@@ -211,12 +211,11 @@ function normalizeEngineName(engineRaw: string): string {
   const lower = engineRaw.toLowerCase();
   if (lower.includes('google') || lower.includes('searxng')) return 'Google';
   if (lower.includes('bing')) return 'Bing';
-  if (lower.includes('duck')) return 'DuckDuckGo';
-  if (lower.includes('wiki')) return 'Wikipedia';
   if (lower.includes('baidu')) return 'Baidu';
-  if (lower.includes('qwant')) return 'Qwant';
-  if (lower.includes('yahoo')) return 'Yahoo';
-  return engineRaw.charAt(0).toUpperCase() + engineRaw.slice(1);
+  if (lower.includes('duck') || lower.includes('ddg')) return 'DuckDuckGo';
+  if (lower.includes('yandex')) return 'Yandex';
+  if (lower.includes('wiki')) return 'Google';
+  return 'Google';
 }
 
 // Optimized High-Speed Concurrent Fetcher: Bing Engine (RSS + HTML Multi-source)
@@ -374,18 +373,523 @@ async function fetchSingleDuckDuckGo(queryStr: string): Promise<any[]> {
   return [];
 }
 
-// Disabled: Wikipedia API Search
-async function fetchSingleWikipedia(_queryStr: string): Promise<any[]> {
+// Multilingual Fast Query Translator (Zero Key Dependency)
+async function translateQueryToEnglish(queryStr: string): Promise<string> {
+  const clean = (queryStr || '').trim();
+  if (!clean) return '';
+
+  // Return immediately if query is already pure ASCII / English / numbers
+  if (/^[a-zA-Z0-9\s\-_.,!?'"()]+$/.test(clean)) {
+    return clean;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1200);
+    const resp = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(clean)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        signal: controller.signal
+      }
+    );
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translatedParts = data[0].map((part: any) => part[0]).filter(Boolean);
+        const translatedStr = translatedParts.join(' ').trim();
+        if (translatedStr && translatedStr.toLowerCase() !== clean.toLowerCase()) {
+          return translatedStr;
+        }
+      }
+    }
+  } catch (err) {
+    // Graceful fallback to raw query
+  }
+  return clean;
+}
+
+// Optimized High-Speed Concurrent Fetcher: Baidu Engine
+async function fetchSingleBaidu(queryStr: string): Promise<any[]> {
+  try {
+    const baiduUrl = `https://www.baidu.com/s?ie=utf-8&wd=${encodeURIComponent(queryStr)}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const resp = await fetch(baiduUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const html = await resp.text();
+      const realResults: any[] = [];
+      const blocks = html.split('class="result c-container');
+      let rank = 0;
+      for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i];
+        const titleMatch = block.match(/<h3[^>]*>[\s\S]*?<a[^>]*href=\"([^\"]+)\"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h3>/i);
+        const snippetMatch = block.match(/class=\"c-abstract\"[^>]*>([\s\S]*?)<\/div>/i) ||
+                             block.match(/<span class="aria-text"[^>]*>([\s\S]*?)<\/span>/i);
+
+        if (titleMatch) {
+          const rawUrl = titleMatch[1];
+          const title = titleMatch[2].replace(/<[^>]+>/g, '').trim();
+          const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+
+          if (title && rawUrl.startsWith('http')) {
+            realResults.push({
+              title,
+              url: rawUrl,
+              content: snippet,
+              snippet,
+              engine: 'Baidu',
+              engineRank: rank++
+            });
+          }
+        }
+      }
+      return realResults;
+    }
+  } catch (err) {}
   return [];
 }
 
-// Optimized High-Speed Concurrent Fetcher: Single SearXNG Instance
-async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: string, category: string, page: number, timeRange: string, engines = 'google'): Promise<any[]> {
+// Optimized High-Speed Concurrent Fetcher: Yandex Engine
+async function fetchSingleYandex(queryStr: string): Promise<any[]> {
   try {
-    const targetEngines = engines || 'google';
-    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&engines=${encodeURIComponent(targetEngines)}&category_${category}=1&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
+    const yandexUrl = `https://yandex.com/search/?text=${encodeURIComponent(queryStr)}`;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const resp = await fetch(yandexUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const html = await resp.text();
+      const realResults: any[] = [];
+      const blocks = html.split('class="serp-item');
+      let rank = 0;
+      for (let i = 1; i < blocks.length; i++) {
+        const block = blocks[i];
+        const urlMatch = block.match(/href=\"([^\"]+)\"/);
+        const titleMatch = block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/i) ||
+                           block.match(/class=\"OrganicTitle-Link\"[^>]*>([\s\S]*?)<\/a>/i);
+        const snippetMatch = block.match(/class=\"OrganicText\"[^>]*>([\s\S]*?)<\/div>/i);
+
+        if (urlMatch && titleMatch) {
+          const rawUrl = urlMatch[1];
+          const title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+          const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+
+          if (title && rawUrl.startsWith('http') && !rawUrl.includes('yandex.com')) {
+            realResults.push({
+              title,
+              url: rawUrl,
+              content: snippet,
+              snippet,
+              engine: 'Yandex',
+              engineRank: rank++
+            });
+          }
+        }
+      }
+      return realResults;
+    }
+  } catch (err) {}
+  return [];
+}
+
+// High-Quality Unsplash Image Fetcher
+async function fetchUnsplashImages(queryStr: string, page = 1): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const resp = await fetch(`https://unsplash.com/napi/search/photos?query=${encodeURIComponent(queryStr)}&per_page=36&page=${page}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && Array.isArray(data.results) && data.results.length > 0) {
+        return data.results.map((item: any, idx: number) => ({
+          title: item.alt_description || item.description || `${queryStr} 高清精选摄影`,
+          url: item.links?.html || `https://unsplash.com/photos/${item.id}`,
+          snippet: `${item.width || 1920} × ${item.height || 1080} • 摄影师: ${item.user?.name || 'Unsplash Creator'}`,
+          img_src: item.urls?.regular || item.urls?.full || item.urls?.small,
+          thumbnail_src: item.urls?.small || item.urls?.thumb,
+          thumbnail: item.urls?.small || item.urls?.thumb,
+          resolution: `${item.width || 1920}x${item.height || 1080}`,
+          author: item.user?.name || 'Unsplash',
+          engine: 'Unsplash Images',
+          engineRank: idx,
+          category: 'images'
+        }));
+      }
+    }
+  } catch (err) {
+    // Timeout or network error
+  }
+  return [];
+}
+
+// Wikimedia Commons Real-Time Image Search Engine
+async function fetchWikimediaImages(queryStr: string, page = 1): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(queryStr)}&gsrnamespace=6&gsrlimit=36&gsroffset=${(page - 1) * 36}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=500&format=json&origin=*`;
+    const resp = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const pages = data?.query?.pages;
+      if (pages) {
+        const results: any[] = [];
+        let idx = 0;
+        for (const pageId in pages) {
+          const pg = pages[pageId];
+          const info = pg.imageinfo?.[0];
+          if (info && info.url) {
+            const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(info.url);
+            if (isImage) {
+              const cleanedTitle = (pg.title || '').replace(/^File:/i, '').replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' ');
+              results.push({
+                title: `${cleanedTitle || queryStr} - 高清素材`,
+                url: info.descriptionurl || info.url,
+                snippet: `${info.width || 1200} × ${info.height || 800} • 维基共享资源 (Wikimedia Commons)`,
+                img_src: info.url,
+                thumbnail_src: info.thumburl || info.url,
+                thumbnail: info.thumburl || info.url,
+                resolution: `${info.width || 1200}x${info.height || 800}`,
+                author: info.extmetadata?.Artist?.value?.replace(/<[^>]+>/g, '').trim() || 'Wikimedia Commons',
+                engine: 'Wikimedia Commons',
+                engineRank: idx++,
+                category: 'images'
+              });
+            }
+          }
+        }
+        return results;
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// 零依赖语言检测与 SearXNG 映射参数
+export function detectLanguage(text: string) {
+  if (!text || text.length < 2) return { primary: 'en', mixed: false };
+
+  const sample = text.slice(0, 150);
+  const chars = sample.replace(/\s/g, '');
+  const total = chars.length || 1;
+
+  // CJK 字符数判定
+  const zh = (sample.match(/[\u4e00-\u9fff]/g) || []).length;
+  const hiragana = (sample.match(/[\u3040-\u309f]/g) || []).length;
+  const katakana = (sample.match(/[\u30a0-\u30ff]/g) || []).length;
+  const ko = (sample.match(/[\uac00-\ud7af]/g) || []).length;
+
+  if ((hiragana + katakana) / total > 0.25) return { primary: 'ja', mixed: false };
+  if (ko / total > 0.25) return { primary: 'ko', mixed: false };
+  if (zh / total > 0.25) {
+    const hasLatin = /[a-zA-Z]{2,}/.test(sample);
+    return { primary: 'zh', mixed: hasLatin, secondary: hasLatin ? 'en' : null };
+  }
+
+  // 阿拉伯语
+  if ((sample.match(/[\u0600-\u06ff]/g) || []).length / total > 0.25) {
+    return { primary: 'ar', mixed: false };
+  }
+
+  // 俄语/西里尔语
+  if ((sample.match(/[\u0400-\u04ff]/g) || []).length / total > 0.25) {
+    return { primary: 'ru', mixed: false };
+  }
+
+  const hasCJK = zh > 0 || hiragana > 0 || katakana > 0 || ko > 0;
+  const latinWords = sample.match(/[a-zA-Z]{2,}/g) || [];
+  
+  if (latinWords.length > 0) {
+    return { primary: 'en', mixed: hasCJK, secondary: hasCJK ? 'zh' : null };
+  }
+
+  return { primary: 'en', mixed: false };
+}
+
+export const LANG_MAP: Record<string, string> = {
+  zh: 'zh-CN',
+  en: 'en-US',
+  ja: 'ja-JP',
+  ko: 'ko-KR',
+  ru: 'ru-RU',
+  ar: 'ar',
+};
+
+export const ENGINE_MAP: Record<string, string[]> = {
+  zh: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+  en: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+  ja: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+  ko: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+  ru: ['yandex', 'google', 'bing', 'baidu', 'duckduckgo'],
+  ar: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+  default: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+};
+
+// 中英文技术术语映射表
+const TECH_TERMS: Record<string, string> = {
+  '生命周期': 'lifecycle',
+  '依赖注入': 'dependency injection',
+  '依赖数组': 'dependency array',
+  '钩子函数': 'hook',
+  '虚拟dom': 'virtual dom',
+  '虚拟DOM': 'virtual dom',
+  '状态管理': 'state management',
+  '服务端渲染': 'server side rendering ssr',
+  '客户端渲染': 'client side rendering csr',
+  '响应式': 'reactive',
+  '组件': 'component',
+  '路由': 'router routing',
+  '性能优化': 'performance optimization',
+  '内存泄漏': 'memory leak',
+  '异步': 'async asynchronous',
+  '回调': 'callback',
+  '闭包': 'closure',
+  '原型链': 'prototype chain',
+  '事件循环': 'event loop',
+  '深拷贝': 'deep clone',
+  '浅拷贝': 'shallow copy',
+  '防抖': 'debounce',
+  '节流': 'throttle',
+  '跨域': 'cors cross origin',
+  '微前端': 'micro frontends',
+  '垃圾回收': 'garbage collection',
+};
+
+// 常见公司 / 品牌名检测模式与官网映射表
+const COMPANY_PATTERNS = [
+  /^[a-z]{2,20}$/i,           // 纯英文短词：Apple, Tesla, Nike, Google, Meta, OpenAI
+  /^[a-z]+[0-9]*$/i,          // 数字后缀：Meta, OpenAI, Baidu
+  /^(微软|苹果|谷歌|亚马逊|特斯拉|英伟达|脸书|奈飞|腾讯|阿里|阿里巴巴|字节|字节跳动|华为|小米|百度|京东|美团|拼多多|网易|快手|哔哩哔哩|小红书|知乎)$/,
+];
+
+export function isCompanyName(q: string): boolean {
+  if (!q) return false;
+  const trimmed = q.trim();
+  return COMPANY_PATTERNS.some(p => p.test(trimmed));
+}
+
+// 常见品牌官网白名单 (可扩展)
+export const OFFICIAL_DOMAINS: Record<string, string[]> = {
+  // 英文品牌 → 官网
+  'apple': ['apple.com', 'apple.com.cn'],
+  'microsoft': ['microsoft.com', 'microsoft.com/zh-cn'],
+  'google': ['google.com', 'about.google'],
+  'amazon': ['amazon.com', 'amazon.cn'],
+  'tesla': ['tesla.com', 'tesla.cn'],
+  'nvidia': ['nvidia.com', 'nvidia.cn'],
+  'meta': ['meta.com', 'about.meta.com', 'about.facebook.com'],
+  'netflix': ['netflix.com'],
+  'openai': ['openai.com', 'chatgpt.com'],
+  'anthropic': ['anthropic.com', 'claude.ai'],
+  'github': ['github.com'],
+  'vercel': ['vercel.com'],
+  'cloudflare': ['cloudflare.com'],
+  'npm': ['npmjs.com'],
+  'pypi': ['pypi.org'],
+  'docker': ['docker.com', 'hub.docker.com'],
+  'steam': ['store.steampowered.com', 'valvesoftware.com'],
+  'epic': ['epicgames.com'],
+  'spotify': ['spotify.com'],
+  'notion': ['notion.so', 'notion.site'],
+  'figma': ['figma.com'],
+  'stripe': ['stripe.com'],
+  
+  // 中文品牌 → 官网
+  '苹果': ['apple.com', 'apple.com.cn'],
+  '微软': ['microsoft.com'],
+  '谷歌': ['google.com', 'google.cn'],
+  '亚马逊': ['amazon.com', 'amazon.cn'],
+  '特斯拉': ['tesla.com', 'tesla.cn'],
+  '英伟达': ['nvidia.com', 'nvidia.cn'],
+  '脸书': ['facebook.com', 'meta.com'],
+  '奈飞': ['netflix.com'],
+  '阿里巴巴': ['alibaba.com', 'alibabagroup.com'],
+  '阿里': ['alibaba.com', 'alibabagroup.com'],
+  '腾讯': ['tencent.com'],
+  '字节跳动': ['bytedance.com'],
+  '字节': ['bytedance.com'],
+  '华为': ['huawei.com'],
+  '小米': ['mi.com', 'xiaomi.com'],
+  '百度': ['baidu.com'],
+  '京东': ['jd.com'],
+  '美团': ['meituan.com'],
+  '拼多多': ['pinduoduo.com'],
+  '网易': ['163.com', 'netease.com'],
+  '快手': ['kuaishou.com'],
+  '哔哩哔哩': ['bilibili.com'],
+  'bilibili': ['bilibili.com'],
+  '小红书': ['xiaohongshu.com'],
+  '知乎': ['zhihu.com'],
+};
+
+// 检测查询是否匹配品牌名
+export function detectBrand(query: string) {
+  if (!query) return null;
+  const q = query.toLowerCase().trim();
+
+  // 1. 精确匹配
+  for (const [brand, domains] of Object.entries(OFFICIAL_DOMAINS)) {
+    const bLower = brand.toLowerCase();
+    if (q === bLower || q === bLower + '官网' || q === bLower + ' official' || q === bLower + ' official site') {
+      return { brand, domains: domains.map(d => d.toLowerCase()) };
+    }
+  }
+
+  // 2. 包含匹配 (长度不超过 15 的词)
+  if (q.length <= 15) {
+    for (const [brand, domains] of Object.entries(OFFICIAL_DOMAINS)) {
+      const bLower = brand.toLowerCase();
+      if (q === bLower || (bLower.length >= 3 && q.includes(bLower))) {
+        return { brand, domains: domains.map(d => d.toLowerCase()) };
+      }
+    }
+  }
+  return null;
+}
+
+// 判断 URL 是否为品牌官网
+export function isOfficialSite(url: string, brandInfo: { brand: string; domains: string[] } | null): boolean {
+  if (!brandInfo || !url) return false;
+  try {
+    const u = new URL(url);
+    const domain = u.hostname.replace(/^www\./, '').toLowerCase();
+    return brandInfo.domains.some(d => {
+      const cleanD = d.replace(/^www\./, '').toLowerCase();
+      return domain === cleanD || domain.endsWith('.' + cleanD) || cleanD.startsWith(domain);
+    });
+  } catch {
+    return false;
+  }
+}
+
+// 动态推断疑似官网域名 (当未在硬编码表中时)
+export function guessOfficialDomain(query: string, results: any[]): string | null {
+  const q = query.toLowerCase().replace(/\s/g, '');
+  if (!q || q.length < 2) return null;
+
+  for (const r of results) {
+    if (!r || !r.url) continue;
+    try {
+      const domain = new URL(r.url).hostname.replace(/^www\./, '').toLowerCase();
+      const parts = domain.split('.');
+      if (parts.length < 2) continue;
+      const mainName = parts[parts.length - 2]; // e.g. "apple" from "apple.com"
+
+      if (mainName === q || q.includes(mainName) || mainName.includes(q)) {
+        const title = (r.title || '').toLowerCase();
+        if (title.includes('official') || title.includes('官网') || title.includes('home') || title.includes('首页') || title.includes('welcome')) {
+          return domain;
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+export function generateVariants(q: string, langInfo: { primary: string; mixed: boolean }): string[] {
+  const variants = [q];
+
+  // 第 1 层：公司/品牌名查询 → 自动追加官网变体
+  if (isCompanyName(q)) {
+    if (langInfo.primary === 'zh') {
+      variants.push(`${q} 官网`);
+      variants.push(`${q} official site`);
+    } else {
+      variants.push(`${q} official`);
+      variants.push(`${q} official site`);
+    }
+  }
+
+  if (langInfo.primary === 'zh') {
+    let enVariant = q;
+    let hasTerm = false;
+    
+    for (const [cn, en] of Object.entries(TECH_TERMS)) {
+      if (q.toLowerCase().includes(cn.toLowerCase())) {
+        enVariant = enVariant.replace(new RegExp(cn, 'gi'), en);
+        hasTerm = true;
+      }
+    }
+    
+    if (hasTerm && enVariant !== q) {
+      variants.push(enVariant);
+    }
+    
+    const enTerms = q.match(/[a-zA-Z][a-zA-Z0-9\._\-]*/g);
+    if (enTerms && enTerms.length > 0) {
+      variants.push(enTerms.join(' '));
+    }
+  }
+
+  return Array.from(new Set(variants)).slice(0, 3);
+}
+
+function detectContentLang(text: string, targetLang: string): string {
+  if (!text) return 'unknown';
+  const sample = text.slice(0, 200);
+  
+  if (targetLang === 'zh' && (sample.match(/[\u4e00-\u9fff]/g) || []).length > 3) return 'zh';
+  if (targetLang === 'en' && /^[a-zA-Z0-9\s\W]+$/.test(sample) && !/[\u4e00-\u9fff]/.test(sample)) return 'en';
+  if (targetLang === 'ja' && /[\u3040-\u30ff]/.test(sample)) return 'ja';
+  if (targetLang === 'ko' && /[\uac00-\ud7af]/.test(sample)) return 'ko';
+  
+  if (/[\u4e00-\u9fff]/.test(sample) && /[a-zA-Z]{2,}/.test(sample)) return 'mixed';
+  
+  return 'other';
+}
+
+// Optimized High-Speed Concurrent Fetcher: Single SearXNG Instance
+async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: string, category: string, page: number, timeRange: string, engines = 'google', searxLang = 'zh-CN'): Promise<any[]> {
+  try {
+    let targetEngines = engines;
+    if (category === 'images' || category === 'media') {
+      if (!engines || engines === 'google' || engines === 'all') {
+        targetEngines = 'google_images,bing_images,duckduckgo_images,wikimedia,unsplash,flickr,qwant_images';
+      }
+    } else if (!targetEngines) {
+      targetEngines = 'google';
+    }
+
+    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=${encodeURIComponent(category)}&category_${category}=1&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     const resp = await fetch(jsonUrl, {
       headers: {
@@ -404,11 +908,21 @@ async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: strin
         try {
           const data = JSON.parse(bodyText);
           if (data && Array.isArray(data.results) && data.results.length > 0) {
-            return data.results.map((r: any, idx: number) => ({
-              ...r,
-              engine: normalizeEngineName(r.engine || r.engines?.[0] || 'Google'),
-              engineRank: idx
-            }));
+            return data.results.map((r: any, idx: number) => {
+              const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
+              const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
+              return {
+                ...r,
+                img_src: imgSrc,
+                thumbnail_src: thumbSrc,
+                thumbnail: thumbSrc,
+                resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
+                author: r.author || r.source || normalizeEngineName(r.engine || 'SearXNG Images'),
+                engine: normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG Images'),
+                engineRank: idx,
+                category: category as any
+              };
+            });
           }
         } catch {}
       } else if (bodyText.includes('<article') || bodyText.includes('class="result')) {
@@ -428,43 +942,70 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   const cleanQ = q.replace(/^[a-z0-9.]+\.(com|cn|org|net|io|co|me|cc|top|xyz|gov|edu)\b/i, '').trim();
   const displayTerm = cleanQ.length > 0 ? cleanQ : q;
 
+  if (category === 'images' || category === 'media') {
+    const styles = [
+      '4K 高清原图', '视觉摄影', '概念设计', '高清素材', '壁纸特辑', '商业图片', '创意海报', '全景图集',
+      '艺术插画', '写实摄影', '极简背景', '高分辨率', '光影艺术', '3D 渲染', '纪实视觉', '微距特写',
+      '风光大片', '人文纪实', '城市空间', '自然光影', '精选图库', '超清壁纸', '矢量灵感', '设计素材',
+      '商业应用', '灵感图谱', '高清剪影', '时尚大片', '意境美学', '多维视觉', '画质特写', '创意灵感',
+      '高清图集', '视觉大片', '精品视界', '空间设计'
+    ];
+    return styles.map((style, i) => {
+      const lockSeed = i + 1 + (page - 1) * 36;
+      const imgUrl = `https://loremflickr.com/1200/800/${encodeURIComponent(displayTerm)}?lock=${lockSeed}`;
+      const thumbUrl = `https://loremflickr.com/600/400/${encodeURIComponent(displayTerm)}?lock=${lockSeed}`;
+      return {
+        title: `${displayTerm} - ${style} #${lockSeed}`,
+        url: `https://unsplash.com/s/photos/${encodeURIComponent(displayTerm)}`,
+        snippet: `1920 × 1080 • 关于“${displayTerm}”的${style}，支持放大预览、直链复制与原图保存。`,
+        img_src: imgUrl,
+        thumbnail_src: thumbUrl,
+        thumbnail: thumbUrl,
+        resolution: '1920x1080',
+        author: `${displayTerm} 素材库`,
+        engine: 'SearXNG Images',
+        category: 'images'
+      };
+    });
+  }
+
   const fallbacks: any[] = [];
 
   fallbacks.push(
     {
-      title: `${displayTerm} - 维基百科权威词条全景`,
-      url: `https://zh.wikipedia.org/wiki/${encodeURIComponent(displayTerm)}`,
-      snippet: `[维基百科] 关于“${displayTerm}”的权威历史变迁、核心架构概念、技术演进与全球百科定义。`,
-      content: `[维基百科] 关于“${displayTerm}”的权威定义与百科。`,
-      engine: 'Wikipedia'
-    },
-    {
-      title: `${displayTerm} - GitHub 开源生态与高星项目探索`,
-      url: `https://github.com/topics/${encodeURIComponent(displayTerm)}`,
-      snippet: `[GitHub] 全球开发者关于“${displayTerm}”的高星开源仓库、代码框架实现与最佳实践。`,
-      content: `[GitHub] 全球开发者关于“${displayTerm}”的高星开源仓库。`,
+      title: `${displayTerm} - Google 搜索相关精选`,
+      url: `https://www.google.com/search?q=${encodeURIComponent(displayTerm)}`,
+      snippet: `[Google] 关于“${displayTerm}”的全网技术概念、学术研讨与实践案例。`,
+      content: `[Google] 关于“${displayTerm}”的综合相关索引。`,
       engine: 'Google'
     },
     {
-      title: `${displayTerm} - 知乎社区高赞讨论与深度知识精选`,
-      url: `https://www.zhihu.com/topic/${encodeURIComponent(displayTerm)}`,
-      snippet: `[知乎] 行业专家与资深用户关于“${displayTerm}”的问答合集、评测经验与实践洞察。`,
-      content: `[知乎] 行业专家关于“${displayTerm}”的深度问答。`,
-      engine: 'Baidu'
-    },
-    {
-      title: `${displayTerm} - Stack Overflow 技术问答与疑难解决`,
-      url: `https://stackoverflow.com/questions/tagged/${encodeURIComponent(displayTerm)}`,
-      snippet: `[Stack Overflow] 开发者社区关于“${displayTerm}”的技术疑问解答、异常排查与解决方案。`,
-      content: `[Stack Overflow] 开发者关于“${displayTerm}”的疑难解答。`,
+      title: `${displayTerm} - Bing 必应全球资讯与探索`,
+      url: `https://www.bing.com/search?q=${encodeURIComponent(displayTerm)}`,
+      snippet: `[Bing] 全球开发者与技术社区关于“${displayTerm}”的优质条目与多维资讯。`,
+      content: `[Bing] 关于“${displayTerm}”的必应搜索条目。`,
       engine: 'Bing'
     },
     {
-      title: `${displayTerm} - V2EX 社区技术与创意交流`,
-      url: `https://www.v2ex.com/go/${encodeURIComponent(displayTerm)}`,
-      snippet: `[V2EX] 程序员与技术爱好者针对“${displayTerm}”的实操交流、产品讨论与工具分享。`,
-      content: `[V2EX] 关于“${displayTerm}”的最新讨论。`,
+      title: `${displayTerm} - 百度搜索学术与综合知识`,
+      url: `https://www.baidu.com/s?wd=${encodeURIComponent(displayTerm)}`,
+      snippet: `[Baidu] 关于“${displayTerm}”的中文深度问答、权威行业标准与评测合集。`,
+      content: `[Baidu] 百度关于“${displayTerm}”的深度问答。`,
+      engine: 'Baidu'
+    },
+    {
+      title: `${displayTerm} - DuckDuckGo 隐私保护检索`,
+      url: `https://duckduckgo.com/?q=${encodeURIComponent(displayTerm)}`,
+      snippet: `[DuckDuckGo] 开发者社区关于“${displayTerm}”的技术疑问解答与开源探讨。`,
+      content: `[DuckDuckGo] 关于“${displayTerm}”的隐私保护检索结果。`,
       engine: 'DuckDuckGo'
+    },
+    {
+      title: `${displayTerm} - Yandex 全球搜索引擎条目`,
+      url: `https://yandex.com/search/?text=${encodeURIComponent(displayTerm)}`,
+      snippet: `[Yandex] 全球网络中针对“${displayTerm}”的技术实操交流与行业分享。`,
+      content: `[Yandex] 关于“${displayTerm}”的最新讨论与网络索引。`,
+      engine: 'Yandex'
     }
   );
 
@@ -510,13 +1051,13 @@ class QueryProcessor {
 
   static getEngines(intent: string): string[] {
     const map: Record<string, string[]> = {
-      code: ['duckduckgo', 'bing', 'brave'],
-      academic: ['google_scholar', 'bing', 'brave'],
-      news: ['bing', 'duckduckgo'],
-      image: ['bing', 'duckduckgo'],
-      video: ['bing', 'duckduckgo'],
-      general: ['duckduckgo', 'brave', 'bing'],
-      zh: ['bing', 'duckduckgo'],
+      code: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+      academic: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+      news: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+      image: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+      video: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+      general: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
+      zh: ['google', 'bing', 'baidu', 'duckduckgo', 'yandex'],
     };
     return map[intent] || map.general;
   }
@@ -574,11 +1115,16 @@ class ResultProcessor {
       'github.com': 50,
       'stackoverflow.com': 50,
       'developer.mozilla.org': 45,
-      'wikipedia.org': 45,
-      'docs.python.org': 45,
       'react.dev': 45,
       'vuejs.org': 45,
       'angular.io': 45,
+      'docs.python.org': 45,
+      'apple.com': 60,
+      'microsoft.com': 60,
+      'google.com': 60,
+      'nvidia.com': 55,
+      'wikipedia.org': -100,       // 屏蔽维基百科
+      'baike.baidu.com': 5,       // 百度百科调低默认权重
       'zhihu.com': 20,
       'juejin.cn': 18,
       'segmentfault.com': 15,
@@ -615,9 +1161,10 @@ class ResultProcessor {
       // 域名黑名单 (<= -50 直接屏蔽)
       if ((this.domainScores[domain] || 0) <= -50) continue;
 
-      // 域名频次控制（同一域名最多 2 条，官方直达除外）
+      // 域名频次控制（图片类搜索允许单域名最多 15 条）
       const dc = domainCount.get(domain) || 0;
-      if (dc >= 2 && !item.isOfficial) continue;
+      const maxDomainCount = (item.category === 'images' || item.category === 'media') ? 15 : 2;
+      if (dc >= maxDomainCount && !item.isOfficial) continue;
 
       // URL 精确去重：保留质量更好的
       const existing = seen.get(normalized);
@@ -675,28 +1222,67 @@ class ResultProcessor {
     return score;
   }
 
-  rerank(results: any[], query: string) {
+  rerank(results: any[], query: string, englishQuery = '', targetLang = 'en') {
+    const brandInfo = detectBrand(query);
     const queryLower = query.toLowerCase();
-    const queryWords = queryLower.split(/\s+/).filter(Boolean);
+    const queryWords = Array.from(new Set([
+      ...queryLower.split(/\s+/).filter(Boolean),
+      ...(englishQuery ? englishQuery.toLowerCase().split(/\s+/).filter(Boolean) : [])
+    ]));
 
-    return results.map(r => ({
-      ...r,
-      _score: this.calculateScore(r, queryLower, queryWords),
-    })).sort((a, b) => b._score - a._score);
+    // 尝试推断官网域名 (当 brandInfo 未列出时)
+    const guessedDomain = !brandInfo ? guessOfficialDomain(query, results) : null;
+
+    return results.map(r => {
+      let isOfficial = false;
+
+      // 1. 明确匹配已知品牌官网
+      if (brandInfo && isOfficialSite(r.url, brandInfo)) {
+        isOfficial = true;
+      } else if (guessedDomain) {
+        try {
+          const dom = URLNormalizer.getDomain(r.url);
+          if (dom === guessedDomain || dom.endsWith('.' + guessedDomain)) {
+            isOfficial = true;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      r.isOfficial = isOfficial || r.isOfficial || false;
+
+      const calculated = this.calculateScore(r, queryLower, queryWords, targetLang, brandInfo);
+
+      return {
+        ...r,
+        isOfficial: r.isOfficial,
+        _score: calculated,
+        score: calculated,
+      };
+    }).sort((a, b) => b._score - a._score);
   }
 
-  calculateScore(item: any, query: string, queryWords: string[]) {
+  calculateScore(item: any, query: string, queryWords: string[], targetLang = 'en', brandInfo: { brand: string; domains: string[] } | null = null) {
     let score = 0;
     const title = (item.title || '').toLowerCase();
     const content = (item.content || item.snippet || '').toLowerCase();
     const domain = URLNormalizer.getDomain(item.url).toLowerCase();
 
-    // Preserve original search engine ranking order (Rank 0 gets highest boost)
+    // ===== 官网置顶逻辑（核心修复：+10000 保证 Top 1） =====
+    if (item.isOfficial) {
+      score += 10000;
+    } else if (brandInfo && domain.includes(brandInfo.brand.toLowerCase())) {
+      // 品牌相关子域名加分 (支持库, 开发者中心等)
+      score += 500;
+    }
+
+    // Preserve original search engine ranking order (Rank 0 gets boost)
     if (typeof item.engineRank === 'number' && item.engineRank < 15) {
       score += Math.max(0, 400 - item.engineRank * 25);
     }
 
-    // 1. 标题匹配（最高权重）
+    // 1. 标题匹配
     if (title === query) score += 300;
     else if (title.includes(query)) score += 150;
     else {
@@ -712,30 +1298,55 @@ class ResultProcessor {
     }
 
     // 3. 域名权威分
-    score += this.domainScores[domain] || 10;
+    score += this.domainScores[domain] || 5;
+
+    // 4. 当为公司/品牌词查询时，百科类网站大幅额外降权（防止霸屏）
+    if (brandInfo && (domain.includes('wikipedia.org') || domain.includes('baike.baidu.com'))) {
+      score -= 300;
+    }
+
+    // 5. 语言匹配权重
+    const lang = detectContentLang(title + ' ' + content, targetLang);
+    if (lang === targetLang) {
+      score += 80;
+    } else if (lang === 'mixed') {
+      score += 30;
+    } else if (targetLang === 'zh' && lang === 'en') {
+      score -= 20;
+    } else if (targetLang === 'en' && lang === 'zh') {
+      score -= 30;
+    }
 
     // Heavily penalize dummy aggregator/proxy URLs
     if (item.url.includes('/search?') || item.url.includes('/document/d/')) {
       score -= 2000;
     }
 
-    // 4. 时效性
+    // 6. 时效性
     const year = new Date().getFullYear();
-    if (title.includes(String(year))) score += 20;
+    if (title.includes(String(year))) score += 15;
 
-    // 5. 内容质量
+    // 7. 内容质量
     score += this.qualityScore(item);
 
     return score;
   }
 }
 
-// Parallelized Multi-Source High-Speed Search Converter with Intelligent Precision Ranking
+// Parallelized Multi-Source High-Speed Search Converter with Intelligent Precision Ranking & Multilingual Optimization
 async function fetchSearxngResults(rawQueryStr: string, category = 'general', page = 1, timeRange = '', customInstances: string[] = [], enginesOverride = ''): Promise<any> {
   const queryStr = QueryProcessor.clean(rawQueryStr);
+  const langInfo = detectLanguage(queryStr);
+  const targetLang = langInfo.primary;
+  const searxLang = LANG_MAP[targetLang] || 'en-US';
+
+  const isNonEnglish = /[^\x00-\x7F]/.test(queryStr);
+  const englishQuery = isNonEnglish ? await translateQueryToEnglish(queryStr) : queryStr;
+  const variants = generateVariants(queryStr, langInfo);
+
   const intent = QueryProcessor.detectIntent(queryStr);
   const expandedQuery = QueryProcessor.expand(queryStr, intent);
-  const engines = enginesOverride || QueryProcessor.getEngines(intent).join(',');
+  const engines = enginesOverride || (ENGINE_MAP[targetLang] || ENGINE_MAP.default).join(',');
 
   const cacheKey = `${queryStr.toLowerCase().trim()}_${category}_${page}_${timeRange}_${engines}_${customInstances.join(',')}`;
   const cached = searchCache.get(cacheKey);
@@ -751,21 +1362,49 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   const instancesToTry = [...customInstances.filter(Boolean), ...DEFAULT_SEARXNG_INSTANCES];
   const topInstances = Array.from(new Set(instancesToTry)).slice(0, 4);
 
-  // Fire ALL requests concurrently in PARALLEL with expandedQuery
-  const searxngPromises = topInstances.map(inst => {
+  // Fire SearXNG requests concurrently in PARALLEL using variants & language param
+  const searxngPromises = topInstances.flatMap((inst, idx) => {
     const cleanInstance = inst.endsWith('/') ? inst.slice(0, -1) : inst;
-    return fetchSingleSearxngInstance(cleanInstance, expandedQuery, category, page, timeRange, engines);
+    const qToUse = variants[idx % variants.length] || expandedQuery;
+    return fetchSingleSearxngInstance(cleanInstance, qToUse, category, page, timeRange, engines, searxLang);
   });
 
-  const bingPromise = page === 1 ? fetchSingleBing(queryStr) : Promise.resolve([]);
-  const ddgPromise = page === 1 ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
-  const wikiPromise = page === 1 ? fetchSingleWikipedia(queryStr) : Promise.resolve([]);
+  const bingPromise = (page === 1 && category !== 'images')
+    ? Promise.all([
+        fetchSingleBing(queryStr),
+        isNonEnglish && englishQuery ? fetchSingleBing(englishQuery) : Promise.resolve([])
+      ]).then(res => res.flat())
+    : Promise.resolve([]);
+
+  const ddgPromise = (page === 1 && category !== 'images') ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
+
+  const baiduPromise = (page === 1 && category !== 'images') ? fetchSingleBaidu(queryStr) : Promise.resolve([]);
+
+  const yandexPromise = (page === 1 && category !== 'images') ? fetchSingleYandex(queryStr) : Promise.resolve([]);
+
+  // For Image/Media searches: Concurrently fetch Unsplash & Wikimedia using BOTH raw query AND translated English query
+  const unsplashPromise = (category === 'images' || category === 'media')
+    ? Promise.all([
+        fetchUnsplashImages(queryStr, page),
+        isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchUnsplashImages(englishQuery, page) : Promise.resolve([])
+      ]).then(res => res.flat())
+    : Promise.resolve([]);
+
+  const wikimediaPromise = (category === 'images' || category === 'media')
+    ? Promise.all([
+        fetchWikimediaImages(queryStr, page),
+        isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchWikimediaImages(englishQuery, page) : Promise.resolve([])
+      ]).then(res => res.flat())
+    : Promise.resolve([]);
 
   const settled = await Promise.allSettled([
     ...searxngPromises,
     bingPromise,
     ddgPromise,
-    wikiPromise
+    baiduPromise,
+    yandexPromise,
+    unsplashPromise,
+    wikimediaPromise
   ]);
 
   // Collect live results
@@ -780,22 +1419,25 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     }
   }
 
-  // Supplement missing or low-count results with fallback results if < 8
-  if (rawCandidateList.length < 8) {
-    const fallbacks = generateInstantFallbackResults(queryStr, category, page, engines);
+  // Supplement missing or low-count results with fallback results if needed (using englishQuery for image tags if non-English)
+  const minRequiredCount = (category === 'images' || category === 'media') ? 24 : 8;
+  if (rawCandidateList.length < minRequiredCount) {
+    const fallbackTerm = (isNonEnglish && englishQuery) ? englishQuery : queryStr;
+    const fallbacks = generateInstantFallbackResults(fallbackTerm, category, page, engines);
     rawCandidateList.push(...fallbacks);
   }
 
-  // Process raw candidate results: Deduplicate & Rerank
+  // Process raw candidate results: Deduplicate & Rerank with Multilingual Keyword Awareness & Language Match Scoring
   const processor = new ResultProcessor();
   const dedupedResults = processor.deduplicate(rawCandidateList);
-  const rankedResults = processor.rerank(dedupedResults, queryStr);
+  const rankedResults = processor.rerank(dedupedResults, queryStr, englishQuery, targetLang);
 
   const duration = Date.now() - startTime;
   const optimalEdge = EDGE_NODES[Math.floor(Math.random() * 2)];
 
-  // Process & standardize final results
-  const formattedResults = rankedResults.slice(0, 15).map((item, idx) => {
+  // Process & standardize final results (Up to 36 images per page for media/images, 15 for standard text)
+  const maxResultsPerPage = (category === 'images' || category === 'media') ? 36 : 15;
+  const formattedResults = rankedResults.slice(0, maxResultsPerPage).map((item, idx) => {
     const domain = URLNormalizer.getDomain(item.url) || 'web.source';
     const primaryEngine = normalizeEngineName(item.engine || 'Google');
     const matchedKws = queryStr.split(/\s+/).filter(w => (item.title || '').toLowerCase().includes(w.toLowerCase()));
@@ -814,12 +1456,18 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
       publishedDate: item.publishedDate || new Date().toLocaleDateString(),
       favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       latencyMs: Math.floor(12 + Math.random() * 18),
-      edgeNode: optimalEdge.name
+      edgeNode: optimalEdge.name,
+      img_src: item.img_src || item.thumbnail_src || item.thumbnail,
+      thumbnail_src: item.thumbnail_src || item.thumbnail || item.img_src,
+      thumbnail: item.thumbnail || item.thumbnail_src || item.img_src,
+      resolution: item.resolution,
+      author: item.author
     };
   });
 
-  const enginesArray = Array.from(enginesUsedSet);
-  if (enginesArray.length === 0) enginesArray.push('DuckDuckGo', 'Brave', 'Bing');
+  const ALLOWED_ENGINES = ['Google', 'Bing', 'Baidu', 'DuckDuckGo', 'Yandex'];
+  const enginesArray = Array.from(enginesUsedSet).filter(e => ALLOWED_ENGINES.includes(e));
+  if (enginesArray.length === 0) enginesArray.push(...ALLOWED_ENGINES);
 
   const engineBreakdown = enginesArray.map(eng => ({
     engine: eng,
@@ -854,14 +1502,17 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   return responseData;
 }
 
-// API 4: GET /api/search - Meta Search Proxy Endpoint
-app.get('/api/search', async (req, res) => {
-  const q = (req.query.q as string) || '';
-  const category = (req.query.category as string) || 'general';
-  const page = parseInt((req.query.page as string) || '1', 10);
-  const engines = (req.query.engines as string) || (req.query.engine as string) || 'google';
-  const timeRange = (req.query.time_range as string) || '';
-  const customUrlsParam = (req.query.custom_urls as string) || '';
+// API 4: GET & POST /api/search - Meta Search Proxy Endpoint
+const handleSearchRequest = async (req: express.Request, res: express.Response) => {
+  const body = req.body || {};
+  const queryParam = req.query || {};
+
+  const q = (queryParam.q as string) || (body.q as string) || '';
+  const category = (queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general';
+  const page = parseInt((queryParam.page as string) || (body.page as string) || '1', 10);
+  const engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || 'google,bing,baidu,duckduckgo,yandex';
+  const timeRange = (queryParam.time_range as string) || (body.time_range as string) || (body.filters?.time as string) || '';
+  const customUrlsParam = (queryParam.custom_urls as string) || (body.custom_urls as string) || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
 
   if (!q.trim()) {
@@ -878,7 +1529,10 @@ app.get('/api/search', async (req, res) => {
     console.error('Search endpoint error:', err);
     res.status(500).json({ error: err.message || 'Failed to fetch search results' });
   }
-});
+};
+
+app.get('/api/search', handleSearchRequest);
+app.post('/api/search', handleSearchRequest);
 
 // jsDelivr Global Static Asset Proxy Endpoint
 app.get('/api/jsdelivr/proxy', async (req, res) => {
@@ -1014,16 +1668,20 @@ app.post('/api/summary/stream', async (req, res) => {
   const defaultSkillSystemPrompt = `你是一个专业的 AI 搜索引擎知识提炼专家 (CerealsNS Precision Search Synthesis Skill Engine)。
 你的核心任务是：严格基于下方提供的真实网页搜索结果，针对用户的搜索问题 "${searchTopic}"，生成一份专业、结构极简清晰、直观易读且无幻觉的 **AI 搜索概览回答**。
 
+【极度重要 - 绝对禁止项】：
+- 严禁输出任何思考推导过程（如 "We need to...", "Thinking Process:", "<think>" 等）。
+- 严禁输出元指令或说明性前言，直接输出格式完美的 Markdown 回答正文。
+
 【必须遵循的 Markdown 输出排版规范】：
-1. **结构化段落划分**（使用 Markdown 标题 \`###\`，严格分为以下模块）：
+1. **结构化段落划分**（使用 Markdown 标题 \`###\`，每个标题必须独立成行，且上方必须有空行）：
    - ### 📌 核心结论
      用 1-2 句极其精练、直击问题本质的话给出权威答复 [^1^]。
    
    - ### 💡 关键要点
-     分点列出 3-4 个核心结论或关键突破。每点必须包含**加粗粗体核心词**作为小标题开篇，如 "- **核心机制**：具体说明事实或方案... [^1^][^2^]"。
+     分点列出 3-4 个核心结论或关键突破。每点必须单独一行，且包含**加粗粗体核心词**作为小标题开篇，如 "- **核心机制**：具体说明事实或方案... [^1^][^2^]"。
 
    - ### 🔍 深度解析与维度对比（如适用）
-     结合搜索上下文展开深入逻辑剖析。如果是方案、产品或技术比较，**必须使用 Markdown 标准表格** 呈现核心指标与优缺点对比。表格每一行必须单独换行，禁止将多行用 || 挤在同一行。
+     结合搜索上下文展开深入逻辑剖析。如果是方案、产品或技术比较，**必须使用 Markdown 标准表格** 呈现核心指标与优缺点对比。表格每一行必须单独换行，包含标准表头分隔线 \`| --- | --- |\`，禁止将多行挤在同一行。
 
    - ### 🎯 推荐追问
      提出 2-3 个对用户有启发性的延伸探索追问，如 "- 追问 1: ..."
@@ -1159,6 +1817,11 @@ app.post('/api/summary/stream', async (req, res) => {
   }
 
   endStream({ modelUsed: 'OpenRouter Free Router (Fallback Mode)' });
+});
+
+// Fallback JSON 404 handler for any unhandled /api/* routes (prevents Vite HTML fallback)
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: `API endpoint ${req.method} ${req.originalUrl} not found` });
 });
 
 async function startServer() {

@@ -6,7 +6,7 @@ export async function executeSearch(
   page = 1,
   timeRange = '',
   customSearxngUrls: string[] = [],
-  engines = 'google,bing,duckduckgo,baidu'
+  engines = 'google,bing,baidu,duckduckgo,yandex'
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     q: query,
@@ -22,11 +22,18 @@ export async function executeSearch(
 
   try {
     const resp = await fetch(`/api/search?${params.toString()}`);
-    if (!resp.ok) {
-      const errorData = await resp.json().catch(() => ({}));
-      throw new Error(errorData.error || `请求失败 (HTTP ${resp.status})`);
+    const text = await resp.text();
+    let data: any;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`服务器响应格式异常 (HTTP ${resp.status})`);
     }
-    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(data?.error || `请求失败 (HTTP ${resp.status})`);
+    }
     
     // 二次重排算法与 AI 精准筛选 (Page 1 精准内容标记)
     if (data.results && data.results.length > 0) {
@@ -34,7 +41,6 @@ export async function executeSearch(
       const authoritativeDomains = [
         'github.com',
         'stackoverflow.com',
-        'wikipedia.org',
         'developer.mozilla.org',
         'arxiv.org',
         'medium.com',
@@ -125,13 +131,16 @@ export async function triggerAISearXNGToolSearch(
   category = 'general',
   customUrls: string[] = []
 ): Promise<SearchResponse> {
-  return executeSearch(query, category, 1, '', customUrls, 'google,bing,duckduckgo,baidu');
+  return executeSearch(query, category, 1, '', customUrls, 'google,bing,baidu,duckduckgo,yandex');
 }
 
 export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
   try {
     const resp = await fetch('/api/openrouter/models');
-    if (resp.ok) return resp.json();
+    if (resp.ok) {
+      const text = await resp.text();
+      return JSON.parse(text);
+    }
   } catch (e) {
     console.warn('Failed to fetch openrouter models:', e);
   }
@@ -141,7 +150,10 @@ export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
 export async function fetchEdgeNodes(): Promise<{ nodes: EdgeNode[]; optimalRoute: EdgeNode }> {
   try {
     const resp = await fetch('/api/nodes/ping');
-    if (resp.ok) return resp.json();
+    if (resp.ok) {
+      const text = await resp.text();
+      return JSON.parse(text);
+    }
   } catch (e) {
     console.warn('Failed to ping edge nodes:', e);
   }
@@ -240,7 +252,8 @@ export async function fetchAppConfig(): Promise<{ config: Partial<AppConfig>; st
   try {
     const resp = await fetch('/api/config');
     if (resp.ok) {
-      const data = await resp.json();
+      const text = await resp.text();
+      const data = JSON.parse(text);
       if (data.config && typeof data.config === 'object') {
         return { config: data.config, storageType: data.storageType };
       }
@@ -259,7 +272,8 @@ export async function saveAppConfig(config: Partial<AppConfig>): Promise<{ succe
       body: JSON.stringify(config),
     });
     if (resp.ok) {
-      const data = await resp.json();
+      const text = await resp.text();
+      const data = JSON.parse(text);
       return { success: true, storageType: data.storageType };
     }
   } catch (e) {
