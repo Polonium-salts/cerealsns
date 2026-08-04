@@ -30,7 +30,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filterEngine, setFilterEngine] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'score' | 'latency' | 'consensus'>('score');
+  const [sortBy, setSortBy] = useState<'default' | 'latency' | 'consensus'>('default');
 
   const handleCopyLink = (url: string, id: string) => {
     navigator.clipboard.writeText(url);
@@ -48,7 +48,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
     .sort((a, b) => {
       if (sortBy === 'latency') return a.latencyMs - b.latencyMs;
       if (sortBy === 'consensus') return (b.sourcesCount || 1) - (a.sourcesCount || 1);
-      return (b.score || 0) - (a.score || 0);
+      return 0;
     });
 
   // Helper to format URL into breadcrumb style (e.g. https://domain.com › path › item)
@@ -145,42 +145,6 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
   return (
     <div className="space-y-6 my-2 w-full text-slate-200 font-sans">
-      
-      {/* Page 1 AI Precision SearXNG Sync Banner (Hidden as requested) */}
-      {false && currentPage === 1 && (
-        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-900/25 via-indigo-900/20 to-[#18181b] p-3.5 sm:p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start space-x-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 mt-0.5">
-              <Sparkles className="h-4 w-4 text-purple-300 animate-pulse" />
-            </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-white flex items-center space-x-1.5">
-                  <span>✨ 第 1 页：AI 智搜精选 & 已同步 SearXNG 全局接口</span>
-                </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-200 border border-purple-500/30">
-                  AI 算法加权重排
-                </span>
-              </div>
-              <p className="text-[11px] text-neutral-300 leading-relaxed">
-                本页内容经过 AI 调取 SearXNG API 深度过滤与多维加权，权威内容优先展示，确保检索精准度。
-              </p>
-            </div>
-          </div>
-
-          {onAiTriggerSearXNGSearch && (
-            <button
-              onClick={onAiTriggerSearXNGSearch}
-              disabled={isAiSyncing}
-              className="shrink-0 flex items-center justify-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-600/80 hover:bg-purple-600 text-white text-xs font-semibold shadow-md border border-purple-400/30 transition-all disabled:opacity-50"
-              title="调起 AI 重新调用 SearXNG 接口并同步列表"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isAiSyncing ? 'animate-spin' : ''}`} />
-              <span>{isAiSyncing ? 'AI 检索同步中...' : 'AI 调取 SearXNG 重新同步'}</span>
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Top Search Result Meta Bar & Optional Site-specific Link */}
       <div className="hidden flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-b border-slate-800/80 pb-3">
@@ -263,12 +227,12 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
           {/* Sort */}
           <div className="flex items-center space-x-1 border-l border-slate-700/60 pl-2">
             <button
-              onClick={() => setSortBy('score')}
+              onClick={() => setSortBy('default')}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-                sortBy === 'score' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                sortBy === 'default' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
               }`}
             >
-              🎯 精准相关度
+              默认排序
             </button>
             <button
               onClick={() => setSortBy('consensus')}

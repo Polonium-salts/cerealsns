@@ -284,7 +284,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
             </div>
             <div>
               <CardTitle className="text-sm font-bold text-white flex items-center space-x-2">
-                <span>AI 智搜精选概览</span>
+                <span>AI 搜索概览</span>
                 {isStreaming && (
                   <Badge variant="secondary" className="animate-pulse bg-[#27272a] text-neutral-200 border-[#3f3f46]">
                     <span className="h-1.5 w-1.5 rounded-full bg-purple-400 mr-1.5 animate-ping" />
@@ -310,10 +310,10 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                 onClick={onAiTriggerSearXNGSearch}
                 disabled={isAiSyncing}
                 className="h-7 px-2.5 text-[11px] bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/30 hover:text-white transition-all flex items-center space-x-1 mr-1"
-                title="调起 AI 重新请求全局 SearXNG API 并同步左侧精准列表"
+                title="重新请求 SearXNG API 并同步列表"
               >
                 <RefreshCw className={`h-3 w-3 ${isAiSyncing ? 'animate-spin' : ''}`} />
-                <span>{isAiSyncing ? '同步中...' : 'SearXNG API 列表同步'}</span>
+                <span>{isAiSyncing ? '同步中...' : 'SearXNG 列表同步'}</span>
               </Button>
             )}
             <Button

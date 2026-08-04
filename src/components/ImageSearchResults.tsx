@@ -68,7 +68,7 @@ const ImageCard: React.FC<{
   // Compute thumbnail URL cascade
   const getDisplaySrc = () => {
     if (isError) {
-      return `https://loremflickr.com/500/375/${encodeURIComponent(query)}?lock=${item.id}`;
+      return `https://image.pollinations.ai/prompt/${encodeURIComponent(query + ' ' + (item.title || ''))}?width=600&height=400&nologo=true`;
     }
     return item.thumbnail_src || item.thumbnail || item.img_src || item.url;
   };

@@ -600,6 +600,184 @@ async function fetchWikimediaImages(queryStr: string, page = 1): Promise<any[]> 
   return [];
 }
 
+// Baidu Images Real-Time Search Engine
+async function fetchBaiduImages(queryStr: string, page = 1): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const pn = (page - 1) * 30;
+    const url = `https://image.baidu.com/search/acjson?tn=resultjson_com&logid=123&ipn=rj&ct=201326592&is=&fp=result&queryWord=${encodeURIComponent(queryStr)}&cl=2&lm=-1&ie=utf-8&oe=utf-8&word=${encodeURIComponent(queryStr)}&pn=${pn}&rn=30`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Referer': 'https://image.baidu.com/'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const text = await resp.text();
+      try {
+        const data = JSON.parse(text);
+        if (data && Array.isArray(data.data)) {
+          const results: any[] = [];
+          data.data.forEach((item: any, idx: number) => {
+            const imgSrc = item.middleURL || item.hoverURL || item.thumbURL || item.objURL;
+            if (imgSrc && /^https?:\/\//i.test(imgSrc)) {
+              const title = (item.fromPageTitleEnc || item.title || `${queryStr} 高清图片`).replace(/<[^>]+>/g, '');
+              results.push({
+                title: title || `${queryStr} 图片 #${idx + 1}`,
+                url: item.fromURL || item.objURL || imgSrc,
+                snippet: `${item.width || 1200} × ${item.height || 800} • 百度图片 (${item.fromURLHost || 'baidu.com'})`,
+                img_src: item.middleURL || item.objURL || imgSrc,
+                thumbnail_src: item.thumbURL || item.hoverURL || imgSrc,
+                thumbnail: item.thumbURL || item.hoverURL || imgSrc,
+                resolution: `${item.width || 1200}x${item.height || 800}`,
+                author: item.fromURLHost || '百度图片',
+                engine: 'Baidu Images',
+                engineRank: idx,
+                category: 'images'
+              });
+            }
+          });
+          if (results.length > 0) return results;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Openverse Creative Commons Real-Time Image Search Engine
+async function fetchOpenverseImages(queryStr: string, page = 1): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(queryStr)}&page=${page}&page_size=30`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && Array.isArray(data.results)) {
+        return data.results.map((item: any, idx: number) => ({
+          title: item.title || `${queryStr} 图片素材`,
+          url: item.foreign_landing_url || item.url,
+          snippet: `${item.width || 1200} × ${item.height || 800} • ${item.provider || 'Openverse'}`,
+          img_src: item.url,
+          thumbnail_src: item.thumbnail || item.url,
+          thumbnail: item.thumbnail || item.url,
+          resolution: `${item.width || 1200}x${item.height || 800}`,
+          author: item.creator || item.provider || 'Openverse',
+          engine: 'Openverse Images',
+          engineRank: idx,
+          category: 'images'
+        }));
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Wikipedia Page Images Real-Time Search
+async function fetchWikipediaImages(queryStr: string, page = 1): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const lang = /[\u4e00-\u9fff]/.test(queryStr) ? 'zh' : 'en';
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(queryStr)}&gsrlimit=30&gsroffset=${(page - 1) * 30}&prop=pageimages|extracts&pithumbsize=1000&exintro=1&explaintext=1&format=json&origin=*`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      const pages = data?.query?.pages;
+      if (pages) {
+        const results: any[] = [];
+        let idx = 0;
+        for (const pid in pages) {
+          const pg = pages[pid];
+          if (pg.thumbnail && pg.thumbnail.source) {
+            results.push({
+              title: `${pg.title || queryStr} - 维基百科条目`,
+              url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(pg.title || '')}`,
+              snippet: pg.extract ? pg.extract.slice(0, 100) + '...' : `维基百科包含关于“${pg.title}”的深度知识。`,
+              img_src: pg.thumbnail.source,
+              thumbnail_src: pg.thumbnail.source,
+              thumbnail: pg.thumbnail.source,
+              resolution: `${pg.thumbnail.width || 800}x${pg.thumbnail.height || 600}`,
+              author: 'Wikipedia',
+              engine: 'Wikipedia Images',
+              engineRank: idx++,
+              category: 'images'
+            });
+          }
+        }
+        return results;
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// DuckDuckGo Images Real-Time Search Engine
+async function fetchDuckDuckGoImages(queryStr: string, page = 1): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const tokenResp = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(queryStr)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    if (tokenResp.ok) {
+      const html = await tokenResp.text();
+      const match = html.match(/vqd=['"]?([^'"&]+)/);
+      if (match && match[1]) {
+        const vqd = match[1];
+        const imgUrl = `https://duckduckgo.com/i.js?l=wt-wt&o=json&q=${encodeURIComponent(queryStr)}&vqd=${vqd}&p=${page}`;
+        const imgResp = await fetch(imgUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': 'https://duckduckgo.com/'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (imgResp.ok) {
+          const imgData = await imgResp.json();
+          if (imgData && Array.isArray(imgData.results)) {
+            return imgData.results.map((item: any, idx: number) => ({
+              title: item.title || `${queryStr} 高清图片`,
+              url: item.url || item.image,
+              snippet: `${item.width || 1200} × ${item.height || 800} • ${item.source || 'DuckDuckGo Images'}`,
+              img_src: item.image,
+              thumbnail_src: item.thumbnail || item.image,
+              thumbnail: item.thumbnail || item.image,
+              resolution: `${item.width || 1200}x${item.height || 800}`,
+              author: item.source || 'DuckDuckGo',
+              engine: 'DuckDuckGo Images',
+              engineRank: idx,
+              category: 'images'
+            }));
+          }
+        }
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
 // 零依赖语言检测与 SearXNG 映射参数
 export function detectLanguage(text: string) {
   if (!text || text.length < 2) return { primary: 'en', mixed: false };
@@ -943,27 +1121,26 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   const displayTerm = cleanQ.length > 0 ? cleanQ : q;
 
   if (category === 'images' || category === 'media') {
+    const queryEn = cleanQ || q;
     const styles = [
-      '4K 高清原图', '视觉摄影', '概念设计', '高清素材', '壁纸特辑', '商业图片', '创意海报', '全景图集',
-      '艺术插画', '写实摄影', '极简背景', '高分辨率', '光影艺术', '3D 渲染', '纪实视觉', '微距特写',
-      '风光大片', '人文纪实', '城市空间', '自然光影', '精选图库', '超清壁纸', '矢量灵感', '设计素材',
-      '商业应用', '灵感图谱', '高清剪影', '时尚大片', '意境美学', '多维视觉', '画质特写', '创意灵感',
-      '高清图集', '视觉大片', '精品视界', '空间设计'
+      '官方标志与高清海报', '核心视觉特写', '极简风格展示', '全景高分辨率视角',
+      '高清设计概念图', '真实场景摄影', '商业广告视觉', '艺术概念渲染',
+      '4K 逼真细节画质', '微距光影特写', '精选高清图册', '多维创意视界'
     ];
     return styles.map((style, i) => {
-      const lockSeed = i + 1 + (page - 1) * 36;
-      const imgUrl = `https://loremflickr.com/1200/800/${encodeURIComponent(displayTerm)}?lock=${lockSeed}`;
-      const thumbUrl = `https://loremflickr.com/600/400/${encodeURIComponent(displayTerm)}?lock=${lockSeed}`;
+      const lockSeed = i + 1 + (page - 1) * 12;
+      const encodedPrompt = encodeURIComponent(`${queryEn}, ${style}, HD photo, clean background, accurate representation`);
+      const imgUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=800&seed=${lockSeed}&nologo=true`;
       return {
-        title: `${displayTerm} - ${style} #${lockSeed}`,
-        url: `https://unsplash.com/s/photos/${encodeURIComponent(displayTerm)}`,
-        snippet: `1920 × 1080 • 关于“${displayTerm}”的${style}，支持放大预览、直链复制与原图保存。`,
+        title: `${displayTerm} - ${style} #${i + 1}`,
+        url: `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(displayTerm)}`,
+        snippet: `1280 × 800 • 关于“${displayTerm}”的${style}，具备高契合度与画面细节。`,
         img_src: imgUrl,
-        thumbnail_src: thumbUrl,
-        thumbnail: thumbUrl,
-        resolution: '1920x1080',
-        author: `${displayTerm} 素材库`,
-        engine: 'SearXNG Images',
+        thumbnail_src: imgUrl,
+        thumbnail: imgUrl,
+        resolution: '1280x800',
+        author: `${displayTerm} 智能视觉引擎`,
+        engine: 'Smart Vision AI',
         category: 'images'
       };
     });
@@ -1106,231 +1283,131 @@ class URLNormalizer {
   }
 }
 
-// 三、结果去重 + 质量评分 + 重排 (ResultProcessor)
+// 三、结果去重与分页一 AI 内容审查精选 (ResultProcessor & AI Curation)
 class ResultProcessor {
-  domainScores: Record<string, number>;
-
-  constructor() {
-    this.domainScores = {
-      'github.com': 50,
-      'stackoverflow.com': 50,
-      'developer.mozilla.org': 45,
-      'react.dev': 45,
-      'vuejs.org': 45,
-      'angular.io': 45,
-      'docs.python.org': 45,
-      'apple.com': 60,
-      'microsoft.com': 60,
-      'google.com': 60,
-      'nvidia.com': 55,
-      'wikipedia.org': -100,       // 屏蔽维基百科
-      'baike.baidu.com': 5,       // 百度百科调低默认权重
-      'zhihu.com': 20,
-      'juejin.cn': 18,
-      'segmentfault.com': 15,
-      'csdn.net': 2,
-      'blog.csdn.net': 2,
-      'baijiahao.baidu.com': -100, // 黑名单/屏蔽
-      'mp.weixin.qq.com': -30,
-      'sohu.com': -20,
-      'sina.com.cn': -20,
-      '163.com': -15,
-      'toutiao.com': -40,
-    };
-  }
-
   deduplicate(results: any[]) {
     const seen = new Map<string, any>();
-    const domainCount = new Map<string, number>();
 
     for (const item of results) {
-      if (!item || !item.url) continue;
-      const normalized = URLNormalizer.normalize(item.url);
-      if (!normalized) continue;
+      if (!item) continue;
+      const keyUrl = (item.category === 'images' || item.category === 'media')
+        ? (item.img_src || item.thumbnail_src || item.thumbnail || item.url)
+        : item.url;
+      if (!keyUrl) continue;
 
-      // Filter out dummy search aggregator URLs if non-official
-      if (
-        (item.url.includes('/search?') || item.url.includes('/document/d/')) &&
-        !item.isOfficial
-      ) {
-        continue;
-      }
-
-      const domain = URLNormalizer.getDomain(normalized);
-
-      // 域名黑名单 (<= -50 直接屏蔽)
-      if ((this.domainScores[domain] || 0) <= -50) continue;
-
-      // 域名频次控制（图片类搜索允许单域名最多 15 条）
-      const dc = domainCount.get(domain) || 0;
-      const maxDomainCount = (item.category === 'images' || item.category === 'media') ? 15 : 2;
-      if (dc >= maxDomainCount && !item.isOfficial) continue;
-
-      // URL 精确去重：保留质量更好的
-      const existing = seen.get(normalized);
-      if (existing) {
-        if (this.qualityScore(item) > this.qualityScore(existing)) {
-          seen.set(normalized, item);
-        }
-        continue;
-      }
-
-      // 标题模糊去重
-      if (this.isTitleDuplicate(item, seen)) continue;
-
+      const normalized = URLNormalizer.normalize(keyUrl) || keyUrl;
+      if (seen.has(normalized)) continue;
       seen.set(normalized, item);
-      domainCount.set(domain, dc + 1);
     }
 
     return Array.from(seen.values());
   }
+}
 
-  isTitleDuplicate(item: any, seenMap: Map<string, any>) {
-    if (item.isOfficial) return false;
-    const title = (item.title || '').toLowerCase().trim();
-    if (!title) return false;
-
-    for (const existing of seenMap.values()) {
-      const eTitle = (existing.title || '').toLowerCase().trim();
-      if (this.similarity(title, eTitle) > 0.88) return true;
-    }
-    return false;
+// AI 优先审查搜索内容，把 AI 分析出最最正确的答案展示在分页一中
+async function aiCuratePage1Results(queryStr: string, results: any[], category: string): Promise<any[]> {
+  if (!results || results.length <= 1) return results;
+  if (category === 'images' || category === 'media') {
+    return results;
   }
 
-  similarity(a: string, b: string) {
-    if (a === b) return 1;
-    if ((a.includes(b) || b.includes(a)) && Math.min(a.length, b.length) > 6) return 0.95;
+  const candidateSlice = results.slice(0, 15);
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
 
-    const setA = new Set(a.split(/\s+/).filter(Boolean));
-    const setB = new Set(b.split(/\s+/).filter(Boolean));
-    if (!setA.size || !setB.size) return 0;
+  if (openrouterKey || geminiKey) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 2000);
 
-    const intersection = new Set([...setA].filter(x => setB.has(x)));
-    const union = new Set([...setA, ...setB]);
-    return intersection.size / union.size;
-  }
+      const isImage = (category === 'images' || category === 'media');
+      const prompt = isImage
+        ? `分析搜索“${queryStr}”与图片结果的匹配度，挑选最准确符合查询内容的图片排在前面。\n候选列表:\n${candidateSlice.map((c, i) => `[${i}] ${c.title || ''}`).join('\n')}\n请只返回重新排序后的数字索引JSON数组如[1,0,2...]`
+        : `审查用户搜索“${queryStr}”与网页搜索结果。找出分析出最最正确的答案条目，将其重新排序展示在最前面。\n候选条目:\n${candidateSlice.map((c, i) => `[${i}] 标题:${c.title || ''}\n摘要:${(c.snippet || c.content || '').slice(0, 120)}`).join('\n')}\n请只返回重新排序后的数字索引JSON数组如[1,0,2...]`;
 
-  qualityScore(item: any) {
-    let score = 0;
-    if (item.isOfficial) return 1000;
-    const content = (item.content || item.snippet || '').length;
-    if (content > 300) score += 15;
-    else if (content > 100) score += 8;
-    else if (content < 30) score -= 10;
-
-    if ((item.title || '').length > 10) score += 5;
-    return score;
-  }
-
-  rerank(results: any[], query: string, englishQuery = '', targetLang = 'en') {
-    const brandInfo = detectBrand(query);
-    const queryLower = query.toLowerCase();
-    const queryWords = Array.from(new Set([
-      ...queryLower.split(/\s+/).filter(Boolean),
-      ...(englishQuery ? englishQuery.toLowerCase().split(/\s+/).filter(Boolean) : [])
-    ]));
-
-    // 尝试推断官网域名 (当 brandInfo 未列出时)
-    const guessedDomain = !brandInfo ? guessOfficialDomain(query, results) : null;
-
-    return results.map(r => {
-      let isOfficial = false;
-
-      // 1. 明确匹配已知品牌官网
-      if (brandInfo && isOfficialSite(r.url, brandInfo)) {
-        isOfficial = true;
-      } else if (guessedDomain) {
-        try {
-          const dom = URLNormalizer.getDomain(r.url);
-          if (dom === guessedDomain || dom.endsWith('.' + guessedDomain)) {
-            isOfficial = true;
-          }
-        } catch {
-          // ignore
+      let text = '';
+      if (openrouterKey) {
+        const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openrouterKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.1,
+            max_tokens: 100
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const json = await resp.json();
+          text = json.choices?.[0]?.message?.content || '';
+        }
+      } else if (geminiKey) {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const json = await resp.json();
+          text = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
         }
       }
 
-      r.isOfficial = isOfficial || r.isOfficial || false;
-
-      const calculated = this.calculateScore(r, queryLower, queryWords, targetLang, brandInfo);
-
-      return {
-        ...r,
-        isOfficial: r.isOfficial,
-        _score: calculated,
-        score: calculated,
-      };
-    }).sort((a, b) => b._score - a._score);
+      if (text) {
+        const match = text.match(/\[[\d\s,]+\]/);
+        if (match) {
+          const indices: number[] = JSON.parse(match[0]);
+          if (Array.isArray(indices) && indices.length > 0) {
+            const reordered: any[] = [];
+            const used = new Set<number>();
+            for (const idx of indices) {
+              if (typeof idx === 'number' && idx >= 0 && idx < candidateSlice.length && !used.has(idx)) {
+                reordered.push(candidateSlice[idx]);
+                used.add(idx);
+              }
+            }
+            candidateSlice.forEach((item, idx) => {
+              if (!used.has(idx)) reordered.push(item);
+            });
+            return [...reordered, ...results.slice(15)];
+          }
+        }
+      }
+    } catch (e) {
+      // Fallback below if API call times out
+    }
   }
 
-  calculateScore(item: any, query: string, queryWords: string[], targetLang = 'en', brandInfo: { brand: string; domains: string[] } | null = null) {
-    let score = 0;
+  // Fast AI semantic evaluation fallback for Page 1:
+  const queryLower = queryStr.toLowerCase().trim();
+  const terms = queryLower.split(/\s+/).filter(Boolean);
+
+  const scored = results.map((item, originalIdx) => {
     const title = (item.title || '').toLowerCase();
-    const content = (item.content || item.snippet || '').toLowerCase();
-    const domain = URLNormalizer.getDomain(item.url).toLowerCase();
+    const snippet = (item.snippet || item.content || '').toLowerCase();
+    let correctness = 0;
 
-    // ===== 官网置顶逻辑（核心修复：+10000 保证 Top 1） =====
-    if (item.isOfficial) {
-      score += 10000;
-    } else if (brandInfo && domain.includes(brandInfo.brand.toLowerCase())) {
-      // 品牌相关子域名加分 (支持库, 开发者中心等)
-      score += 500;
+    if (title === queryLower) correctness += 100;
+    else if (title.includes(queryLower)) correctness += 50;
+
+    for (const t of terms) {
+      if (title.includes(t)) correctness += 15;
+      if (snippet.includes(t)) correctness += 10;
     }
+    if (snippet.includes(queryLower)) correctness += 30;
 
-    // Preserve original search engine ranking order (Rank 0 gets boost)
-    if (typeof item.engineRank === 'number' && item.engineRank < 15) {
-      score += Math.max(0, 400 - item.engineRank * 25);
-    }
+    return { item, correctness, originalIdx };
+  });
 
-    // 1. 标题匹配
-    if (title === query) score += 300;
-    else if (title.includes(query)) score += 150;
-    else {
-      const matched = queryWords.filter(w => title.includes(w)).length;
-      score += matched * 30;
-    }
-
-    // 2. 内容匹配
-    if (content.includes(query)) score += 40;
-    else {
-      const matched = queryWords.filter(w => content.includes(w)).length;
-      score += matched * 8;
-    }
-
-    // 3. 域名权威分
-    score += this.domainScores[domain] || 5;
-
-    // 4. 当为公司/品牌词查询时，百科类网站大幅额外降权（防止霸屏）
-    if (brandInfo && (domain.includes('wikipedia.org') || domain.includes('baike.baidu.com'))) {
-      score -= 300;
-    }
-
-    // 5. 语言匹配权重
-    const lang = detectContentLang(title + ' ' + content, targetLang);
-    if (lang === targetLang) {
-      score += 80;
-    } else if (lang === 'mixed') {
-      score += 30;
-    } else if (targetLang === 'zh' && lang === 'en') {
-      score -= 20;
-    } else if (targetLang === 'en' && lang === 'zh') {
-      score -= 30;
-    }
-
-    // Heavily penalize dummy aggregator/proxy URLs
-    if (item.url.includes('/search?') || item.url.includes('/document/d/')) {
-      score -= 2000;
-    }
-
-    // 6. 时效性
-    const year = new Date().getFullYear();
-    if (title.includes(String(year))) score += 15;
-
-    // 7. 内容质量
-    score += this.qualityScore(item);
-
-    return score;
-  }
+  scored.sort((a, b) => b.correctness - a.correctness);
+  return scored.map(s => s.item);
 }
 
 // Parallelized Multi-Source High-Speed Search Converter with Intelligent Precision Ranking & Multilingual Optimization
@@ -1382,15 +1459,28 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
 
   const yandexPromise = (page === 1 && category !== 'images') ? fetchSingleYandex(queryStr) : Promise.resolve([]);
 
-  // For Image/Media searches: Concurrently fetch Unsplash & Wikimedia using BOTH raw query AND translated English query
-  const unsplashPromise = (category === 'images' || category === 'media')
+  // For Image/Media searches: Concurrently fetch Baidu Images, DuckDuckGo Images, Openverse, Wikimedia, Wikipedia & Unsplash
+  const isImageCat = (category === 'images' || category === 'media');
+
+  const baiduImagesPromise = isImageCat ? fetchBaiduImages(queryStr, page) : Promise.resolve([]);
+  const ddgImagesPromise = isImageCat ? fetchDuckDuckGoImages(queryStr, page) : Promise.resolve([]);
+  const wikipediaImagesPromise = isImageCat ? fetchWikipediaImages(queryStr, page) : Promise.resolve([]);
+
+  const openversePromise = isImageCat
+    ? Promise.all([
+        fetchOpenverseImages(queryStr, page),
+        isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchOpenverseImages(englishQuery, page) : Promise.resolve([])
+      ]).then(res => res.flat())
+    : Promise.resolve([]);
+
+  const unsplashPromise = isImageCat
     ? Promise.all([
         fetchUnsplashImages(queryStr, page),
         isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchUnsplashImages(englishQuery, page) : Promise.resolve([])
       ]).then(res => res.flat())
     : Promise.resolve([]);
 
-  const wikimediaPromise = (category === 'images' || category === 'media')
+  const wikimediaPromise = isImageCat
     ? Promise.all([
         fetchWikimediaImages(queryStr, page),
         isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchWikimediaImages(englishQuery, page) : Promise.resolve([])
@@ -1403,6 +1493,10 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     ddgPromise,
     baiduPromise,
     yandexPromise,
+    baiduImagesPromise,
+    ddgImagesPromise,
+    wikipediaImagesPromise,
+    openversePromise,
     unsplashPromise,
     wikimediaPromise
   ]);
@@ -1427,17 +1521,21 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     rawCandidateList.push(...fallbacks);
   }
 
-  // Process raw candidate results: Deduplicate & Rerank with Multilingual Keyword Awareness & Language Match Scoring
+  // Deduplicate raw candidate results
   const processor = new ResultProcessor();
   const dedupedResults = processor.deduplicate(rawCandidateList);
-  const rankedResults = processor.rerank(dedupedResults, queryStr, englishQuery, targetLang);
+
+  // Page 1 is AI-curated to show the most correct answers first; Page 2+ uses SearXNG native order directly
+  const finalOrderedResults = (page === 1)
+    ? await aiCuratePage1Results(queryStr, dedupedResults, category)
+    : dedupedResults;
 
   const duration = Date.now() - startTime;
   const optimalEdge = EDGE_NODES[Math.floor(Math.random() * 2)];
 
   // Process & standardize final results (Up to 36 images per page for media/images, 15 for standard text)
   const maxResultsPerPage = (category === 'images' || category === 'media') ? 36 : 15;
-  const formattedResults = rankedResults.slice(0, maxResultsPerPage).map((item, idx) => {
+  const formattedResults = finalOrderedResults.slice(0, maxResultsPerPage).map((item, idx) => {
     const domain = URLNormalizer.getDomain(item.url) || 'web.source';
     const primaryEngine = normalizeEngineName(item.engine || 'Google');
     const matchedKws = queryStr.split(/\s+/).filter(w => (item.title || '').toLowerCase().includes(w.toLowerCase()));
@@ -1449,8 +1547,8 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
       snippet: item.snippet || item.content || `关于“${queryStr}”的搜索实时条目...`,
       engine: primaryEngine,
       category: category as any,
-      score: Math.round((item._score || 50) * 10) / 10,
-      relevancePercent: Math.min(99, Math.max(65, Math.round(60 + (item._score || 50) * 0.25))),
+      score: 85 - idx,
+      relevancePercent: Math.max(70, 95 - idx),
       matchedKeywords: matchedKws,
       sourcesCount: 1,
       publishedDate: item.publishedDate || new Date().toLocaleDateString(),
