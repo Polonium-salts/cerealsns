@@ -128,7 +128,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     <div ref={containerRef} className={`w-full mx-auto ${isCompactMode ? 'max-w-3xl' : 'max-w-2xl my-4'} transition-all relative`}>
       <form onSubmit={handleSubmit} className="relative space-y-2">
         {/* High-Contrast Dark Native Pill Search Bar */}
-        <div className="relative flex items-center rounded-full border border-[#2e2e32] bg-[#1c1c1f] text-white px-4 py-2.5 shadow-xl hover:border-[#3f3f46] focus-within:border-white focus-within:ring-1 focus-within:ring-white/20 transition-all duration-200">
+        <div className="relative flex items-center rounded-full border border-[#2e2e32] bg-[#1c1c1f] text-white px-3 sm:px-4 py-2 sm:py-2.5 shadow-xl hover:border-[#3f3f46] focus-within:border-white focus-within:ring-1 focus-within:ring-white/20 transition-all duration-200">
           <input
             ref={inputRef}
             type="text"
@@ -138,7 +138,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               if (suggestions.length > 0) setShowSuggestions(true);
             }}
             placeholder="询问 CerealsNS AI 或输入搜索内容..."
-            className="w-full bg-transparent px-2 py-1 text-base text-white placeholder-neutral-500 focus:outline-none"
+            className="w-full bg-transparent px-2 py-1 text-sm sm:text-base text-white placeholder-neutral-500 focus:outline-none min-w-0"
           />
 
           {/* Clear Button */}
@@ -146,7 +146,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1.5 text-neutral-400 hover:text-white transition-colors mr-1"
+              className="p-2 sm:p-1.5 text-neutral-400 hover:text-white transition-colors mr-0.5 shrink-0 active:scale-95"
               title="清空搜索词"
             >
               <X className="h-4 w-4" />
@@ -157,29 +157,29 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <button
             type="button"
             onClick={handleVoiceSearch}
-            className={`p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors ${
-              isListening ? 'text-white bg-[#27272a] font-bold' : ''
+            className={`p-2 sm:p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors shrink-0 active:scale-95 ${
+              isListening ? 'text-white bg-[#27272a] font-bold ring-2 ring-purple-500 animate-pulse' : ''
             }`}
             title="语音输入"
           >
-            <Mic className="h-5 w-5" />
+            <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           {/* Camera / Lens Icon */}
           <button
             type="button"
             onClick={() => setShowImageLensModal(true)}
-            className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors"
+            className="p-2 sm:p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors shrink-0 active:scale-95"
             title="CerealsNS 智慧镜头 (以图搜图与多模态)"
           >
-            <Camera className="h-5 w-5" />
+            <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           {/* Filter Trigger Icon */}
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors ${
+            className={`p-2 sm:p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors shrink-0 active:scale-95 ${
               showFilters ? 'bg-[#27272a] text-white' : ''
             }`}
             title="筛选与时间区间"
@@ -191,15 +191,24 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <button
             type="button"
             onClick={() => setAiMode(!aiMode)}
-            className={`ml-1 flex items-center space-x-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
+            className={`ml-1 flex items-center space-x-1 rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold transition-all duration-200 shrink-0 active:scale-95 ${
               aiMode
-                ? 'bg-white text-black shadow-md hover:bg-neutral-200'
-                : 'bg-[#27272a] text-neutral-300 hover:bg-[#3f3f46]'
+                ? 'bg-white text-black font-bold shadow-md'
+                : 'bg-[#2b2b2e] text-neutral-400 hover:bg-[#3f3f46]'
             }`}
             title={aiMode ? 'AI 模式已开启（结合 LLM 流式总结）' : '快搜模式（仅网页索引）'}
           >
-            <Sparkles className={`h-3.5 w-3.5 ${aiMode ? 'text-black' : 'text-neutral-400'}`} />
+            <Sparkles className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${aiMode ? 'text-black' : 'text-neutral-500'}`} />
             <span className="whitespace-nowrap">AI 模式</span>
+          </button>
+
+          {/* Search Submit Arrow Button for Mobile */}
+          <button
+            type="submit"
+            className="ml-1 sm:hidden p-2 rounded-full bg-white text-black font-bold active:scale-95 shrink-0"
+            title="搜索"
+          >
+            <ArrowRight className="h-4 w-4" />
           </button>
         </div>
 

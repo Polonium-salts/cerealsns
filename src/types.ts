@@ -4,7 +4,7 @@ export interface SearchResult {
   url: string;
   snippet: string;
   engine: string;
-  category: 'general' | 'science' | 'news' | 'it' | 'media' | 'images';
+  category: 'general' | 'science' | 'news' | 'it' | 'media' | 'images' | 'videos';
   score: number;
   relevancePercent?: number;
   matchedKeywords?: string[];
@@ -23,6 +23,10 @@ export interface SearchResult {
   thumbnail?: string;
   resolution?: string;
   author?: string;
+  bvid?: string;
+  duration?: string;
+  views?: number | string;
+  iframe?: string;
 }
 
 export interface EngineStats {
@@ -116,6 +120,7 @@ export interface OpenRouterModel {
 export interface AppConfig {
   openrouterApiKey: string;
   openrouterModel: string;
+  summaryModel?: string;
   openrouterBaseUrl: string;
   systemPrompt: string;
   customSearxngUrls: string[];

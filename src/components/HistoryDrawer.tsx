@@ -83,11 +83,14 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative h-full w-full max-w-xl border-l border-slate-800 bg-slate-900 p-6 shadow-2xl flex flex-col space-y-4 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex justify-end items-end sm:items-stretch bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative h-[85vh] sm:h-full w-full max-w-xl border-t sm:border-t-0 sm:border-l border-slate-800 bg-slate-900 p-4 sm:p-6 rounded-t-3xl sm:rounded-none shadow-2xl flex flex-col space-y-4 overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
         
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden w-12 h-1.5 rounded-full bg-slate-700 mx-auto mb-1" />
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center space-x-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-950 text-cyan-400 border border-cyan-800/50">
               <History className="h-5 w-5" />

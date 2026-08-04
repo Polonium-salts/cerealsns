@@ -1,15 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { AppConfig, EdgeNode } from '../types';
 import { SearchBar } from './SearchBar';
 import { 
   History, 
   Search, 
   Sparkles, 
-  Code, 
-  BookOpen, 
-  Newspaper, 
+  Video, 
   Image, 
-  Clock 
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -34,9 +34,7 @@ export const CATEGORIES = [
   { id: 'general', name: '全部', icon: Search },
   { id: 'ai', name: 'AI 概览', icon: Sparkles },
   { id: 'images', name: '图片搜索', icon: Image },
-  { id: 'it', name: 'IT与编程', icon: Code },
-  { id: 'science', name: '学术论文', icon: BookOpen },
-  { id: 'news', name: '新闻', icon: Newspaper },
+  { id: 'videos', name: '视频搜索', icon: Video },
 ];
 
 export const TIME_RANGES = [
@@ -64,62 +62,91 @@ export const Navbar: React.FC<NavbarProps> = ({
   isLoading,
   fetchTimeMs,
 }) => {
+  const [showSearchBarInAI, setShowSearchBarInAI] = useState(false);
+
   if (!isSearchActive) {
     return (
       <header className="w-full bg-transparent px-4 sm:px-8 py-3 flex items-center justify-between text-xs text-neutral-400">
-        <div className="flex items-center space-x-2">
-          <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
-          <span className="font-semibold text-white">CerealsNS Engine</span>
+        <div 
+          onClick={onResetSearch} 
+          className="flex items-center space-x-2 cursor-pointer active:opacity-80 transition-opacity"
+        >
+          <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-bold text-white text-sm tracking-wide">CerealsNS Engine</span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <button
             onClick={onOpenHistory}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-[#27272a] rounded-full transition-colors"
+            className="p-2.5 text-neutral-400 hover:text-white hover:bg-[#27272a] rounded-full transition-colors active:scale-95"
             title="搜索历史"
           >
-            <History className="h-4 w-4" />
+            <History className="h-5 w-5 sm:h-4 sm:w-4" />
           </button>
         </div>
       </header>
     );
   }
 
+  const isAIMode = activeCategory === 'ai';
+
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0c0c0e]/95 backdrop-blur-md border-b border-[#27272a] text-white shadow-xl">
-      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-1 space-y-3">
+      <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 lg:px-8 pt-2.5 pb-1 space-y-2">
         
-        {/* Row 1: Logo + Search Bar + Right Quick Action Tools */}
-        <div className="flex items-center justify-between gap-3 sm:gap-4">
-          
-          {/* Search Bar Input */}
-          <div className="max-w-3xl flex-1">
-            <SearchBar
-              initialQuery={searchQuery}
-              activeCategory={activeCategory}
-              activeTimeRange={activeTimeRange}
-              onSearch={onSearch}
-              isLoading={isLoading}
-              isCompactMode
-            />
-          </div>
-
-          {/* Right Action Tools */}
-          <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+        {/* Row 1: Logo / Search Bar / Mode Title + Right Tools */}
+        {isAIMode && !showSearchBarInAI ? null : (
+          /* Standard Row 1 with Search Bar (Or AI mode with expanded search bar) */
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Mobile Home Reset Icon Button */}
             <button
-              onClick={onOpenHistory}
-              className="p-2 text-neutral-400 hover:text-white hover:bg-[#27272a] rounded-full transition-colors"
-              title="搜索历史"
+              type="button"
+              onClick={onResetSearch}
+              className="sm:hidden p-2 rounded-full text-neutral-300 hover:bg-[#27272a] active:scale-95 shrink-0"
+              title="返回首页"
             >
-              <History className="h-4 w-4" />
+              <span className="flex h-3 w-3 rounded-full bg-emerald-400" />
             </button>
+
+            {/* Search Bar Input */}
+            <div className="max-w-3xl flex-1 min-w-0">
+              <SearchBar
+                initialQuery={searchQuery}
+                activeCategory={activeCategory}
+                activeTimeRange={activeTimeRange}
+                onSearch={onSearch}
+                isLoading={isLoading}
+                isCompactMode
+              />
+            </div>
+
+            {/* Right Action Tools */}
+            <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+              {isAIMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowSearchBarInAI(false)}
+                  className="px-2.5 py-1 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-neutral-300 text-xs font-semibold transition-all"
+                  title="隐藏搜索栏"
+                >
+                  隐藏搜索栏
+                </button>
+              )}
+              <button
+                onClick={onOpenHistory}
+                className="p-2.5 text-neutral-400 hover:text-white hover:bg-[#27272a] rounded-full transition-colors active:scale-95"
+                title="搜索历史"
+              >
+                <History className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Row 2: Category & Time Filter Choices */}
-        <div className="flex items-center justify-between overflow-x-auto scrollbar-none pt-1">
+        <div className="flex items-center justify-between overflow-x-auto scrollbar-none pt-0.5 pb-0.5 space-x-4">
           
-          {/* Left: Category Selector Tabs */}
-          <div className="flex items-center space-x-5 text-xs sm:text-sm font-medium">
+          {/* Left: Category Selector Tabs with touch horizontal scrolling */}
+          <div className="flex items-center space-x-3 sm:space-x-5 text-xs sm:text-sm font-medium overflow-x-auto scrollbar-none whitespace-nowrap pr-2">
             {CATEGORIES.map((cat) => {
               const isSelected = activeCategory === cat.id;
               const IconComp = cat.icon;
@@ -127,14 +154,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={cat.id}
                   onClick={() => onSelectCategory(cat.id)}
-                  className={`relative pb-2.5 pt-0.5 transition-all whitespace-nowrap flex items-center space-x-1.5 ${
-                    isSelected ? 'text-white font-bold' : 'text-neutral-400 hover:text-neutral-200'
+                  className={`relative pb-2 pt-1 transition-all whitespace-nowrap flex items-center space-x-1.5 px-2 rounded-lg ${
+                    isSelected ? 'text-white font-bold bg-[#1f1f23]/60' : 'text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
                   <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-white' : 'text-neutral-500'}`} />
                   <span>{cat.name}</span>
                   {isSelected && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-white shadow-xs" />
+                    <span className="absolute bottom-0 left-1 right-1 h-0.5 rounded-full bg-white shadow-xs" />
                   )}
                 </button>
               );
@@ -142,15 +169,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right: Time Range Choices & Latency Indicator */}
-          <div className="hidden md:flex items-center space-x-3 text-xs text-neutral-400">
-            {/* Quick Time Filters */}
-            <div className="flex items-center space-x-1 bg-[#18181b] p-0.5 rounded-full border border-[#27272a]">
-              <Clock className="h-3 w-3 text-neutral-500 ml-2 mr-0.5" />
+          <div className="flex items-center space-x-2 shrink-0 text-xs text-neutral-400">
+            <div className="flex items-center space-x-1 bg-[#18181b] p-0.5 rounded-full border border-[#27272a] overflow-x-auto scrollbar-none whitespace-nowrap">
+              <Clock className="h-3 w-3 text-neutral-500 ml-1.5 mr-0.5 hidden sm:inline-block" />
               {TIME_RANGES.map((tr) => (
                 <button
                   key={tr.id}
                   onClick={() => onSelectTimeRange(tr.id)}
-                  className={`px-2.5 py-0.5 rounded-full text-[11px] transition-all ${
+                  className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] whitespace-nowrap transition-all ${
                     activeTimeRange === tr.id
                       ? 'bg-white text-black font-bold'
                       : 'text-neutral-400 hover:text-white'
@@ -162,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {fetchTimeMs !== undefined && (
-              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-800/50">
+              <span className="hidden lg:inline-block text-[11px] font-mono text-emerald-400 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-800/50">
                 {fetchTimeMs} ms
               </span>
             )}

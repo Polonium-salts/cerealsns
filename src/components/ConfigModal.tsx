@@ -55,11 +55,14 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-[#27272a] bg-[#18181b] p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl rounded-t-3xl sm:rounded-2xl border-t sm:border border-[#27272a] bg-[#18181b] p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-6 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
         
+        {/* Mobile Drag Handle */}
+        <div className="sm:hidden w-12 h-1.5 rounded-full bg-[#3f3f46] mx-auto mb-1" />
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#27272a] pb-4">
+        <div className="flex items-center justify-between border-b border-[#27272a] pb-3 sm:pb-4">
           <div className="flex items-center space-x-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#232326] text-white border border-[#2e2e32]">
               <Settings className="h-5 w-5" />

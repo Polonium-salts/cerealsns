@@ -5,9 +5,12 @@ import { SearchBar } from './components/SearchBar';
 import { AISummaryCard } from './components/AISummaryCard';
 import { SearchResultsList } from './components/SearchResultsList';
 import { ImageSearchResults } from './components/ImageSearchResults';
+import { VideoSearchResults } from './components/VideoSearchResults';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { PureAIChatView } from './components/PureAIChatView';
 import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryItem } from './types';
 import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes, fetchAppConfig, saveAppConfig } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
@@ -34,6 +37,9 @@ export default function App() {
   const [searchData, setSearchData] = useState<SearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
+  // Mobile responsive view mode switcher ('all' | 'web' | 'ai')
+  const [mobileViewMode, setMobileViewMode] = useState<'all' | 'web' | 'ai'>('all');
+
   // Streaming AI summary state
   const [summaryText, setSummaryText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -337,81 +343,75 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col">
-        
-        {/* State A: Homepage View */}
-        {!isSearchActive && (
-          <div className="flex-1 flex flex-col items-center justify-center py-12 sm:py-20 my-auto">
-            
-            {/* Centered Large Google Logo */}
-            <div className="mb-8">
-              <GoogleLogo size="xl" />
-            </div>
+      {category === 'ai' ? (
+        <main className="flex-1 w-full flex flex-col p-0 m-0 overflow-hidden">
+          <PureAIChatView
+            initialQuery={query}
+            config={config}
+            onUpdateConfig={handleSaveConfig}
+            onSearchGlobal={(q) => handleExecuteSearch(q, 'general', '', true)}
+          />
+        </main>
+      ) : (
+        <main className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col">
+          {/* State A: Homepage View */}
+            {!isSearchActive && (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 sm:py-20 my-auto">
+                
+                {/* Centered Large Google Logo */}
+                <div className="mb-8">
+                  <GoogleLogo size="xl" />
+                </div>
 
-            {/* Search Bar */}
-            <div className="w-full">
-              <SearchBar
-                initialQuery={query}
-                activeCategory={category}
-                activeTimeRange={timeRange}
-                onSearch={handleExecuteSearch}
-                isLoading={isLoading}
-              />
-            </div>
+                {/* Search Bar */}
+                <div className="w-full">
+                  <SearchBar
+                    initialQuery={query}
+                    activeCategory={category}
+                    activeTimeRange={timeRange}
+                    onSearch={handleExecuteSearch}
+                    isLoading={isLoading}
+                  />
+                </div>
 
-            {/* Category Selection Information - Native Pills */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-2xl px-2">
-              {CATEGORIES.map((cat) => {
-                const isSelected = category === cat.id;
-                const IconComp = cat.icon;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => setCategory(cat.id)}
-                    className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all ${
-                      isSelected
-                        ? 'bg-white text-black font-semibold shadow-md'
-                        : 'bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] border border-[#2e2e32]'
-                    }`}
-                  >
-                    <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-black' : 'text-neutral-400'}`} />
-                    <span>{cat.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+                {/* Category Selection Information - Native Pills */}
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-2xl px-2">
+                  {CATEGORIES.map((cat) => {
+                    const isSelected = category === cat.id;
+                    const IconComp = cat.icon;
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setCategory(cat.id)}
+                        className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                          isSelected
+                            ? 'bg-white text-black font-semibold shadow-md'
+                            : 'bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] border border-[#2e2e32]'
+                        }`}
+                      >
+                        <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-black' : 'text-neutral-400'}`} />
+                        <span>{cat.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-            {/* Footer Edge Latency Info */}
-            <div className="mt-10 text-center text-xs text-neutral-500 flex items-center justify-center space-x-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>EdgeOne 节点加速中</span>
-              <span>·</span>
-              <span>18ms 延迟</span>
-            </div>
-          </div>
-        )}
+                {/* Footer Edge Latency Info */}
+                <div className="mt-10 text-center text-xs text-neutral-500 flex items-center justify-center space-x-2">
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>EdgeOne 节点加速中</span>
+                  <span>·</span>
+                  <span>18ms 延迟</span>
+                </div>
+              </div>
+            )}
 
-        {/* State B: Active Search Results View */}
-        {isSearchActive && (
-          <div className="max-w-[1440px] w-full mx-auto py-2 space-y-6">
-            
-            {category === 'images' ? (
-              <ImageSearchResults
-                results={searchData?.results || []}
-                isLoading={isLoading}
-                query={query}
-                onSaveToOffline={handleSaveSingleResult}
-                savedIds={savedOfflineIds}
-                currentPage={currentPage}
-                totalPages={searchData?.totalPages || 10}
-                onPageChange={handlePageChange}
-              />
-            ) : (
-              /* Dual Column Layout */
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
-                {/* Left Side: Search Engine Results */}
-                <div className="w-full min-w-0 space-y-4 order-2 lg:order-1">
-                  <SearchResultsList
+            {/* State B: Active Search Results View */}
+            {isSearchActive && (
+              <div className="max-w-[1440px] w-full mx-auto py-2 space-y-4 pb-16 sm:pb-4">
+                
+                {category === 'images' ? (
+                  <ImageSearchResults
                     results={searchData?.results || []}
                     isLoading={isLoading}
                     query={query}
@@ -420,51 +420,153 @@ export default function App() {
                     currentPage={currentPage}
                     totalPages={searchData?.totalPages || 10}
                     onPageChange={handlePageChange}
-                    onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
-                    isAiSyncing={isAiSyncing}
                   />
-                </div>
-
-                {/* Right Side: AI Overview / AI Answer */}
-                <div className="w-full min-w-0 space-y-4 order-1 lg:order-2">
-                  <AISummaryCard
+                ) : category === 'videos' ? (
+                  <VideoSearchResults
+                    results={searchData?.results || []}
+                    isLoading={isLoading}
                     query={query}
-                    summaryText={summaryText}
-                    isStreaming={isStreaming}
-                    modelUsed={summaryModel}
-                    searchResults={searchData?.results || []}
-                    onRegenerate={(modelOverride, skillOverride) => {
-                      if (searchData?.results) {
-                        startStreamingSummary(query, searchData.results, modelOverride, skillOverride);
-                      }
-                    }}
-                    onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
-                    config={config}
-                    onUpdateConfig={handleSaveConfig}
-                    onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
-                    isAiSyncing={isAiSyncing}
+                    onSaveToOffline={handleSaveSingleResult}
+                    savedIds={savedOfflineIds}
+                    currentPage={currentPage}
+                    totalPages={searchData?.totalPages || 10}
+                    onPageChange={handlePageChange}
                   />
-                </div>
+                ) : (
+                  <>
+                    {/* Mobile View Switcher Segmented Control */}
+                    <div className="lg:hidden sticky top-[52px] z-30 bg-[#0a0a0c]/95 backdrop-blur-md pb-2 pt-1">
+                      <div className="flex items-center justify-center p-1 bg-[#18181c] rounded-2xl border border-[#27272a] max-w-sm mx-auto text-xs font-semibold shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => setMobileViewMode('all')}
+                          className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
+                            mobileViewMode === 'all'
+                              ? 'bg-white text-black font-bold shadow-md'
+                              : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                          <span>全部视图</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMobileViewMode('ai')}
+                          className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
+                            mobileViewMode === 'ai'
+                              ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
+                              : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-purple-200" />
+                          <span>AI 概览</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMobileViewMode('web')}
+                          className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
+                            mobileViewMode === 'web'
+                              ? 'bg-white text-black font-bold shadow-md'
+                              : 'text-neutral-400 hover:text-white'
+                          }`}
+                        >
+                          <Globe className="h-3.5 w-3.5" />
+                          <span>网页结果</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dual Column Layout (Desktop: Side by side; Mobile: Mode toggled) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
+                      
+                      {/* Left Side: Search Engine Results */}
+                      <div className={`w-full min-w-0 space-y-4 order-2 lg:order-1 ${
+                        mobileViewMode === 'ai' ? 'hidden lg:block' : 'block'
+                      }`}>
+                        <SearchResultsList
+                          results={searchData?.results || []}
+                          isLoading={isLoading}
+                          query={query}
+                          onSaveToOffline={handleSaveSingleResult}
+                          savedIds={savedOfflineIds}
+                          currentPage={currentPage}
+                          totalPages={searchData?.totalPages || 10}
+                          onPageChange={handlePageChange}
+                          onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                          isAiSyncing={isAiSyncing}
+                        />
+                      </div>
+
+                      {/* Right Side: AI Overview / AI Answer */}
+                      <div className={`w-full min-w-0 space-y-4 order-1 lg:order-2 ${
+                        mobileViewMode === 'web' ? 'hidden lg:block' : 'block'
+                      }`}>
+                        <AISummaryCard
+                          query={query}
+                          summaryText={summaryText}
+                          isStreaming={isStreaming}
+                          modelUsed={summaryModel}
+                          searchResults={searchData?.results || []}
+                          onRegenerate={(modelOverride, skillOverride) => {
+                            if (searchData?.results) {
+                              startStreamingSummary(query, searchData.results, modelOverride, skillOverride);
+                            }
+                          }}
+                          onFollowUpClick={(fq) => handleExecuteSearch(fq, category, timeRange, true)}
+                          config={config}
+                          onUpdateConfig={handleSaveConfig}
+                          onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                          isAiSyncing={isAiSyncing}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
               </div>
             )}
+        </main>
+      )}
 
-          </div>
-        )}
-
-      </main>
-
-      {/* Floating Bottom-Right Launcher Buttons */}
+      {/* Floating Bottom-Right Launcher Buttons on Desktop */}
       {!isSearchActive && (
-        <div className="fixed bottom-6 right-6 z-30 flex items-center space-x-3">
+        <div className="hidden sm:flex fixed bottom-6 right-6 z-30 items-center space-x-3">
           <button
             onClick={() => setIsConfigOpen(true)}
-            className="flex items-center space-x-2 rounded-full border border-[#3f3f46] bg-[#27272a] px-4 py-2 text-xs font-semibold text-white shadow-2xl hover:bg-[#3f3f46] transition-all"
+            className="flex items-center space-x-2 rounded-full border border-[#3f3f46] bg-[#27272a] px-4 py-2 text-xs font-semibold text-white shadow-2xl hover:bg-[#3f3f46] transition-all active:scale-95"
           >
             <Pencil className="h-3.5 w-3.5 text-neutral-300" />
             <span>自定义 Chrome</span>
           </button>
         </div>
       )}
+
+      {/* Mobile Bottom Dock Bar */}
+      <MobileBottomNav
+        isSearchActive={isSearchActive}
+        activeCategory={category}
+        onSelectCategory={(catId) => {
+          setCategory(catId);
+          if (query.trim()) {
+            handleExecuteSearch(query.trim(), catId, timeRange, true);
+          }
+        }}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenConfig={() => setIsConfigOpen(true)}
+        onResetSearch={() => {
+          setQuery('');
+          setSearchData(null);
+          setSummaryText('');
+          if (window.location.search || window.location.pathname !== '/') {
+            window.history.pushState({}, '', '/');
+          }
+        }}
+        onFocusSearch={() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        mobileViewMode={mobileViewMode}
+        onSelectMobileViewMode={setMobileViewMode}
+      />
 
       {/* Modals & Drawers */}
       <ConfigModal
