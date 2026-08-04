@@ -74,6 +74,32 @@ function generateInstantFallbackResults(queryStr, category, page = 1, engines = 
   const cleanQ = q.replace(/^[a-z0-9.]+\.(com|cn|org|net|io|co|me|cc|top|xyz|gov|edu)\b/i, '');
   const displayTerm = cleanQ.length > 0 ? cleanQ : q;
 
+  if (category === 'images' || category === 'media') {
+    const queryEn = cleanQ || q;
+    const styles = [
+      '官方标志与高清海报', '核心视觉特写', '极简风格展示', '全景高分辨率视角',
+      '高清设计概念图', '真实场景摄影', '商业广告视觉', '艺术概念渲染',
+      '4K 逼真细节画质', '微距光影特写', '精选高清图册', '多维创意视界'
+    ];
+    return styles.map((style, i) => {
+      const lockSeed = i + 1 + (page - 1) * 12;
+      const encodedPrompt = encodeURIComponent(`${queryEn}, ${style}, HD photo, clean background, accurate representation`);
+      const imgUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=800&seed=${lockSeed}&nologo=true`;
+      return {
+        title: `${displayTerm} - ${style} #${i + 1}`,
+        url: `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(displayTerm)}`,
+        snippet: `1280 × 800 • 关于“${displayTerm}”的${style}，具备高契合度与画面细节。`,
+        img_src: imgUrl,
+        thumbnail_src: imgUrl,
+        thumbnail: imgUrl,
+        resolution: '1280x800',
+        author: `${displayTerm} 智能视觉引擎`,
+        engine: 'Smart Vision AI',
+        category: 'images'
+      };
+    });
+  }
+
   const pageTemplates = {
     1: [
       { title: `${q} - 官方网站与服务入口`, domain: 'google.com', path: `search?q=${encodeURIComponent(q)}`, desc: `[Google] “${displayTerm}”的官方权威网站，提供核心功能介绍、账号服务、最新版本更新及官方技术支持。`, engine: 'Google' },
@@ -332,6 +358,268 @@ async function fetchSingleQwant(queryStr) {
       return realResults;
     }
   } catch {}
+  return [];
+}
+
+// Unsplash High-Res Photos Search Engine
+async function fetchUnsplashImages(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const resp = await fetch(`https://unsplash.com/napi/search/photos?query=${encodeURIComponent(queryStr)}&per_page=36&page=${page}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && Array.isArray(data.results) && data.results.length > 0) {
+        return data.results.map((item, idx) => ({
+          title: item.alt_description || item.description || `${queryStr} 高清精选摄影`,
+          url: item.links?.html || `https://unsplash.com/photos/${item.id}`,
+          snippet: `${item.width || 1920} × ${item.height || 1080} • 摄影师: ${item.user?.name || 'Unsplash Creator'}`,
+          img_src: item.urls?.regular || item.urls?.full || item.urls?.small,
+          thumbnail_src: item.urls?.small || item.urls?.thumb,
+          thumbnail: item.urls?.small || item.urls?.thumb,
+          resolution: `${item.width || 1920}x${item.height || 1080}`,
+          author: item.user?.name || 'Unsplash',
+          engine: 'Unsplash Images',
+          engineRank: idx,
+          category: 'images'
+        }));
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Wikimedia Commons Real-Time Image Search Engine
+async function fetchWikimediaImages(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const apiUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(queryStr)}&gsrnamespace=6&gsrlimit=36&gsroffset=${(page - 1) * 36}&prop=imageinfo&iiprop=url|size|extmetadata&iiurlwidth=500&format=json&origin=*`;
+    const resp = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const pages = data?.query?.pages;
+      if (pages) {
+        const results = [];
+        let idx = 0;
+        for (const pageId in pages) {
+          const pg = pages[pageId];
+          const info = pg.imageinfo?.[0];
+          if (info && info.url) {
+            const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(info.url);
+            if (isImage) {
+              const cleanedTitle = (pg.title || '').replace(/^File:/i, '').replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' ');
+              results.push({
+                title: `${cleanedTitle || queryStr} - 高清素材`,
+                url: info.descriptionurl || info.url,
+                snippet: `${info.width || 1200} × ${info.height || 800} • 维基共享资源 (Wikimedia Commons)`,
+                img_src: info.url,
+                thumbnail_src: info.thumburl || info.url,
+                thumbnail: info.thumburl || info.url,
+                resolution: `${info.width || 1200}x${info.height || 800}`,
+                author: info.extmetadata?.Artist?.value?.replace(/<[^>]+>/g, '').trim() || 'Wikimedia Commons',
+                engine: 'Wikimedia Commons',
+                engineRank: idx++,
+                category: 'images'
+              });
+            }
+          }
+        }
+        return results;
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Baidu Images Real-Time Search Engine
+async function fetchBaiduImages(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const pn = (page - 1) * 30;
+    const url = `https://image.baidu.com/search/acjson?tn=resultjson_com&logid=123&ipn=rj&ct=201326592&is=&fp=result&queryWord=${encodeURIComponent(queryStr)}&cl=2&lm=-1&ie=utf-8&oe=utf-8&word=${encodeURIComponent(queryStr)}&pn=${pn}&rn=30`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Referer': 'https://image.baidu.com/'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const text = await resp.text();
+      try {
+        const data = JSON.parse(text);
+        if (data && Array.isArray(data.data)) {
+          const results = [];
+          data.data.forEach((item, idx) => {
+            const imgSrc = item.middleURL || item.hoverURL || item.thumbURL || item.objURL;
+            if (imgSrc && /^https?:\/\//i.test(imgSrc)) {
+              const title = (item.fromPageTitleEnc || item.title || `${queryStr} 高清图片`).replace(/<[^>]+>/g, '');
+              results.push({
+                title: title || `${queryStr} 图片 #${idx + 1}`,
+                url: item.fromURL || item.objURL || imgSrc,
+                snippet: `${item.width || 1200} × ${item.height || 800} • 百度图片 (${item.fromURLHost || 'baidu.com'})`,
+                img_src: item.middleURL || item.objURL || imgSrc,
+                thumbnail_src: item.thumbURL || item.hoverURL || imgSrc,
+                thumbnail: item.thumbURL || item.hoverURL || imgSrc,
+                resolution: `${item.width || 1200}x${item.height || 800}`,
+                author: item.fromURLHost || '百度图片',
+                engine: 'Baidu Images',
+                engineRank: idx,
+                category: 'images'
+              });
+            }
+          });
+          if (results.length > 0) return results;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Openverse Creative Commons Real-Time Image Search Engine
+async function fetchOpenverseImages(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(queryStr)}&page=${page}&page_size=30`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && Array.isArray(data.results)) {
+        return data.results.map((item, idx) => ({
+          title: item.title || `${queryStr} 图片素材`,
+          url: item.foreign_landing_url || item.url,
+          snippet: `${item.width || 1200} × ${item.height || 800} • ${item.provider || 'Openverse'}`,
+          img_src: item.url,
+          thumbnail_src: item.thumbnail || item.url,
+          thumbnail: item.thumbnail || item.url,
+          resolution: `${item.width || 1200}x${item.height || 800}`,
+          author: item.creator || item.provider || 'Openverse',
+          engine: 'Openverse Images',
+          engineRank: idx,
+          category: 'images'
+        }));
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Wikipedia Page Images Real-Time Search
+async function fetchWikipediaImages(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const lang = /[\u4e00-\u9fff]/.test(queryStr) ? 'zh' : 'en';
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(queryStr)}&gsrlimit=30&gsroffset=${(page - 1) * 30}&prop=pageimages|extracts&pithumbsize=1000&exintro=1&explaintext=1&format=json&origin=*`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      const pages = data?.query?.pages;
+      if (pages) {
+        const results = [];
+        let idx = 0;
+        for (const pid in pages) {
+          const pg = pages[pid];
+          if (pg.thumbnail && pg.thumbnail.source) {
+            results.push({
+              title: `${pg.title || queryStr} - 维基百科条目`,
+              url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(pg.title || '')}`,
+              snippet: pg.extract ? pg.extract.slice(0, 100) + '...' : `维基百科包含关于“${pg.title}”的深度知识。`,
+              img_src: pg.thumbnail.source,
+              thumbnail_src: pg.thumbnail.source,
+              thumbnail: pg.thumbnail.source,
+              resolution: `${pg.thumbnail.width || 800}x${pg.thumbnail.height || 600}`,
+              author: 'Wikipedia',
+              engine: 'Wikipedia Images',
+              engineRank: idx++,
+              category: 'images'
+            });
+          }
+        }
+        return results;
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// DuckDuckGo Images Real-Time Search Engine
+async function fetchDuckDuckGoImages(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const tokenResp = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(queryStr)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    if (tokenResp.ok) {
+      const html = await tokenResp.text();
+      const match = html.match(/vqd=['"]?([^'"&]+)/);
+      if (match && match[1]) {
+        const vqd = match[1];
+        const imgUrl = `https://duckduckgo.com/i.js?l=wt-wt&o=json&q=${encodeURIComponent(queryStr)}&vqd=${vqd}&p=${page}`;
+        const imgResp = await fetch(imgUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': 'https://duckduckgo.com/'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (imgResp.ok) {
+          const imgData = await imgResp.json();
+          if (imgData && Array.isArray(imgData.results)) {
+            return imgData.results.map((item, idx) => ({
+              title: item.title || `${queryStr} 高清图片`,
+              url: item.url || item.image,
+              snippet: `${item.width || 1200} × ${item.height || 800} • ${item.source || 'DuckDuckGo Images'}`,
+              img_src: item.image,
+              thumbnail_src: item.thumbnail || item.image,
+              thumbnail: item.thumbnail || item.image,
+              resolution: `${item.width || 1200}x${item.height || 800}`,
+              author: item.source || 'DuckDuckGo',
+              engine: 'DuckDuckGo Images',
+              engineRank: idx,
+              category: 'images'
+            }));
+          }
+        }
+      }
+    }
+  } catch (err) {}
   return [];
 }
 
@@ -611,11 +899,20 @@ export async function onRequestGet(context) {
     return fetchSingleSearxngInstance(cleanInstance, q, category, page, timeRange, engines, acceptLang);
   });
 
-  const bingPromise = page === 1 ? fetchSingleBing(q) : Promise.resolve([]);
-  const ddgPromise = page === 1 ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
-  const wikiPromise = page === 1 ? fetchSingleWikipedia(q) : Promise.resolve([]);
-  const baiduPromise = page === 1 ? fetchSingleBaidu(q) : Promise.resolve([]);
-  const qwantPromise = page === 1 ? fetchSingleQwant(q) : Promise.resolve([]);
+  const isImageCat = category === 'images' || category === 'media';
+
+  const bingPromise = (!isImageCat && page === 1) ? fetchSingleBing(q) : Promise.resolve([]);
+  const ddgPromise = (!isImageCat && page === 1) ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
+  const wikiPromise = (!isImageCat && page === 1) ? fetchSingleWikipedia(q) : Promise.resolve([]);
+  const baiduPromise = (!isImageCat && page === 1) ? fetchSingleBaidu(q) : Promise.resolve([]);
+  const qwantPromise = (!isImageCat && page === 1) ? fetchSingleQwant(q) : Promise.resolve([]);
+
+  const imageBaiduPromise = isImageCat ? fetchBaiduImages(q, page) : Promise.resolve([]);
+  const imageDdgPromise = isImageCat ? fetchDuckDuckGoImages(q, page) : Promise.resolve([]);
+  const imageWikiPromise = isImageCat ? fetchWikipediaImages(q, page) : Promise.resolve([]);
+  const imageOpenversePromise = isImageCat ? fetchOpenverseImages(q, page) : Promise.resolve([]);
+  const imageUnsplashPromise = isImageCat ? fetchUnsplashImages(q, page) : Promise.resolve([]);
+  const imageWikimediaPromise = isImageCat ? fetchWikimediaImages(q, page) : Promise.resolve([]);
 
   const fallbacks = generateInstantFallbackResults(q, category, page, engines);
 
@@ -625,20 +922,30 @@ export async function onRequestGet(context) {
     ddgPromise,
     wikiPromise,
     baiduPromise,
-    qwantPromise
+    qwantPromise,
+    imageBaiduPromise,
+    imageDdgPromise,
+    imageWikiPromise,
+    imageOpenversePromise,
+    imageUnsplashPromise,
+    imageWikimediaPromise
   ]);
 
   const engineBuckets = new Map();
   const seenUrls = new Set();
 
   const addToBucket = (item) => {
-    if (!item || !item.url || seenUrls.has(item.url)) return;
+    if (!item) return;
+    const keyUrl = (item.category === 'images' || item.category === 'media' || isImageCat)
+      ? (item.img_src || item.thumbnail_src || item.thumbnail || item.url)
+      : item.url;
+    if (!keyUrl || seenUrls.has(keyUrl)) return;
     const normEngine = normalizeEngineName(item.engine);
     item.engine = normEngine;
     if (!engineBuckets.has(normEngine)) {
       engineBuckets.set(normEngine, []);
     }
-    seenUrls.add(item.url);
+    seenUrls.add(keyUrl);
     engineBuckets.get(normEngine).push(item);
   };
 
@@ -720,7 +1027,12 @@ export async function onRequestGet(context) {
       favicon: `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       latencyMs: Math.floor(12 + Math.random() * 18),
       edgeNode: 'Cloudflare Pages Edge',
-      sourcesCount: Array.from(enginesUsedSet).length
+      sourcesCount: Array.from(enginesUsedSet).length,
+      img_src: item.img_src,
+      thumbnail_src: item.thumbnail_src || item.thumbnail || item.img_src,
+      thumbnail: item.thumbnail || item.thumbnail_src || item.img_src,
+      resolution: item.resolution,
+      author: item.author
     };
   }).sort((a, b) => b.score - a.score);
 
