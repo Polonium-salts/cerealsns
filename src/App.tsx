@@ -99,6 +99,7 @@ export default function App() {
         setSearchData(null);
         setSummaryText('');
         setCurrentPage(1);
+        document.title = 'CerealsNS 智能聚合搜索 | AI驱动无广告全球隐私元搜索引擎';
       }
     };
 
@@ -146,6 +147,7 @@ export default function App() {
     setIsLoading(true);
     setSearchData(null);
     setSummaryText('');
+    document.title = `${searchQuery.trim()} - CerealsNS 智能聚合搜索`;
 
     // Update URL path and query parameters
     if (updateHistory) {

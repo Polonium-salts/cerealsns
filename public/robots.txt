@@ -1,0 +1,11 @@
+# Robots.txt for CerealsNS AI Meta Search Engine
+User-agent: *
+Allow: /
+Allow: /sitemap.xml
+Allow: /robots.txt
+
+# Do not index internal API endpoints
+Disallow: /api/
+Disallow: /functions/
+
+Sitemap: https://cerealsns.ai/sitemap.xml

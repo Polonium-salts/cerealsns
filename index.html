@@ -1,16 +1,81 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
+    <title>CerealsNS 智能聚合搜索 | AI驱动无广告全球隐私元搜索引擎</title>
+    
+    <!-- SEO Core Meta Tags -->
+    <meta name="description" content="CerealsNS 是一款基于 AI 大模型与 SearXNG 隐私元搜索技术的智能无广告聚合搜索引擎。实时并发调度 Google, Bing, Baidu, DuckDuckGo, Yandex 等多源节点，提供极速搜索、AI 智能深度总结、学术论文、多媒体及无追踪隐私防护。" />
+    <meta name="keywords" content="CerealsNS, 聚合搜索, AI搜索, 隐私元搜索, SearXNG, 智能无广告搜索引擎, 极速元搜索引擎, 百度, 谷歌, 必应, AI总结, 零广告搜索引擎, 边缘算力搜索" />
+    <meta name="author" content="CerealsNS Team" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://cerealsns.ai/" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://cerealsns.ai/" />
+    <meta property="og:title" content="CerealsNS 智能聚合搜索 | AI驱动无广告全球隐私元搜索引擎" />
+    <meta property="og:description" content="CerealsNS 智能聚合搜索引擎：结合 AI 智能推理与全球分布节点元搜索，纯净无广告，极速隐私全能检索。" />
+    <meta property="og:site_name" content="CerealsNS 智能聚合搜索" />
+    <meta property="og:image" content="https://cerealsns.ai/favicon.svg" />
+    <meta property="og:locale" content="zh_CN" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://cerealsns.ai/" />
+    <meta name="twitter:title" content="CerealsNS 智能聚合搜索 | AI驱动无广告全球隐私元搜索引擎" />
+    <meta name="twitter:description" content="零广告、高隐私、AI智能大模型深度分析的多源并发元搜索引擎。" />
+    <meta name="twitter:image" content="https://cerealsns.ai/favicon.svg" />
+
+    <!-- Favicon & Stylesheets -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" />
-    <title>CerealsNS 智能聚合搜索</title>
+
+    <!-- Structured Data (JSON-LD) for Search Engine Optimization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://cerealsns.ai/#website",
+          "url": "https://cerealsns.ai/",
+          "name": "CerealsNS 智能聚合搜索",
+          "description": "AI 驱动的全球多源并发无广告元搜索引擎",
+          "inLanguage": "zh-CN",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://cerealsns.ai/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://cerealsns.ai/#webapp",
+          "name": "CerealsNS AI Search Platform",
+          "url": "https://cerealsns.ai/",
+          "applicationCategory": "SearchEngine",
+          "operatingSystem": "All",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
 

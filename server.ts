@@ -2276,6 +2276,27 @@ app.post('/api/summary/stream', async (req, res) => {
   endStream({ modelUsed: 'OpenRouter Free Router (Fallback Mode)' });
 });
 
+// Serve dynamic or file-based sitemap.xml and robots.txt with correct MIME headers
+app.get('/sitemap.xml', (req, res) => {
+  const sitemapPath = path.join(process.cwd(), 'public', 'sitemap.xml');
+  if (fs.existsSync(sitemapPath)) {
+    res.header('Content-Type', 'application/xml');
+    res.sendFile(sitemapPath);
+  } else {
+    res.status(404).send('Sitemap not found');
+  }
+});
+
+app.get('/robots.txt', (req, res) => {
+  const robotsPath = path.join(process.cwd(), 'public', 'robots.txt');
+  if (fs.existsSync(robotsPath)) {
+    res.header('Content-Type', 'text/plain');
+    res.sendFile(robotsPath);
+  } else {
+    res.status(404).send('Robots.txt not found');
+  }
+});
+
 // Fallback JSON 404 handler for any unhandled /api/* routes (prevents Vite HTML fallback)
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: `API endpoint ${req.method} ${req.originalUrl} not found` });
