@@ -52,9 +52,10 @@ export async function executeSearch(
 export async function triggerAISearXNGToolSearch(
   query: string,
   category = 'general',
-  customUrls: string[] = []
+  customUrls: string[] = [],
+  engines?: string
 ): Promise<SearchResponse> {
-  return executeSearch(query, category, 1, '', customUrls, 'google,bing,baidu,duckduckgo,yandex');
+  return executeSearch(query, category, 1, '', customUrls, engines);
 }
 
 export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {

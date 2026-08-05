@@ -57,16 +57,38 @@ function recordInstanceHealth(instanceUrl, success, latencyMs) {
 }
 
 function normalizeEngineName(engineRaw) {
-  if (!engineRaw) return 'Google';
+  if (!engineRaw) return 'SearXNG';
   const lower = engineRaw.toLowerCase();
-  if (lower.includes('google') || lower.includes('searxng')) return 'Google';
+  if (lower.includes('google')) return 'Google';
   if (lower.includes('bing')) return 'Bing';
   if (lower.includes('baidu')) return 'Baidu';
-  if (lower.includes('duck')) return 'DuckDuckGo';
+  if (lower.includes('duck') || lower.includes('ddg')) return 'DuckDuckGo';
+  if (lower.includes('bilibili')) return 'Bilibili';
+  if (lower.includes('youtube')) return 'YouTube';
   if (lower.includes('wiki')) return 'Wikipedia';
   if (lower.includes('qwant')) return 'Qwant';
-  if (lower.includes('yahoo')) return 'Yahoo';
+  if (lower.includes('yandex')) return 'Yandex';
+  if (lower.includes('vimeo')) return 'Vimeo';
+  if (lower.includes('unsplash')) return 'Unsplash';
+  if (lower.includes('openverse')) return 'Openverse';
+  if (lower.includes('searxng')) return 'SearXNG';
   return engineRaw.charAt(0).toUpperCase() + engineRaw.slice(1);
+}
+
+function isEngineAllowed(engineRaw, requestedEnginesStr) {
+  if (!requestedEnginesStr || requestedEnginesStr === 'all') return true;
+  const requestedList = requestedEnginesStr.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  if (requestedList.length === 0) return true;
+
+  const norm = normalizeEngineName(engineRaw).toLowerCase();
+  const raw = (engineRaw || '').toLowerCase();
+
+  return requestedList.some(req => {
+    let target = req;
+    if (target === 'ddg') target = 'duck';
+    if (target === 'wiki') target = 'wikipedia';
+    return norm.includes(target) || target.includes(norm) || raw.includes(target);
+  });
 }
 
 function generateInstantFallbackResults(queryStr, category, page = 1, engines = 'google') {
@@ -784,19 +806,30 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
   const startTime = Date.now();
   try {
     const langParam = /[\u4e00-\u9fa5]/.test(queryStr) ? 'zh-CN' : 'auto';
-    let engineQueryParam = '';
-    
-    // If engines param contains a single specific engine (like 'bing' or 'google'), pass engines=...
-    if (engines && !engines.includes(',') && engines !== 'all') {
-      engineQueryParam = `&engines=${encodeURIComponent(engines)}`;
-    } else if (category === 'videos') {
-      engineQueryParam = '&categories=videos';
-    } else {
-      // For general searches, let SearXNG use its active multi-engine aggregator
-      engineQueryParam = `&categories=${encodeURIComponent(category || 'general')}`;
+    let targetEngines = engines;
+    if (!targetEngines || targetEngines === 'all') {
+      if (category === 'images' || category === 'media') {
+        targetEngines = 'google_images,bing_images,duckduckgo_images,wikimedia,unsplash,flickr,qwant_images';
+      } else if (category === 'videos') {
+        targetEngines = 'youtube,bilibili,vimeo,dailymotion,google_videos';
+      } else {
+        targetEngines = 'google,bing,baidu,duckduckgo,yandex,wikipedia,qwant';
+      }
+    } else if (category === 'images' || category === 'media') {
+      targetEngines = targetEngines
+        .split(',')
+        .map(e => {
+          const lower = e.trim().toLowerCase();
+          if (lower === 'google') return 'google_images';
+          if (lower === 'bing') return 'bing_images';
+          if (lower === 'duckduckgo' || lower === 'ddg') return 'duckduckgo_images';
+          if (lower === 'wikipedia' || lower === 'wiki') return 'wikimedia';
+          return lower;
+        })
+        .join(',');
     }
 
-    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json${engineQueryParam}&language=${langParam}&safesearch=0&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
+    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=${encodeURIComponent(category === 'media' ? 'images' : (category || 'general'))}&engines=${encodeURIComponent(targetEngines)}&language=${langParam}&safesearch=0&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2800);
 
@@ -819,27 +852,30 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
           const data = JSON.parse(bodyText);
           if (data && Array.isArray(data.results) && data.results.length > 0) {
             recordInstanceHealth(cleanInstance, true, Date.now() - startTime);
-            return data.results.map((r, idx) => {
-              const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
-              const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
-              return {
-                ...r,
-                title: r.title || `${queryStr} 视频`,
-                url: r.url,
-                snippet: r.content || r.snippet || r.description || '',
-                content: r.content || r.snippet || r.description || '',
-                img_src: imgSrc,
-                thumbnail_src: thumbSrc,
-                thumbnail: thumbSrc,
-                resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
-                author: r.author || r.uploader || r.publisher || r.source || normalizeEngineName(r.engine || 'SearXNG'),
-                engine: normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG'),
-                engineRank: idx,
-                category: category,
-                duration: r.length || r.duration || undefined,
-                iframe: r.embedded || r.iframe_src || undefined
-              };
-            });
+            return data.results
+              .filter(r => isEngineAllowed(r.engine || r.engines?.[0], engines))
+              .map((r, idx) => {
+                const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
+                const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
+                const normEngine = normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG');
+                return {
+                  ...r,
+                  title: r.title || `${queryStr} 视频`,
+                  url: r.url,
+                  snippet: r.content || r.snippet || r.description || '',
+                  content: r.content || r.snippet || r.description || '',
+                  img_src: imgSrc,
+                  thumbnail_src: thumbSrc,
+                  thumbnail: thumbSrc,
+                  resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
+                  author: r.author || r.uploader || r.publisher || r.source || normEngine,
+                  engine: normEngine,
+                  engineRank: idx,
+                  category: category,
+                  duration: r.length || r.duration || undefined,
+                  iframe: r.embedded || r.iframe_src || undefined
+                };
+              });
           }
         } catch {}
       }
@@ -1077,25 +1113,31 @@ export async function onRequestGet(context) {
     return fetchSingleSearxngInstance(cleanInstance, q, category, page, timeRange, engines, acceptLang);
   });
 
+  const enginesLower = engines ? engines.toLowerCase() : '';
+  const hasEngine = (name) => {
+    if (!enginesLower || enginesLower.includes('all')) return true;
+    return enginesLower.includes(name.toLowerCase());
+  };
+
   const isVideoCat = category === 'videos';
   const isImageCat = category === 'images' || category === 'media';
 
-  const youtubeVideosPromise = isVideoCat ? fetchYouTubeVideos(q) : Promise.resolve([]);
-  const bilibiliVideosPromise = isVideoCat ? fetchBilibiliVideos(q, page) : Promise.resolve([]);
-  const ddgVideosPromise = isVideoCat ? fetchDuckDuckGoVideos(q, page) : Promise.resolve([]);
+  const youtubeVideosPromise = (isVideoCat && hasEngine('youtube')) ? fetchYouTubeVideos(q) : Promise.resolve([]);
+  const bilibiliVideosPromise = (isVideoCat && hasEngine('bilibili')) ? fetchBilibiliVideos(q, page) : Promise.resolve([]);
+  const ddgVideosPromise = (isVideoCat && (hasEngine('duckduckgo') || hasEngine('ddg'))) ? fetchDuckDuckGoVideos(q, page) : Promise.resolve([]);
 
-  const bingPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleBing(q) : Promise.resolve([]);
-  const ddgPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
-  const wikiPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleWikipedia(q) : Promise.resolve([]);
-  const baiduPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleBaidu(q) : Promise.resolve([]);
-  const qwantPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleQwant(q) : Promise.resolve([]);
+  const bingPromise = (!isImageCat && !isVideoCat && page === 1 && hasEngine('bing')) ? fetchSingleBing(q) : Promise.resolve([]);
+  const ddgPromise = (!isImageCat && !isVideoCat && page === 1 && (hasEngine('duckduckgo') || hasEngine('ddg'))) ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
+  const wikiPromise = (!isImageCat && !isVideoCat && page === 1 && (hasEngine('wikipedia') || hasEngine('wiki'))) ? fetchSingleWikipedia(q) : Promise.resolve([]);
+  const baiduPromise = (!isImageCat && !isVideoCat && page === 1 && hasEngine('baidu')) ? fetchSingleBaidu(q) : Promise.resolve([]);
+  const qwantPromise = (!isImageCat && !isVideoCat && page === 1 && hasEngine('qwant')) ? fetchSingleQwant(q) : Promise.resolve([]);
 
-  const imageBaiduPromise = isImageCat ? fetchBaiduImages(q, page) : Promise.resolve([]);
-  const imageDdgPromise = isImageCat ? fetchDuckDuckGoImages(q, page) : Promise.resolve([]);
-  const imageWikiPromise = isImageCat ? fetchWikipediaImages(q, page) : Promise.resolve([]);
-  const imageOpenversePromise = isImageCat ? fetchOpenverseImages(q, page) : Promise.resolve([]);
-  const imageUnsplashPromise = isImageCat ? fetchUnsplashImages(q, page) : Promise.resolve([]);
-  const imageWikimediaPromise = isImageCat ? fetchWikimediaImages(q, page) : Promise.resolve([]);
+  const imageBaiduPromise = (isImageCat && hasEngine('baidu')) ? fetchBaiduImages(q, page) : Promise.resolve([]);
+  const imageDdgPromise = (isImageCat && (hasEngine('duckduckgo') || hasEngine('ddg'))) ? fetchDuckDuckGoImages(q, page) : Promise.resolve([]);
+  const imageWikiPromise = (isImageCat && (hasEngine('wikipedia') || hasEngine('wiki'))) ? fetchWikipediaImages(q, page) : Promise.resolve([]);
+  const imageOpenversePromise = (isImageCat && hasEngine('openverse')) ? fetchOpenverseImages(q, page) : Promise.resolve([]);
+  const imageUnsplashPromise = (isImageCat && hasEngine('unsplash')) ? fetchUnsplashImages(q, page) : Promise.resolve([]);
+  const imageWikimediaPromise = (isImageCat && hasEngine('wikimedia')) ? fetchWikimediaImages(q, page) : Promise.resolve([]);
 
   const fallbacks = generateInstantFallbackResults(q, category, page, engines);
 
@@ -1122,6 +1164,7 @@ export async function onRequestGet(context) {
 
   const addToBucket = (item) => {
     if (!item) return;
+    if (!isEngineAllowed(item.engine, engines)) return;
     const keyUrl = (item.category === 'images' || item.category === 'media' || isImageCat)
       ? (item.img_src || item.thumbnail_src || item.thumbnail || item.url)
       : item.url;

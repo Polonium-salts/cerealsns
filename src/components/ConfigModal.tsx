@@ -22,10 +22,22 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   const [summaryDepth, setSummaryDepth] = useState(config.summaryDepth || 'standard');
   const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt || '');
   const [searxngInstances, setSearxngInstances] = useState<string[]>(config.customSearxngUrls || []);
+  const [defaultEngines, setDefaultEngines] = useState<string[]>(
+    config.defaultEngines || ['google', 'bing', 'baidu', 'duckduckgo', 'yandex']
+  );
   const [newUrl, setNewUrl] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleToggleDefaultEngine = (engineId: string) => {
+    if (defaultEngines.includes(engineId)) {
+      if (defaultEngines.length <= 1) return;
+      setDefaultEngines(defaultEngines.filter((e) => e !== engineId));
+    } else {
+      setDefaultEngines([...defaultEngines, engineId]);
+    }
+  };
 
   const handleAddInstance = () => {
     if (newUrl.trim() && !searxngInstances.includes(newUrl.trim())) {
@@ -46,6 +58,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
       summaryDepth: summaryDepth as any,
       systemPrompt,
       customSearxngUrls: searxngInstances,
+      defaultEngines,
     });
     setSavedSuccess(true);
     setTimeout(() => {
@@ -146,7 +159,55 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
             </div>
           </div>
 
-          {/* Section 3: Custom SearXNG Instances */}
+          {/* Section 3: Default Search Sources / Engines (默认检索元) */}
+          <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <label className="flex items-center space-x-2 font-bold text-slate-100">
+              <Globe className="h-4 w-4 text-cyan-400" />
+              <span>默认开启的全局检索元（搜索引擎源）</span>
+            </label>
+            <p className="text-[11px] text-slate-400">
+              勾选默认发起的检索源，每次搜索将实时向已选检索元聚合并发检索：
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {[
+                { id: 'google', name: 'Google 谷歌' },
+                { id: 'bing', name: 'Bing 微软' },
+                { id: 'baidu', name: 'Baidu 百度' },
+                { id: 'duckduckgo', name: 'DuckDuckGo' },
+                { id: 'yandex', name: 'Yandex' },
+                { id: 'wikipedia', name: 'Wikipedia 维基' },
+                { id: 'qwant', name: 'Qwant' },
+                { id: 'youtube', name: 'YouTube' },
+                { id: 'bilibili', name: '哔哩哔哩' },
+              ].map((eng) => {
+                const isChecked = defaultEngines.includes(eng.id);
+                return (
+                  <button
+                    key={eng.id}
+                    type="button"
+                    onClick={() => handleToggleDefaultEngine(eng.id)}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                      isChecked
+                        ? 'border-cyan-500/80 bg-cyan-950/40 text-cyan-300 shadow-sm'
+                        : 'border-slate-800 bg-slate-900 text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`h-3.5 w-3.5 rounded flex items-center justify-center ${
+                        isChecked ? 'bg-cyan-400 text-slate-950' : 'border border-slate-700'
+                      }`}
+                    >
+                      {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                    </div>
+                    <span>{eng.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section 4: Custom SearXNG Instances */}
           <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-950 p-4">
             <label className="flex items-center space-x-2 font-bold text-slate-100">
               <Globe className="h-4 w-4 text-emerald-400" />

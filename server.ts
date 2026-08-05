@@ -229,16 +229,39 @@ function parseSearxngHtml(html: string, instanceUrl: string): any[] {
   return results;
 }
 
-function normalizeEngineName(engineRaw: string): string {
-  if (!engineRaw) return 'Google';
+function normalizeEngineName(engineRaw?: string): string {
+  if (!engineRaw) return 'SearXNG';
   const lower = engineRaw.toLowerCase();
-  if (lower.includes('google') || lower.includes('searxng')) return 'Google';
+  if (lower.includes('google')) return 'Google';
   if (lower.includes('bing')) return 'Bing';
   if (lower.includes('baidu')) return 'Baidu';
   if (lower.includes('duck') || lower.includes('ddg')) return 'DuckDuckGo';
+  if (lower.includes('bilibili')) return 'Bilibili';
+  if (lower.includes('youtube')) return 'YouTube';
+  if (lower.includes('wiki')) return 'Wikipedia';
+  if (lower.includes('qwant')) return 'Qwant';
   if (lower.includes('yandex')) return 'Yandex';
-  if (lower.includes('wiki')) return 'Google';
-  return 'Google';
+  if (lower.includes('vimeo')) return 'Vimeo';
+  if (lower.includes('unsplash')) return 'Unsplash';
+  if (lower.includes('openverse')) return 'Openverse';
+  if (lower.includes('searxng')) return 'SearXNG';
+  return engineRaw.charAt(0).toUpperCase() + engineRaw.slice(1);
+}
+
+function isEngineAllowed(engineRaw: string | undefined, requestedEnginesStr: string): boolean {
+  if (!requestedEnginesStr || requestedEnginesStr === 'all') return true;
+  const requestedList = requestedEnginesStr.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  if (requestedList.length === 0) return true;
+
+  const norm = normalizeEngineName(engineRaw).toLowerCase();
+  const raw = (engineRaw || '').toLowerCase();
+
+  return requestedList.some(req => {
+    let target = req;
+    if (target === 'ddg') target = 'duck';
+    if (target === 'wiki') target = 'wikipedia';
+    return norm.includes(target) || target.includes(norm) || raw.includes(target);
+  });
 }
 
 // Optimized High-Speed Concurrent Fetcher: Bing Engine (RSS + HTML Multi-source)
@@ -1230,36 +1253,39 @@ function detectContentLang(text: string, targetLang: string): string {
 }
 
 // Optimized High-Speed Concurrent Fetcher: Single SearXNG Instance
-async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: string, category: string, page: number, timeRange: string, engines = 'google', searxLang = 'zh-CN'): Promise<any[]> {
+async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: string, category: string, page: number, timeRange: string, engines = '', searxLang = 'zh-CN'): Promise<any[]> {
   try {
     let targetEngines = engines;
-    if (category === 'images' || category === 'media') {
-      if (!engines || engines === 'google' || engines === 'all') {
+    if (!targetEngines || targetEngines === 'all') {
+      if (category === 'images' || category === 'media') {
         targetEngines = 'google_images,bing_images,duckduckgo_images,wikimedia,unsplash,flickr,qwant_images';
+      } else if (category === 'videos') {
+        targetEngines = 'youtube,bilibili,vimeo,dailymotion,google_videos';
+      } else {
+        targetEngines = 'google,bing,baidu,duckduckgo,yandex,wikipedia,qwant';
       }
-    } else if (category === 'videos') {
-      targetEngines = 'youtube,bilibili,vimeo,dailymotion,google_videos';
-    } else if (!targetEngines) {
-      targetEngines = 'google';
+    } else if (category === 'images' || category === 'media') {
+      targetEngines = targetEngines
+        .split(',')
+        .map(e => {
+          const lower = e.trim().toLowerCase();
+          if (lower === 'google') return 'google_images';
+          if (lower === 'bing') return 'bing_images';
+          if (lower === 'duckduckgo' || lower === 'ddg') return 'duckduckgo_images';
+          if (lower === 'wikipedia' || lower === 'wiki') return 'wikimedia';
+          return lower;
+        })
+        .join(',');
     }
 
-    const candidateUrls: string[] = [];
-    if (category === 'videos') {
-      candidateUrls.push(
-        `${cleanInstance}/searxng/search?q=${encodeURIComponent(queryStr)}&format=json&category_videos=1&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`,
-        `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=videos&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`,
-        `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=videos&category_videos=1&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`
-      );
-    } else {
-      candidateUrls.push(
-        `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=${encodeURIComponent(category)}&category_${category}=1&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`
-      );
-    }
+    const candidateUrls: string[] = [
+      `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=${encodeURIComponent(category === 'media' ? 'images' : (category || 'general'))}&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`
+    ];
 
     for (const jsonUrl of candidateUrls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const timeoutId = setTimeout(() => controller.abort(), 2800);
 
         const resp = await fetch(jsonUrl, {
           headers: {
@@ -1278,32 +1304,39 @@ async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: strin
             try {
               const data = JSON.parse(bodyText);
               if (data && Array.isArray(data.results) && data.results.length > 0) {
-                return data.results.map((r: any, idx: number) => {
-                  const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
-                  const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
-                  return {
-                    ...r,
-                    title: r.title || `${queryStr} 视频`,
-                    url: r.url,
-                    snippet: r.content || r.snippet || r.description || '',
-                    content: r.content || r.snippet || r.description || '',
-                    img_src: imgSrc,
-                    thumbnail_src: thumbSrc,
-                    thumbnail: thumbSrc,
-                    resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
-                    author: r.author || r.uploader || r.publisher || r.source || normalizeEngineName(r.engine || 'SearXNG'),
-                    engine: normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG'),
-                    engineRank: idx,
-                    category: category as any,
-                    duration: r.length || r.duration || undefined,
-                    iframe: r.embedded || r.iframe_src || undefined
-                  };
-                });
+                return data.results
+                  .filter((r: any) => isEngineAllowed(r.engine || r.engines?.[0], engines))
+                  .map((r: any, idx: number) => {
+                    const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
+                    const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
+                    const normEngine = normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG');
+                    return {
+                      ...r,
+                      title: r.title || `${queryStr} 视频`,
+                      url: r.url,
+                      snippet: r.content || r.snippet || r.description || '',
+                      content: r.content || r.snippet || r.description || '',
+                      img_src: imgSrc,
+                      thumbnail_src: thumbSrc,
+                      thumbnail: thumbSrc,
+                      resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
+                      author: r.author || r.uploader || r.publisher || r.source || normEngine,
+                      engine: normEngine,
+                      engineRank: idx,
+                      category: category as any,
+                      duration: r.length || r.duration || undefined,
+                      iframe: r.embedded || r.iframe_src || undefined
+                    };
+                  });
               }
             } catch {}
           } else if (bodyText.includes('<article') || bodyText.includes('class="result')) {
             const parsedItems = parseSearxngHtml(bodyText, cleanInstance);
-            if (parsedItems.length > 0) return parsedItems.map((item: any, idx: number) => ({ ...item, engineRank: idx, category }));
+            if (parsedItems.length > 0) {
+              return parsedItems
+                .filter((item: any) => isEngineAllowed(item.engine, engines))
+                .map((item: any, idx: number) => ({ ...item, engine: normalizeEngineName(item.engine), engineRank: idx, category }));
+            }
           }
         }
       } catch (e) {}
@@ -1653,47 +1686,47 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     return fetchSingleSearxngInstance(cleanInstance, qToUse, category, page, timeRange, engines, searxLang);
   });
 
-  const bingPromise = (page === 1 && category !== 'images' && category !== 'videos')
+  const bingPromise = (page === 1 && category !== 'images' && category !== 'videos' && isEngineAllowed('bing', engines))
     ? Promise.all([
         fetchSingleBing(queryStr),
         isNonEnglish && englishQuery ? fetchSingleBing(englishQuery) : Promise.resolve([])
       ]).then(res => res.flat())
     : Promise.resolve([]);
 
-  const ddgPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
+  const ddgPromise = (page === 1 && category !== 'images' && category !== 'videos' && isEngineAllowed('duckduckgo', engines)) ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
 
-  const baiduPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchSingleBaidu(queryStr) : Promise.resolve([]);
+  const baiduPromise = (page === 1 && category !== 'images' && category !== 'videos' && isEngineAllowed('baidu', engines)) ? fetchSingleBaidu(queryStr) : Promise.resolve([]);
 
-  const yandexPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchSingleYandex(queryStr) : Promise.resolve([]);
+  const yandexPromise = (page === 1 && category !== 'images' && category !== 'videos' && isEngineAllowed('yandex', engines)) ? fetchSingleYandex(queryStr) : Promise.resolve([]);
 
   // For Video searches: Concurrently fetch SearXNG Video API, YouTube, Bilibili Videos, and DuckDuckGo Videos
   const isVideoCat = (category === 'videos');
-  const youtubeVideosPromise = isVideoCat ? fetchYouTubeVideos(queryStr) : Promise.resolve([]);
-  const bilibiliVideosPromise = isVideoCat ? fetchBilibiliVideos(queryStr, page) : Promise.resolve([]);
-  const ddgVideosPromise = isVideoCat ? fetchDuckDuckGoVideos(queryStr, page) : Promise.resolve([]);
+  const youtubeVideosPromise = (isVideoCat && isEngineAllowed('youtube', engines)) ? fetchYouTubeVideos(queryStr) : Promise.resolve([]);
+  const bilibiliVideosPromise = (isVideoCat && isEngineAllowed('bilibili', engines)) ? fetchBilibiliVideos(queryStr, page) : Promise.resolve([]);
+  const ddgVideosPromise = (isVideoCat && isEngineAllowed('duckduckgo', engines)) ? fetchDuckDuckGoVideos(queryStr, page) : Promise.resolve([]);
 
   // For Image/Media searches: Concurrently fetch Baidu Images, DuckDuckGo Images, Openverse, Wikimedia, Wikipedia & Unsplash
   const isImageCat = (category === 'images' || category === 'media');
 
-  const baiduImagesPromise = isImageCat ? fetchBaiduImages(queryStr, page) : Promise.resolve([]);
-  const ddgImagesPromise = isImageCat ? fetchDuckDuckGoImages(queryStr, page) : Promise.resolve([]);
-  const wikipediaImagesPromise = isImageCat ? fetchWikipediaImages(queryStr, page) : Promise.resolve([]);
+  const baiduImagesPromise = (isImageCat && isEngineAllowed('baidu', engines)) ? fetchBaiduImages(queryStr, page) : Promise.resolve([]);
+  const ddgImagesPromise = (isImageCat && isEngineAllowed('duckduckgo', engines)) ? fetchDuckDuckGoImages(queryStr, page) : Promise.resolve([]);
+  const wikipediaImagesPromise = (isImageCat && isEngineAllowed('wikipedia', engines)) ? fetchWikipediaImages(queryStr, page) : Promise.resolve([]);
 
-  const openversePromise = isImageCat
+  const openversePromise = (isImageCat && isEngineAllowed('openverse', engines))
     ? Promise.all([
         fetchOpenverseImages(queryStr, page),
         isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchOpenverseImages(englishQuery, page) : Promise.resolve([])
       ]).then(res => res.flat())
     : Promise.resolve([]);
 
-  const unsplashPromise = isImageCat
+  const unsplashPromise = (isImageCat && isEngineAllowed('unsplash', engines))
     ? Promise.all([
         fetchUnsplashImages(queryStr, page),
         isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchUnsplashImages(englishQuery, page) : Promise.resolve([])
       ]).then(res => res.flat())
     : Promise.resolve([]);
 
-  const wikimediaPromise = isImageCat
+  const wikimediaPromise = (isImageCat && isEngineAllowed('wikimedia', engines))
     ? Promise.all([
         fetchWikimediaImages(queryStr, page),
         isNonEnglish && englishQuery && englishQuery !== queryStr ? fetchWikimediaImages(englishQuery, page) : Promise.resolve([])
@@ -1722,8 +1755,12 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     if (outcome.status === 'fulfilled' && Array.isArray(outcome.value)) {
       outcome.value.forEach((item) => {
         if (item && item.url) {
-          enginesUsedSet.add(normalizeEngineName(item.engine));
-          rawCandidateList.push(item);
+          if (isEngineAllowed(item.engine, engines)) {
+            const normEngine = normalizeEngineName(item.engine);
+            item.engine = normEngine;
+            enginesUsedSet.add(normEngine);
+            rawCandidateList.push(item);
+          }
         }
       });
     }
@@ -1733,7 +1770,13 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   const minRequiredCount = (category === 'images' || category === 'media') ? 24 : (category === 'videos' ? 1 : 8);
   if (rawCandidateList.length < minRequiredCount) {
     const fallbackTerm = (isNonEnglish && englishQuery) ? englishQuery : queryStr;
-    const fallbacks = generateInstantFallbackResults(fallbackTerm, category, page, engines);
+    const fallbacks = generateInstantFallbackResults(fallbackTerm, category, page, engines)
+      .filter((fb: any) => isEngineAllowed(fb.engine, engines));
+    fallbacks.forEach((fb: any) => {
+      const normEngine = normalizeEngineName(fb.engine);
+      fb.engine = normEngine;
+      enginesUsedSet.add(normEngine);
+    });
     rawCandidateList.push(...fallbacks);
   }
 
@@ -1753,7 +1796,7 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   const maxResultsPerPage = (category === 'images' || category === 'media') ? 36 : 15;
   const formattedResults = finalOrderedResults.slice(0, maxResultsPerPage).map((item, idx) => {
     const domain = URLNormalizer.getDomain(item.url) || 'web.source';
-    const primaryEngine = normalizeEngineName(item.engine || 'Google');
+    const primaryEngine = normalizeEngineName(item.engine || 'SearXNG');
     const matchedKws = queryStr.split(/\s+/).filter(w => (item.title || '').toLowerCase().includes(w.toLowerCase()));
 
     return {
@@ -1783,9 +1826,10 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     };
   });
 
-  const ALLOWED_ENGINES = ['Google', 'Bing', 'Baidu', 'DuckDuckGo', 'Yandex'];
-  const enginesArray = Array.from(enginesUsedSet).filter(e => ALLOWED_ENGINES.includes(e));
-  if (enginesArray.length === 0) enginesArray.push(...ALLOWED_ENGINES);
+  const enginesArray = Array.from(enginesUsedSet);
+  if (enginesArray.length === 0 && engines) {
+    enginesArray.push(...engines.split(',').map(s => normalizeEngineName(s)));
+  }
 
   const engineBreakdown = enginesArray.map(eng => ({
     engine: eng,

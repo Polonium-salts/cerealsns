@@ -129,4 +129,5 @@ export interface AppConfig {
   summaryDepth: 'brief' | 'standard' | 'deep' | 'academic' | 'tech' | 'market';
   temperature: number;
   theme: 'dark' | 'light' | 'system';
+  defaultEngines?: string[];
 }

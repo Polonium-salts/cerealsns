@@ -47,8 +47,9 @@ export default function App() {
   const [summaryModel, setSummaryModel] = useState('OpenRouter Free Auto');
   const cancelStreamRef = useRef<(() => void) | null>(null);
 
-  // App Configuration State
+  // App Configuration & Engines State
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
+  const [selectedEngines, setSelectedEngines] = useState<string[]>(['google', 'bing', 'baidu', 'duckduckgo', 'yandex']);
   const [configStorageType, setConfigStorageType] = useState<string>('memory');
   const [optimalNode, setOptimalNode] = useState<EdgeNode | null>(null);
   const [savedOfflineIds, setSavedOfflineIds] = useState<Set<string>>(new Set());
@@ -92,7 +93,7 @@ export default function App() {
         setQuery(urlQuery);
         setCategory(urlCat);
         setCurrentPage(urlPage);
-        handleExecuteSearch(urlQuery, urlCat, '', true, false, urlPage);
+        handleExecuteSearch(urlQuery, urlCat, '', true, undefined, false, urlPage);
       } else if (!urlQuery && window.location.pathname === '/') {
         setQuery('');
         setSearchData(null);
@@ -130,11 +131,13 @@ export default function App() {
     searchCat = category,
     searchTime = timeRange,
     aiModeEnabled = true,
+    targetEngines?: string,
     updateHistory = true,
-    targetPage = 1,
-    targetEngines = 'google,bing,baidu,duckduckgo,yandex'
+    targetPage = 1
   ) => {
     if (!searchQuery.trim()) return;
+
+    const effectiveEngines = targetEngines || (selectedEngines.length > 0 ? selectedEngines.join(',') : (searchCat === 'videos' ? 'youtube,bilibili,vimeo,dailymotion' : 'google,bing,baidu,duckduckgo,yandex'));
 
     setQuery(searchQuery);
     setCategory(searchCat);
@@ -161,7 +164,7 @@ export default function App() {
     }
 
     try {
-      const resp = await executeSearch(searchQuery, searchCat, targetPage, searchTime, config.customSearxngUrls, targetEngines);
+      const resp = await executeSearch(searchQuery, searchCat, targetPage, searchTime, config.customSearxngUrls, effectiveEngines);
       setSearchData(resp);
       setIsLoading(false);
 
@@ -187,7 +190,7 @@ export default function App() {
   };
 
   const handlePageChange = (newPage: number) => {
-    handleExecuteSearch(query, category, timeRange, true, true, newPage, 'google,bing,baidu,duckduckgo,yandex');
+    handleExecuteSearch(query, category, timeRange, true, selectedEngines.join(','), true, newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -196,7 +199,7 @@ export default function App() {
     if (!query.trim()) return;
     setIsAiSyncing(true);
     try {
-      const syncedData = await triggerAISearXNGToolSearch(query, category, config.customSearxngUrls);
+      const syncedData = await triggerAISearXNGToolSearch(query, category, config.customSearxngUrls, selectedEngines.join(','));
       setSearchData(syncedData);
       setIsAiSyncing(false);
       // Re-trigger AI summary stream with synced precise results
@@ -326,16 +329,18 @@ export default function App() {
         onSelectCategory={(catId) => {
           setCategory(catId);
           if (query.trim()) {
-            handleExecuteSearch(query.trim(), catId, timeRange, true);
+            handleExecuteSearch(query.trim(), catId, timeRange, true, selectedEngines.join(','));
           }
         }}
         activeTimeRange={timeRange}
         onSelectTimeRange={(trId) => {
           setTimeRange(trId);
           if (query.trim()) {
-            handleExecuteSearch(query.trim(), category, trId, true);
+            handleExecuteSearch(query.trim(), category, trId, true, selectedEngines.join(','));
           }
         }}
+        selectedEngines={selectedEngines}
+        onSelectEngines={setSelectedEngines}
         searchQuery={query}
         onSearch={handleExecuteSearch}
         isLoading={isLoading}
@@ -349,7 +354,7 @@ export default function App() {
             initialQuery={query}
             config={config}
             onUpdateConfig={handleSaveConfig}
-            onSearchGlobal={(q) => handleExecuteSearch(q, 'general', '', true)}
+            onSearchGlobal={(q) => handleExecuteSearch(q, 'general', '', true, selectedEngines.join(','))}
           />
         </main>
       ) : (
@@ -369,6 +374,8 @@ export default function App() {
                     initialQuery={query}
                     activeCategory={category}
                     activeTimeRange={timeRange}
+                    selectedEngines={selectedEngines}
+                    onSelectEngines={setSelectedEngines}
                     onSearch={handleExecuteSearch}
                     isLoading={isLoading}
                   />
@@ -548,7 +555,7 @@ export default function App() {
         onSelectCategory={(catId) => {
           setCategory(catId);
           if (query.trim()) {
-            handleExecuteSearch(query.trim(), catId, timeRange, true);
+            handleExecuteSearch(query.trim(), catId, timeRange, true, selectedEngines.join(','));
           }
         }}
         onOpenHistory={() => setIsHistoryOpen(true)}
@@ -586,7 +593,7 @@ export default function App() {
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onExecuteQuery={(q) => handleExecuteSearch(q, category, timeRange, true)}
+        onExecuteQuery={(q) => handleExecuteSearch(q, category, timeRange, true, selectedEngines.join(','))}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenConfig={() => setIsConfigOpen(true)}
         onChangeModel={(m) => handleSaveConfig({ openrouterModel: m })}

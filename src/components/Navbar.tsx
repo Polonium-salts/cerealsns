@@ -24,8 +24,10 @@ interface NavbarProps {
   onSelectCategory: (catId: string) => void;
   activeTimeRange: string;
   onSelectTimeRange: (trId: string) => void;
+  selectedEngines?: string[];
+  onSelectEngines?: (engines: string[]) => void;
   searchQuery: string;
-  onSearch: (query: string, category: string, timeRange: string, aiModeEnabled: boolean) => void;
+  onSearch: (query: string, category: string, timeRange: string, aiModeEnabled: boolean, targetEngines?: string) => void;
   isLoading: boolean;
   fetchTimeMs?: number;
 }
@@ -57,6 +59,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectCategory,
   activeTimeRange,
   onSelectTimeRange,
+  selectedEngines,
+  onSelectEngines,
   searchQuery,
   onSearch,
   isLoading,
@@ -113,6 +117,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 initialQuery={searchQuery}
                 activeCategory={activeCategory}
                 activeTimeRange={activeTimeRange}
+                selectedEngines={selectedEngines}
+                onSelectEngines={onSelectEngines}
                 onSearch={onSearch}
                 isLoading={isLoading}
                 isCompactMode

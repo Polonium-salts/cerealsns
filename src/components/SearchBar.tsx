@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Mic, Sparkles, Plus, Camera, SlidersHorizontal, Clock, ArrowRight } from 'lucide-react';
+import { Search, X, Mic, Sparkles, Plus, Camera, SlidersHorizontal, Clock, ArrowRight, Check, Server } from 'lucide-react';
 
 interface SearchBarProps {
   initialQuery?: string;
   activeCategory: string;
   activeTimeRange: string;
-  onSearch: (query: string, category: string, timeRange: string, aiModeEnabled: boolean) => void;
+  selectedEngines?: string[];
+  onSelectEngines?: (engines: string[]) => void;
+  onSearch: (query: string, category: string, timeRange: string, aiModeEnabled: boolean, targetEngines?: string) => void;
   isLoading: boolean;
   isCompactMode?: boolean;
 }
@@ -18,10 +20,38 @@ const TIME_RANGES = [
   { id: 'year', name: '今年' },
 ];
 
+export const ENGINE_OPTIONS_BY_CATEGORY: Record<string, Array<{ id: string; name: string; desc: string }>> = {
+  general: [
+    { id: 'google', name: 'Google 谷歌', desc: '全球通用搜索引擎' },
+    { id: 'bing', name: 'Bing 微软', desc: '微软搜素引擎' },
+    { id: 'baidu', name: 'Baidu 百度', desc: '中文搜索引擎' },
+    { id: 'duckduckgo', name: 'DuckDuckGo', desc: '无追踪隐私搜索' },
+    { id: 'yandex', name: 'Yandex', desc: '欧洲与跨国索引' },
+    { id: 'wikipedia', name: 'Wikipedia', desc: '维基百科权威词条' },
+    { id: 'qwant', name: 'Qwant', desc: '欧洲安全搜索引擎' },
+  ],
+  videos: [
+    { id: 'youtube', name: 'YouTube', desc: '全球视频库' },
+    { id: 'bilibili', name: '哔哩哔哩 Bilibili', desc: '中文弹幕视频网' },
+    { id: 'duckduckgo', name: 'DuckDuckGo Video', desc: 'DuckDuckGo 视频聚合' },
+    { id: 'vimeo', name: 'Vimeo', desc: '高清创作者视频' },
+    { id: 'dailymotion', name: 'Dailymotion', desc: '国际流行视频平台' },
+  ],
+  images: [
+    { id: 'baidu', name: '百度图片', desc: '中文海量图库' },
+    { id: 'duckduckgo', name: 'DuckDuckGo Image', desc: '高清大图检索' },
+    { id: 'wikipedia', name: '维基媒体库', desc: '开源与公共图片' },
+    { id: 'unsplash', name: 'Unsplash', desc: '无版权高精摄影图' },
+    { id: 'openverse', name: 'Openverse', desc: '开源作品库' },
+  ],
+};
+
 export const SearchBar: React.FC<SearchBarProps> = ({
   initialQuery = '',
   activeCategory,
   activeTimeRange,
+  selectedEngines,
+  onSelectEngines,
   onSearch,
   isLoading,
   isCompactMode = false,
@@ -34,12 +64,53 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [showImageLensModal, setShowImageLensModal] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  const currentCategoryEngines = ENGINE_OPTIONS_BY_CATEGORY[activeCategory] || ENGINE_OPTIONS_BY_CATEGORY.general;
+  const defaultEngineIds = currentCategoryEngines.map(e => e.id);
+  
+  const activeEngines = selectedEngines && selectedEngines.length > 0 ? selectedEngines : defaultEngineIds;
+
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
+
+  const toggleEngine = (engineId: string) => {
+    let updated: string[];
+    if (activeEngines.includes(engineId)) {
+      if (activeEngines.length <= 1) return; // keep at least 1 engine
+      updated = activeEngines.filter(id => id !== engineId);
+    } else {
+      updated = [...activeEngines, engineId];
+    }
+    if (onSelectEngines) {
+      onSelectEngines(updated);
+    }
+    if (query.trim()) {
+      onSearch(query.trim(), activeCategory, timeRange, aiMode, updated.join(','));
+    }
+  };
+
+  const selectPreset = (type: 'all' | 'cn' | 'overseas') => {
+    let presetIds: string[] = [];
+    if (type === 'all') {
+      presetIds = defaultEngineIds;
+    } else if (type === 'cn') {
+      presetIds = defaultEngineIds.filter(id => ['baidu', 'bilibili'].includes(id));
+      if (presetIds.length === 0) presetIds = defaultEngineIds;
+    } else if (type === 'overseas') {
+      presetIds = defaultEngineIds.filter(id => ['google', 'bing', 'duckduckgo', 'yandex', 'youtube', 'vimeo', 'unsplash'].includes(id));
+      if (presetIds.length === 0) presetIds = defaultEngineIds;
+    }
+    if (onSelectEngines) {
+      onSelectEngines(presetIds);
+    }
+    if (query.trim()) {
+      onSearch(query.trim(), activeCategory, timeRange, aiMode, presetIds.join(','));
+    }
+  };
 
   // Skill 7.3 Autocomplete fetching with 150ms debounce
   useEffect(() => {
@@ -86,7 +157,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     e.preventDefault();
     setShowSuggestions(false);
     if (query.trim()) {
-      onSearch(query.trim(), activeCategory, timeRange, aiMode);
+      onSearch(query.trim(), activeCategory, timeRange, aiMode, activeEngines.join(','));
     }
   };
 
@@ -115,7 +186,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       setQuery(transcript);
       setIsListening(false);
       if (transcript.trim()) {
-        onSearch(transcript.trim(), activeCategory, timeRange, aiMode);
+        onSearch(transcript.trim(), activeCategory, timeRange, aiMode, activeEngines.join(','));
       }
     };
     recognition.onerror = () => setIsListening(false);
@@ -222,7 +293,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 onClick={() => {
                   setQuery(item);
                   setShowSuggestions(false);
-                  onSearch(item, activeCategory, timeRange, aiMode);
+                  onSearch(item, activeCategory, timeRange, aiMode, activeEngines.join(','));
                 }}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-neutral-200 hover:text-white hover:bg-[#27272a] transition-colors text-left group"
               >
@@ -248,33 +319,98 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           </div>
         )}
 
-        {/* Time Filters Drawer */}
+        {/* Time Filters & Specified Search Engines Drawer */}
         {showFilters && (
-          <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-3 shadow-2xl flex items-center justify-between text-xs text-white">
-            <span className="text-neutral-300 font-medium flex items-center space-x-1.5">
-              <Clock className="h-3.5 w-3.5 text-neutral-400" />
-              <span>搜索时间区间范围：</span>
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {TIME_RANGES.map((tr) => (
-                <button
-                  key={tr.id}
-                  type="button"
-                  onClick={() => {
-                    setTimeRange(tr.id);
-                    if (query.trim()) {
-                      onSearch(query.trim(), activeCategory, tr.id, aiMode);
-                    }
-                  }}
-                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                    timeRange === tr.id
-                      ? 'bg-white text-black font-bold'
-                      : 'bg-[#27272a] text-neutral-300 hover:bg-[#3f3f46]'
-                  }`}
-                >
-                  {tr.name}
-                </button>
-              ))}
+          <div className="rounded-2xl border border-[#27272a] bg-[#18181b] p-3 sm:p-4 shadow-2xl text-xs text-white space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Row 1: Time Range */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#27272a] pb-2.5">
+              <span className="text-neutral-300 font-medium flex items-center space-x-1.5 shrink-0">
+                <Clock className="h-3.5 w-3.5 text-indigo-400" />
+                <span>搜索时间范围：</span>
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {TIME_RANGES.map((tr) => (
+                  <button
+                    key={tr.id}
+                    type="button"
+                    onClick={() => {
+                      setTimeRange(tr.id);
+                      if (query.trim()) {
+                        onSearch(query.trim(), activeCategory, tr.id, aiMode, activeEngines.join(','));
+                      }
+                    }}
+                    className={`rounded-full px-3 py-1 text-xs transition-all ${
+                      timeRange === tr.id
+                        ? 'bg-white text-black font-bold shadow-xs'
+                        : 'bg-[#27272a] text-neutral-300 hover:bg-[#3f3f46]'
+                    }`}
+                  >
+                    {tr.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 2: Designated Search Sources / Engines (检索元选定) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-neutral-200 font-bold flex items-center space-x-1.5">
+                  <Server className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>选定指定检索元源（{activeEngines.length}/{currentCategoryEngines.length}）：</span>
+                </span>
+
+                {/* Quick Presets */}
+                <div className="flex items-center space-x-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => selectPreset('all')}
+                    className="px-2 py-0.5 rounded-md bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] transition-colors"
+                  >
+                    🚀 全选
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectPreset('cn')}
+                    className="px-2 py-0.5 rounded-md bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] transition-colors"
+                  >
+                    🇨🇳 国内源
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectPreset('overseas')}
+                    className="px-2 py-0.5 rounded-md bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] transition-colors"
+                  >
+                    🌐 全球源
+                  </button>
+                </div>
+              </div>
+
+              {/* Engine Toggle Chips */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {currentCategoryEngines.map((eng) => {
+                  const isChecked = activeEngines.includes(eng.id);
+                  return (
+                    <button
+                      key={eng.id}
+                      type="button"
+                      onClick={() => toggleEngine(eng.id)}
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                        isChecked
+                          ? 'border-emerald-500/80 bg-emerald-950/40 text-emerald-300 shadow-sm'
+                          : 'border-[#27272a] bg-[#141417] text-neutral-500 hover:text-neutral-300 hover:border-[#3f3f46]'
+                      }`}
+                      title={eng.desc}
+                    >
+                      <div className={`h-3.5 w-3.5 rounded flex items-center justify-center transition-colors ${
+                        isChecked ? 'bg-emerald-500 text-black' : 'border border-neutral-600'
+                      }`}>
+                        {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                      </div>
+                      <span>{eng.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
