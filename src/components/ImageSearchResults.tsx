@@ -68,7 +68,9 @@ const ImageCard: React.FC<{
   // Compute thumbnail URL cascade
   const getDisplaySrc = () => {
     if (isError) {
-      return `https://image.pollinations.ai/prompt/${encodeURIComponent(query + ' ' + (item.title || ''))}?width=600&height=400&nologo=true`;
+      const cleanT = (item.title || query || '高清图片').replace(/[<>&"]/g, '');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="100%" height="100%" fill="#1e293b"/><text x="300" y="200" fill="#38bdf8" font-family="sans-serif" font-size="16" font-weight="bold" text-anchor="middle">${cleanT.slice(0, 30)}</text><text x="300" y="230" fill="#94a3b8" font-family="sans-serif" font-size="12" text-anchor="middle">高清图片视觉卡片</text></svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     }
     return item.thumbnail_src || item.thumbnail || item.img_src || item.url;
   };

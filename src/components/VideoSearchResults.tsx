@@ -25,6 +25,34 @@ import type { SearchResult } from '../types';
 import { GooglePagination } from './GooglePagination';
 import { VideoPlayerPage } from './VideoPlayerPage';
 
+export function getSvgPlaceholder(title: string, engine = 'Video'): string {
+  const cleanTitle = (title || 'Video').replace(/[<>&"]/g, '');
+  const cleanEngine = (engine || 'Video').replace(/[<>&"]/g, '');
+  const colors = [
+    ['#1e1b4b', '#312e81', '#4338ca'],
+    ['#064e3b', '#047857', '#059669'],
+    ['#4c1d95', '#6d28d9', '#7c3aed'],
+    ['#831843', '#be123c', '#e11d48'],
+    ['#1e293b', '#334155', '#475569'],
+    ['#7c2d12', '#c2410c', '#ea580c'],
+  ];
+  let hash = 0;
+  for (let i = 0; i < cleanTitle.length; i++) hash += cleanTitle.charCodeAt(i);
+  const c = colors[Math.abs(hash) % colors.length];
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+    <rect width="100%" height="100%" fill="${c[0]}"/>
+    <circle cx="320" cy="180" r="42" fill="${c[1]}" opacity="0.6"/>
+    <circle cx="320" cy="180" r="30" fill="${c[2]}" opacity="0.9"/>
+    <polygon points="314,166 332,180 314,194" fill="#ffffff"/>
+    <rect x="16" y="16" rx="4" width="${cleanEngine.length * 9 + 16}" height="22" fill="#000000" opacity="0.6"/>
+    <text x="24" y="31" fill="#38bdf8" font-family="sans-serif" font-size="11" font-weight="bold">${cleanEngine}</text>
+    <text x="20" y="340" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="bold">${cleanTitle.slice(0, 32)}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 interface VideoSearchResultsProps {
   results: SearchResult[];
   isLoading: boolean;
@@ -94,7 +122,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
     }
 
     // High quality YouTube cover extraction
-    if ((!rawThumb || rawThumb.includes('pollinations')) && (urlStr.includes('youtube.com') || urlStr.includes('youtu.be'))) {
+    if (!rawThumb && (urlStr.includes('youtube.com') || urlStr.includes('youtu.be'))) {
       const ytMatch = urlStr.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
       if (ytMatch && ytMatch[1]) {
         rawThumb = `https://i.ytimg.com/vi/${ytMatch[1]}/hqdefault.jpg`;
@@ -103,14 +131,14 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
 
     // Proxy ALL external HTTP/HTTPS images to bypass anti-hotlinking
     let thumbnailSrc = rawThumb;
-    if (rawThumb && (rawThumb.startsWith('http://') || rawThumb.startsWith('https://')) && !rawThumb.includes('pollinations.ai') && !rawThumb.startsWith('/api/proxy-image')) {
+    if (rawThumb && rawThumb.startsWith('data:image/')) {
+      thumbnailSrc = rawThumb;
+    } else if (rawThumb && (rawThumb.startsWith('http://') || rawThumb.startsWith('https://')) && !rawThumb.startsWith('/api/proxy-image')) {
       thumbnailSrc = `/api/proxy-image?url=${encodeURIComponent(rawThumb)}`;
     }
 
     if (!thumbnailSrc) {
-      thumbnailSrc = `https://image.pollinations.ai/prompt/${encodeURIComponent(
-        `video tutorial cover ${query} ${item.title}`
-      )}?width=640&height=360&seed=${index + 100}&nologo=true`;
+      thumbnailSrc = getSvgPlaceholder(item.title, platform);
     }
 
     // Duration calculation
@@ -183,7 +211,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
     // YouTube Embed
     const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
     if (ytMatch && ytMatch[1]) {
-      return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`;
+      return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&enablejsapi=1`;
     }
 
     // Bilibili Embed
@@ -369,7 +397,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                       const target = e.target as HTMLImageElement;
                       if (!target.dataset.fallback) {
                         target.dataset.fallback = '1';
-                        target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(query + ' video thumbnail cover HD')}&width=600&height=360&seed=${idx + 50}&nologo=true`;
+                        target.src = getSvgPlaceholder(item.title, item.engine || 'Video');
                       }
                     }}
                   />
@@ -491,7 +519,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                       const target = e.target as HTMLImageElement;
                       if (!target.dataset.fallback) {
                         target.dataset.fallback = '1';
-                        target.src = `https://image.pollinations.ai/prompt/${encodeURIComponent(query + ' video HD cover')}&width=640&height=360&seed=${idx + 100}&nologo=true`;
+                        target.src = getSvgPlaceholder(item.title, item.engine || 'Video');
                       }
                     }}
                   />

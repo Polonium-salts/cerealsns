@@ -28,6 +28,9 @@ export async function executeSearch(
     try {
       data = JSON.parse(text);
     } catch {
+      if (text.trim().startsWith('<')) {
+        throw new Error('服务器后端尚未准备就绪，请刷新页面重试');
+      }
       throw new Error(`服务器响应格式异常 (HTTP ${resp.status})`);
     }
 

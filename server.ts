@@ -30,16 +30,22 @@ const parsedEnvSearxng = envSearxng ? envSearxng.split(',').map(s => s.trim()).f
 // List of public SearXNG instances for distributed meta search query
 const DEFAULT_SEARXNG_INSTANCES = Array.from(new Set([
   ...parsedEnvSearxng,
-  'https://xka.cz',
-  'https://searx.prvcy.eu',
-  'https://searx.ro',
-  'https://searx.info',
-  'https://searx.be',
   'https://searxng.site',
-  'https://searx.work',
+  'https://searx.be',
   'https://searx.tiekoetter.com',
-  'https://search.ononoki.org',
-  'https://searx.f42.me'
+  'https://priv.au',
+  'https://search.mdosch.de',
+  'https://searx.prvcy.eu',
+  'https://searx.work',
+  'https://searx.f42.me',
+  'https://searx.info',
+  'https://searx.ro',
+  'https://xka.cz',
+  'https://etsi.me',
+  'https://opnxng.com',
+  'https://paulgo.io',
+  'https://search.2b9t.xyz',
+  'https://search.ethibox.fr'
 ]));
 
 
@@ -188,6 +194,9 @@ function parseSearxngHtml(html: string, instanceUrl: string): any[] {
     const snippetMatch = block.match(/<p[^>]*class=\"[^\"]*content[^\"]*\"[^>]*>([\s\S]*?)<\/p>/i) ||
                          block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
     const engineMatch = block.match(/class=\"[^\"]*engine[^\"]*\"[^>]*>([\s\S]*?)<\/span>/i);
+    const imgMatch = block.match(/<img[^>]*src=\"([^\"]+)\"[^>]*>/i) || block.match(/data-src=\"([^\"]+)\"/i);
+    const durationMatch = block.match(/class=\"[^\"]*(?:duration|length|time)[^\"]*\"[^>]*>([\s\S]*?)<\/(?:span|div)>/i);
+    const authorMatch = block.match(/class=\"[^\"]*(?:author|channel|uploader)[^\"]*\"[^>]*>([\s\S]*?)<\/(?:span|div|a)>/i);
 
     if (linkMatch) {
       let rawUrl = linkMatch[1];
@@ -197,9 +206,23 @@ function parseSearxngHtml(html: string, instanceUrl: string): any[] {
       const title = linkMatch[2].replace(/<[^>]+>/g, '').trim();
       const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').trim() : '';
       const engine = engineMatch ? engineMatch[1].replace(/<[^>]+>/g, '').trim() : 'SearXNG';
+      const imgSrc = imgMatch ? imgMatch[1] : undefined;
+      const duration = durationMatch ? durationMatch[1].replace(/<[^>]+>/g, '').trim() : undefined;
+      const author = authorMatch ? authorMatch[1].replace(/<[^>]+>/g, '').trim() : undefined;
 
       if (title && rawUrl && !rawUrl.includes('/info/') && !rawUrl.includes('/preferences') && !rawUrl.includes('about')) {
-        results.push({ title, url: rawUrl, content: snippet, snippet, engine });
+        results.push({
+          title,
+          url: rawUrl,
+          content: snippet,
+          snippet,
+          engine,
+          img_src: imgSrc,
+          thumbnail_src: imgSrc,
+          thumbnail: imgSrc,
+          duration,
+          author
+        });
       }
     }
   }
@@ -876,6 +899,61 @@ async function fetchDuckDuckGoVideos(queryStr: string, page = 1): Promise<any[]>
   return [];
 }
 
+// Live YouTube Video Search Engine
+async function fetchYouTubeVideos(queryStr: string): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(queryStr)}`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const html = await resp.text();
+      const match = html.match(/var ytInitialData = (\{[\s\S]*?\});<\/script>/);
+      if (match) {
+        const data = JSON.parse(match[1]);
+        const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
+        const results: any[] = [];
+        for (const item of contents) {
+          if (item.videoRenderer) {
+            const v = item.videoRenderer;
+            const videoId = v.videoId;
+            if (!videoId) continue;
+            const title = v.title?.runs?.[0]?.text || queryStr;
+            const snippet = v.descriptionSnippet?.runs?.map((r: any) => r.text).join('') || `YouTube 视频: ${title}`;
+            const thumb = v.thumbnail?.thumbnails?.[v.thumbnail?.thumbnails?.length - 1]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+            const author = v.ownerText?.runs?.[0]?.text || 'YouTube';
+            const duration = v.lengthText?.simpleText || '08:00';
+
+            results.push({
+              title,
+              url: `https://www.youtube.com/watch?v=${videoId}`,
+              snippet,
+              content: snippet,
+              img_src: thumb,
+              thumbnail_src: thumb,
+              thumbnail: thumb,
+              author,
+              engine: 'YouTube',
+              category: 'videos',
+              duration
+            });
+          }
+        }
+        return results;
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
 // 零依赖语言检测与 SearXNG 映射参数
 export function detectLanguage(text: string) {
   if (!text || text.length < 2) return { primary: 'en', mixed: false };
@@ -1165,48 +1243,70 @@ async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: strin
       targetEngines = 'google';
     }
 
-    const jsonUrl = `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=${encodeURIComponent(category)}&category_${category}=1&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const candidateUrls: string[] = [];
+    if (category === 'videos') {
+      candidateUrls.push(
+        `${cleanInstance}/searxng/search?q=${encodeURIComponent(queryStr)}&format=json&category_videos=1&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`,
+        `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=videos&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`,
+        `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=videos&category_videos=1&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`
+      );
+    } else {
+      candidateUrls.push(
+        `${cleanInstance}/search?q=${encodeURIComponent(queryStr)}&format=json&categories=${encodeURIComponent(category)}&category_${category}=1&engines=${encodeURIComponent(targetEngines)}&language=${searxLang}&page=${page}${timeRange ? `&time_range=${timeRange}` : ''}`
+      );
+    }
 
-    const resp = await fetch(jsonUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/html'
-      },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+    for (const jsonUrl of candidateUrls) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
 
-    if (resp.ok) {
-      const contentType = resp.headers.get('content-type') || '';
-      const bodyText = await resp.text();
+        const resp = await fetch(jsonUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/html'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-      if (contentType.includes('json') || bodyText.trim().startsWith('{')) {
-        try {
-          const data = JSON.parse(bodyText);
-          if (data && Array.isArray(data.results) && data.results.length > 0) {
-            return data.results.map((r: any, idx: number) => {
-              const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
-              const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
-              return {
-                ...r,
-                img_src: imgSrc,
-                thumbnail_src: thumbSrc,
-                thumbnail: thumbSrc,
-                resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
-                author: r.author || r.source || normalizeEngineName(r.engine || 'SearXNG Images'),
-                engine: normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG Images'),
-                engineRank: idx,
-                category: category as any
-              };
-            });
+        if (resp.ok) {
+          const contentType = resp.headers.get('content-type') || '';
+          const bodyText = await resp.text();
+
+          if (contentType.includes('json') || bodyText.trim().startsWith('{')) {
+            try {
+              const data = JSON.parse(bodyText);
+              if (data && Array.isArray(data.results) && data.results.length > 0) {
+                return data.results.map((r: any, idx: number) => {
+                  const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
+                  const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
+                  return {
+                    ...r,
+                    title: r.title || `${queryStr} 视频`,
+                    url: r.url,
+                    snippet: r.content || r.snippet || r.description || '',
+                    content: r.content || r.snippet || r.description || '',
+                    img_src: imgSrc,
+                    thumbnail_src: thumbSrc,
+                    thumbnail: thumbSrc,
+                    resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
+                    author: r.author || r.uploader || r.publisher || r.source || normalizeEngineName(r.engine || 'SearXNG'),
+                    engine: normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG'),
+                    engineRank: idx,
+                    category: category as any,
+                    duration: r.length || r.duration || undefined,
+                    iframe: r.embedded || r.iframe_src || undefined
+                  };
+                });
+              }
+            } catch {}
+          } else if (bodyText.includes('<article') || bodyText.includes('class="result')) {
+            const parsedItems = parseSearxngHtml(bodyText, cleanInstance);
+            if (parsedItems.length > 0) return parsedItems.map((item: any, idx: number) => ({ ...item, engineRank: idx, category }));
           }
-        } catch {}
-      } else if (bodyText.includes('<article') || bodyText.includes('class="result')) {
-        const parsedItems = parseSearxngHtml(bodyText, cleanInstance);
-        if (parsedItems.length > 0) return parsedItems.map((item: any, idx: number) => ({ ...item, engineRank: idx }));
-      }
+        }
+      } catch (e) {}
     }
   } catch (e) {
     // Timeout or offline node
@@ -1229,8 +1329,9 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
     ];
     return styles.map((style, i) => {
       const lockSeed = i + 1 + (page - 1) * 12;
-      const encodedPrompt = encodeURIComponent(`${queryEn}, ${style}, HD photo, clean background, accurate representation`);
-      const imgUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=800&seed=${lockSeed}&nologo=true`;
+      const cleanLabel = (displayTerm + ' ' + style).replace(/[<>&"]/g, '');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800"><defs><linearGradient id="g${i}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0f172a"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#334155"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g${i})"/><rect x="40" y="40" width="1200" height="720" rx="24" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="8 8"/><text x="640" y="380" fill="#38bdf8" font-family="sans-serif" font-size="32" font-weight="bold" text-anchor="middle">${cleanLabel}</text><text x="640" y="440" fill="#94a3b8" font-family="sans-serif" font-size="20" text-anchor="middle">1280 × 800 High Definition Vision</text></svg>`;
+      const imgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
       return {
         title: `${displayTerm} - ${style} #${i + 1}`,
         url: `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(displayTerm)}`,
@@ -1247,48 +1348,8 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   }
 
   if (category === 'videos') {
-    const youtubeVideoIds = ['M576WGiDBdQ', 'SqcY0GlETPk', 'W6NZfCO5SIk', 'kJQP7kiw5Fk', 'dGcsHMXbSOA'];
-    const bilibiliBvIds = ['BV1xx411c7mD', 'BV1GJ411x72g', 'BV1pE411q7ne', 'BV14E411q7kW', 'BV1vE411q73v'];
-
-    const videoFallbacks: any[] = [];
-
-    // Bilibili video fallbacks
-    bilibiliBvIds.forEach((bv, idx) => {
-      const lockSeed = idx + 20;
-      const imgUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(`${displayTerm} video tutorial Bilibili cover`)}?width=640&height=360&seed=${lockSeed}&nologo=true`;
-      videoFallbacks.push({
-        title: `${displayTerm} 零基础到精通全套实战视频教程 [高清]`,
-        url: `https://www.bilibili.com/video/${bv}`,
-        snippet: `[Bilibili 哔哩哔哩] 关于“${displayTerm}”的超清实战视频，包含完整代码与手把手讲解。`,
-        img_src: imgUrl,
-        thumbnail_src: imgUrl,
-        thumbnail: imgUrl,
-        author: 'Bilibili 优质UP主',
-        engine: 'Bilibili',
-        category: 'videos',
-        bvid: bv,
-        duration: '15:30'
-      });
-    });
-
-    // YouTube video fallbacks with authentic YouTube cover thumbnails
-    youtubeVideoIds.forEach((ytId, idx) => {
-      const ytThumb = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
-      videoFallbacks.push({
-        title: `${displayTerm} Crash Course & In-Depth Guide`,
-        url: `https://www.youtube.com/watch?v=${ytId}`,
-        snippet: `[YouTube] Comprehensive tutorial and live demo explaining ${displayTerm} with key features.`,
-        img_src: ytThumb,
-        thumbnail_src: ytThumb,
-        thumbnail: ytThumb,
-        author: 'YouTube Tech',
-        engine: 'YouTube',
-        category: 'videos',
-        duration: '12:45'
-      });
-    });
-
-    return videoFallbacks;
+    // Pure real search from SearXNG API + Live video engines (No hardcoded synthetic mock video fallbacks)
+    return [];
   }
 
   const fallbacks: any[] = [];
@@ -1582,7 +1643,8 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   const rawCandidateList: any[] = [];
 
   const instancesToTry = [...customInstances.filter(Boolean), ...DEFAULT_SEARXNG_INSTANCES];
-  const topInstances = Array.from(new Set(instancesToTry)).slice(0, 4);
+  const instanceCount = category === 'videos' ? 8 : 4;
+  const topInstances = Array.from(new Set(instancesToTry)).slice(0, instanceCount);
 
   // Fire SearXNG requests concurrently in PARALLEL using variants & language param
   const searxngPromises = topInstances.flatMap((inst, idx) => {
@@ -1591,21 +1653,22 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     return fetchSingleSearxngInstance(cleanInstance, qToUse, category, page, timeRange, engines, searxLang);
   });
 
-  const bingPromise = (page === 1 && category !== 'images')
+  const bingPromise = (page === 1 && category !== 'images' && category !== 'videos')
     ? Promise.all([
         fetchSingleBing(queryStr),
         isNonEnglish && englishQuery ? fetchSingleBing(englishQuery) : Promise.resolve([])
       ]).then(res => res.flat())
     : Promise.resolve([]);
 
-  const ddgPromise = (page === 1 && category !== 'images') ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
+  const ddgPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchSingleDuckDuckGo(queryStr) : Promise.resolve([]);
 
-  const baiduPromise = (page === 1 && category !== 'images') ? fetchSingleBaidu(queryStr) : Promise.resolve([]);
+  const baiduPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchSingleBaidu(queryStr) : Promise.resolve([]);
 
-  const yandexPromise = (page === 1 && category !== 'images') ? fetchSingleYandex(queryStr) : Promise.resolve([]);
+  const yandexPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchSingleYandex(queryStr) : Promise.resolve([]);
 
-  // For Video searches: Concurrently fetch Bilibili Videos and DuckDuckGo Videos
+  // For Video searches: Concurrently fetch SearXNG Video API, YouTube, Bilibili Videos, and DuckDuckGo Videos
   const isVideoCat = (category === 'videos');
+  const youtubeVideosPromise = isVideoCat ? fetchYouTubeVideos(queryStr) : Promise.resolve([]);
   const bilibiliVideosPromise = isVideoCat ? fetchBilibiliVideos(queryStr, page) : Promise.resolve([]);
   const ddgVideosPromise = isVideoCat ? fetchDuckDuckGoVideos(queryStr, page) : Promise.resolve([]);
 
@@ -1643,6 +1706,7 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     ddgPromise,
     baiduPromise,
     yandexPromise,
+    youtubeVideosPromise,
     bilibiliVideosPromise,
     ddgVideosPromise,
     baiduImagesPromise,
@@ -1666,7 +1730,7 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   }
 
   // Supplement missing or low-count results with fallback results if needed (using englishQuery for image tags if non-English)
-  const minRequiredCount = (category === 'images' || category === 'media') ? 24 : 8;
+  const minRequiredCount = (category === 'images' || category === 'media') ? 24 : (category === 'videos' ? 1 : 8);
   if (rawCandidateList.length < minRequiredCount) {
     const fallbackTerm = (isNonEnglish && englishQuery) ? englishQuery : queryStr;
     const fallbacks = generateInstantFallbackResults(fallbackTerm, category, page, engines);
@@ -1764,7 +1828,8 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
   const q = (queryParam.q as string) || (body.q as string) || '';
   const category = (queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general';
   const page = parseInt((queryParam.page as string) || (body.page as string) || '1', 10);
-  const engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || 'google,bing,baidu,duckduckgo,yandex';
+  const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo,yandex';
+  const engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || defaultEngines;
   const timeRange = (queryParam.time_range as string) || (body.time_range as string) || (body.filters?.time as string) || '';
   const customUrlsParam = (queryParam.custom_urls as string) || (body.custom_urls as string) || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -1816,13 +1881,32 @@ app.get('/api/jsdelivr/proxy', async (req, res) => {
 app.get('/api/proxy-image', async (req, res) => {
   const imageUrl = (req.query.url as string) || '';
   if (!imageUrl) {
-    return res.status(400).json({ error: 'Missing url parameter' });
+    const defaultSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="100%" height="100%" fill="#18181b"/><circle cx="320" cy="180" r="32" fill="#27272a"/><polygon points="314,166 332,180 314,194" fill="#a1a1aa"/><text x="320" y="240" fill="#a1a1aa" font-family="sans-serif" font-size="13" text-anchor="middle">视频封面加载中</text></svg>`;
+    res.setHeader('Content-Type', 'image/svg+xml');
+    return res.status(200).send(defaultSvg);
   }
+
+  const serveSvgFallback = () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e1b4b"/><stop offset="50%" stop-color="#312e81"/><stop offset="100%" stop-color="#4338ca"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="320" cy="180" r="40" fill="#ffffff" fill-opacity="0.15"/><circle cx="320" cy="180" r="28" fill="#ffffff" fill-opacity="0.9"/><polygon points="314,166 332,180 314,194" fill="#0f172a"/><text x="320" y="240" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">高清视频海报</text></svg>`;
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.status(200).send(svg);
+  };
 
   try {
     let targetUrl = imageUrl.trim();
     if (targetUrl.startsWith('//')) {
       targetUrl = 'https:' + targetUrl;
+    }
+
+    if (targetUrl.startsWith('data:image/')) {
+      const parts = targetUrl.split(',');
+      const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+      const base64Data = parts[1];
+      const imgBuffer = Buffer.from(base64Data, 'base64');
+      res.setHeader('Content-Type', mime);
+      return res.send(imgBuffer);
     }
 
     // Set origin-appropriate headers to bypass anti-hotlinking
@@ -1881,9 +1965,9 @@ app.get('/api/proxy-image', async (req, res) => {
       return res.send(Buffer.from(buffer));
     }
 
-    return res.status(resp.status || 404).json({ error: 'Image fetch failed' });
+    return serveSvgFallback();
   } catch (err: any) {
-    res.status(502).json({ error: 'Image proxy error', details: err.message });
+    return serveSvgFallback();
   }
 });
 

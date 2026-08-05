@@ -21,6 +21,7 @@ import {
   Lightbulb
 } from 'lucide-react';
 import type { SearchResult } from '../types';
+import { getSvgPlaceholder } from './VideoSearchResults';
 
 interface VideoPlayerPageProps {
   video: SearchResult;
@@ -68,7 +69,7 @@ export const VideoPlayerPage: React.FC<VideoPlayerPageProps> = ({
     if (ytMatch && ytMatch[1]) {
       return {
         type: 'iframe',
-        url: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&rel=0`
+        url: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&enablejsapi=1`
       };
     }
 
@@ -172,12 +173,12 @@ export const VideoPlayerPage: React.FC<VideoPlayerPageProps> = ({
   let rawThumb = video.thumbnail_src || video.thumbnail || video.img_src || '';
   if (rawThumb.startsWith('//')) rawThumb = 'https:' + rawThumb;
   let coverSrc = rawThumb;
-  if (rawThumb && (rawThumb.startsWith('http://') || rawThumb.startsWith('https://')) && !rawThumb.includes('pollinations.ai') && !rawThumb.startsWith('/api/proxy-image')) {
+  if (rawThumb && rawThumb.startsWith('data:image/')) {
+    coverSrc = rawThumb;
+  } else if (rawThumb && (rawThumb.startsWith('http://') || rawThumb.startsWith('https://')) && !rawThumb.startsWith('/api/proxy-image')) {
     coverSrc = `/api/proxy-image?url=${encodeURIComponent(rawThumb)}`;
   }
-  const fallbackThumb = `https://image.pollinations.ai/prompt/${encodeURIComponent(
-    `video tutorial cover ${query} ${video.title}`
-  )}?width=1280&height=720&seed=999&nologo=true`;
+  const fallbackThumb = getSvgPlaceholder(video.title, platform);
 
   if (!coverSrc) {
     coverSrc = fallbackThumb;
@@ -271,9 +272,9 @@ export const VideoPlayerPage: React.FC<VideoPlayerPageProps> = ({
               src={embedInfo.url}
               title={video.title}
               className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
               allowFullScreen
-              referrerPolicy="no-referrer"
+              referrerPolicy="strict-origin-when-cross-origin"
             />
           ) : embedInfo?.type === 'video' ? (
             <video
@@ -315,6 +316,23 @@ export const VideoPlayerPage: React.FC<VideoPlayerPageProps> = ({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Playback Assistance Notice Bar */}
+        <div className="bg-[#141417] border border-[#27272a] rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs text-neutral-300 shadow-md">
+          <div className="flex items-center space-x-2">
+            <Lightbulb className="h-4 w-4 text-amber-400 shrink-0" />
+            <span>若视频受第三方跨域限制或提示「Error 153」，请直接点击原站极速播放通道：</span>
+          </div>
+          <a
+            href={video.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold transition-all shadow-lg shrink-0"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span>前往 {platform} 原站高清播放</span>
+          </a>
         </div>
 
         {/* Details & Recommendation Columns */}
@@ -421,8 +439,12 @@ export const VideoPlayerPage: React.FC<VideoPlayerPageProps> = ({
                 const isCurrent = item.url === video.url;
                 let rThumb = item.thumbnail_src || item.thumbnail || item.img_src || '';
                 if (rThumb.startsWith('//')) rThumb = 'https:' + rThumb;
-                if (rThumb && (rThumb.startsWith('http://') || rThumb.startsWith('https://')) && !rThumb.includes('pollinations.ai') && !rThumb.startsWith('/api/proxy-image')) {
+                if (rThumb && rThumb.startsWith('data:image/')) {
+                  // Keep data URI
+                } else if (rThumb && (rThumb.startsWith('http://') || rThumb.startsWith('https://')) && !rThumb.startsWith('/api/proxy-image')) {
                   rThumb = `/api/proxy-image?url=${encodeURIComponent(rThumb)}`;
+                } else if (!rThumb) {
+                  rThumb = getSvgPlaceholder(item.title, item.engine || 'Video');
                 }
 
                 return (
@@ -438,13 +460,13 @@ export const VideoPlayerPage: React.FC<VideoPlayerPageProps> = ({
                     {/* Small Thumbnail */}
                     <div className="relative w-28 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-[#2e2e34]">
                       <img
-                        src={rThumb || `https://image.pollinations.ai/prompt/${encodeURIComponent(item.title)}&width=320&height=180`}
+                        src={rThumb}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://image.pollinations.ai/prompt/${encodeURIComponent(item.title)}&width=320&height=180`;
+                          (e.target as HTMLImageElement).src = getSvgPlaceholder(item.title, item.engine || 'Video');
                         }}
                       />
                       {item.duration && (
