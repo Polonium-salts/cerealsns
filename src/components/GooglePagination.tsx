@@ -4,18 +4,38 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 interface GooglePaginationProps {
   currentPage: number;
   totalPages?: number;
+  totalResults?: number;
   onPageChange: (page: number) => void;
   isLoading?: boolean;
 }
 
 export const GooglePagination: React.FC<GooglePaginationProps> = ({
   currentPage,
-  totalPages = 10,
+  totalPages = 1,
+  totalResults,
   onPageChange,
   isLoading = false,
 }) => {
-  const maxPages = Math.min(Math.max(totalPages, 1), 10);
-  const pages = Array.from({ length: maxPages }, (_, i) => i + 1);
+  const maxPages = Math.max(1, totalPages);
+
+  // Generate dynamic page list around current page if maxPages is large
+  let startPage = 1;
+  let endPage = maxPages;
+
+  if (maxPages > 10) {
+    if (currentPage <= 6) {
+      startPage = 1;
+      endPage = 10;
+    } else if (currentPage + 4 >= maxPages) {
+      startPage = maxPages - 9;
+      endPage = maxPages;
+    } else {
+      startPage = currentPage - 5;
+      endPage = currentPage + 4;
+    }
+  }
+
+  const pages = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
 
   return (
     <div className="flex flex-col items-center justify-center pt-6 pb-12 select-none border-t border-slate-800/60 mt-8">
@@ -73,7 +93,12 @@ export const GooglePagination: React.FC<GooglePaginationProps> = ({
           <span>SearXNG Google API</span>
         </span>
         <span>·</span>
-        <span>第 <strong className="text-slate-200">{currentPage}</strong> / {maxPages} 页</span>
+        <span>
+          第 <strong className="text-slate-200">{currentPage}</strong> / {maxPages} 页
+          {typeof totalResults === 'number' && totalResults > 0 && (
+            <span className="ml-1 text-slate-500">(共约 {totalResults} 条结果)</span>
+          )}
+        </span>
       </div>
     </div>
   );

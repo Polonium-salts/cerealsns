@@ -418,93 +418,105 @@ export default function App() {
             {/* State B: Active Search Results View */}
             {isSearchActive && (
               <div className="max-w-[1440px] w-full mx-auto py-2 space-y-4 pb-16 sm:pb-4">
-                
-                {category === 'images' ? (
-                  <ImageSearchResults
-                    results={searchData?.results || []}
-                    isLoading={isLoading}
-                    query={query}
-                    onSaveToOffline={handleSaveSingleResult}
-                    savedIds={savedOfflineIds}
-                    currentPage={currentPage}
-                    totalPages={searchData?.totalPages || 10}
-                    onPageChange={handlePageChange}
-                  />
-                ) : category === 'videos' ? (
-                  <VideoSearchResults
-                    results={searchData?.results || []}
-                    isLoading={isLoading}
-                    query={query}
-                    onSaveToOffline={handleSaveSingleResult}
-                    savedIds={savedOfflineIds}
-                    currentPage={currentPage}
-                    totalPages={searchData?.totalPages || 10}
-                    onPageChange={handlePageChange}
-                  />
-                ) : (
-                  <>
-                    {/* Mobile View Switcher Segmented Control */}
-                    <div className="lg:hidden sticky top-[52px] z-30 bg-[#0a0a0c]/95 backdrop-blur-md pb-2 pt-1">
-                      <div className="flex items-center justify-center p-1 bg-[#18181c] rounded-2xl border border-[#27272a] max-w-sm mx-auto text-xs font-semibold shadow-lg">
-                        <button
-                          type="button"
-                          onClick={() => setMobileViewMode('all')}
-                          className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
-                            mobileViewMode === 'all'
-                              ? 'bg-white text-black font-bold shadow-md'
-                              : 'text-neutral-400 hover:text-white'
-                          }`}
-                        >
-                          <Layers className="h-3.5 w-3.5" />
-                          <span>全部视图</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMobileViewMode('ai')}
-                          className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
-                            mobileViewMode === 'ai'
-                              ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
-                              : 'text-neutral-400 hover:text-white'
-                          }`}
-                        >
-                          <Sparkles className="h-3.5 w-3.5 text-purple-200" />
-                          <span>AI 概览</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMobileViewMode('web')}
-                          className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
-                            mobileViewMode === 'web'
-                              ? 'bg-white text-black font-bold shadow-md'
-                              : 'text-neutral-400 hover:text-white'
-                          }`}
-                        >
-                          <Globe className="h-3.5 w-3.5" />
-                          <span>网页结果</span>
-                        </button>
-                      </div>
-                    </div>
+                {(() => {
+                  const resultsLength = searchData?.results?.length || 0;
+                  const calcTotalPages = searchData?.totalPages ?? (
+                    resultsLength === 0 ? 1 :
+                    (currentPage === 1 && resultsLength < 8) ? 1 :
+                    (resultsLength < 5 && currentPage > 1) ? currentPage :
+                    10
+                  );
+                  const calcTotalResults = searchData?.stats?.totalResults || resultsLength;
 
-                    {/* Dual Column Layout (Desktop: Side by side; Mobile: Mode toggled) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
-                      
-                      {/* Left Side: Search Engine Results */}
-                      <div className={`w-full min-w-0 space-y-4 order-2 lg:order-1 ${
-                        mobileViewMode === 'ai' ? 'hidden lg:block' : 'block'
-                      }`}>
-                        <SearchResultsList
-                          results={searchData?.results || []}
-                          isLoading={isLoading}
-                          query={query}
-                          onSaveToOffline={handleSaveSingleResult}
-                          savedIds={savedOfflineIds}
-                          currentPage={currentPage}
-                          totalPages={searchData?.totalPages || 10}
-                          onPageChange={handlePageChange}
-                          onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
-                          isAiSyncing={isAiSyncing}
-                        />
+                  return category === 'images' ? (
+                    <ImageSearchResults
+                      results={searchData?.results || []}
+                      isLoading={isLoading}
+                      query={query}
+                      onSaveToOffline={handleSaveSingleResult}
+                      savedIds={savedOfflineIds}
+                      currentPage={currentPage}
+                      totalPages={calcTotalPages}
+                      totalResults={calcTotalResults}
+                      onPageChange={handlePageChange}
+                    />
+                  ) : category === 'videos' ? (
+                    <VideoSearchResults
+                      results={searchData?.results || []}
+                      isLoading={isLoading}
+                      query={query}
+                      onSaveToOffline={handleSaveSingleResult}
+                      savedIds={savedOfflineIds}
+                      currentPage={currentPage}
+                      totalPages={calcTotalPages}
+                      totalResults={calcTotalResults}
+                      onPageChange={handlePageChange}
+                    />
+                  ) : (
+                    <>
+                      {/* Mobile View Switcher Segmented Control */}
+                      <div className="lg:hidden sticky top-[52px] z-30 bg-[#0a0a0c]/95 backdrop-blur-md pb-2 pt-1">
+                        <div className="flex items-center justify-center p-1 bg-[#18181c] rounded-2xl border border-[#27272a] max-w-sm mx-auto text-xs font-semibold shadow-lg">
+                          <button
+                            type="button"
+                            onClick={() => setMobileViewMode('all')}
+                            className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
+                              mobileViewMode === 'all'
+                                ? 'bg-white text-black font-bold shadow-md'
+                                : 'text-neutral-400 hover:text-white'
+                            }`}
+                          >
+                            <Layers className="h-3.5 w-3.5" />
+                            <span>全部视图</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMobileViewMode('ai')}
+                            className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
+                              mobileViewMode === 'ai'
+                                ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
+                                : 'text-neutral-400 hover:text-white'
+                            }`}
+                          >
+                            <Sparkles className="h-3.5 w-3.5 text-purple-200" />
+                            <span>AI 概览</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setMobileViewMode('web')}
+                            className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
+                              mobileViewMode === 'web'
+                                ? 'bg-white text-black font-bold shadow-md'
+                                : 'text-neutral-400 hover:text-white'
+                            }`}
+                          >
+                            <Globe className="h-3.5 w-3.5" />
+                            <span>网页结果</span>
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Dual Column Layout (Desktop: Side by side; Mobile: Mode toggled) */}
+                      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,13fr)_minmax(0,8fr)] gap-6 xl:gap-8 items-start">
+                        
+                        {/* Left Side: Search Engine Results */}
+                        <div className={`w-full min-w-0 space-y-4 order-2 lg:order-1 ${
+                          mobileViewMode === 'ai' ? 'hidden lg:block' : 'block'
+                        }`}>
+                          <SearchResultsList
+                            results={searchData?.results || []}
+                            isLoading={isLoading}
+                            query={query}
+                            onSaveToOffline={handleSaveSingleResult}
+                            savedIds={savedOfflineIds}
+                            currentPage={currentPage}
+                            totalPages={calcTotalPages}
+                            totalResults={calcTotalResults}
+                            onPageChange={handlePageChange}
+                            onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
+                            isAiSyncing={isAiSyncing}
+                          />
+                        </div>
 
                       {/* Right Side: AI Overview / AI Answer */}
                       <div className={`w-full min-w-0 space-y-4 order-1 lg:order-2 ${
@@ -530,8 +542,8 @@ export default function App() {
                       </div>
                     </div>
                   </>
-                )}
-
+                  );
+                })()}
               </div>
             )}
         </main>

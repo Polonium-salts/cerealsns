@@ -29,6 +29,7 @@ interface ImageSearchResultsProps {
   savedIds: Set<string>;
   currentPage?: number;
   totalPages?: number;
+  totalResults?: number;
   onPageChange?: (page: number) => void;
 }
 
@@ -206,7 +207,8 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
   onSaveToOffline,
   savedIds,
   currentPage = 1,
-  totalPages = 10,
+  totalPages = 1,
+  totalResults,
   onPageChange,
 }) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
@@ -482,11 +484,12 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && onPageChange && (
+      {onPageChange && (
         <div className="pt-6 pb-2">
           <GooglePagination
             currentPage={currentPage}
-            totalPages={totalPages}
+            totalPages={orientationFilter !== 'all' || engineFilter !== 'all' ? Math.max(1, Math.ceil(filteredResults.length / 10)) : Math.max(1, totalPages)}
+            totalResults={orientationFilter !== 'all' || engineFilter !== 'all' ? filteredResults.length : (totalResults || results.length)}
             onPageChange={onPageChange}
           />
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, History, Search, Star, Trash2, Download, Upload, Bookmark, Clock, ArrowUpRight, WifiOff } from 'lucide-react';
+import { X, History, Search, Star, Trash2, Download, Upload, Clock, ArrowUpRight, HardDrive, Sparkles, Database, Layers } from 'lucide-react';
 import type { SearchHistoryItem } from '../types';
 import { getOfflineSearchHistory, toggleFavoriteSearch, deleteSearchHistoryItem, clearAllSearchHistory, exportHistoryJSON, importHistoryJSON } from '../lib/indexedDB';
 
@@ -44,7 +44,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   };
 
   const handleClearAll = async () => {
-    if (confirm('确定要清空全部离线搜索历史记录吗？此操作不可撤销。')) {
+    if (confirm('确定要清空全部离线搜索历史记录与缓存吗？此操作不可撤销。')) {
       await clearAllSearchHistory();
       setSelectedPreviewItem(null);
       reloadHistory();
@@ -57,7 +57,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nexus_search_history_${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `nexus_search_cache_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -70,7 +70,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         try {
           const content = evt.target?.result as string;
           const importedCount = await importHistoryJSON(content);
-          alert(`成功导入 ${importedCount} 条搜索历史记录`);
+          alert(`成功导入 ${importedCount} 条离线搜索缓存记录`);
           reloadHistory();
         } catch (err: any) {
           alert(`导入失败: ${err.message}`);
@@ -82,124 +82,179 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
   if (!isOpen) return null;
 
+  const favoriteCount = historyItems.filter((i) => i.isFavorite).length;
+
   return (
-    <div className="fixed inset-0 z-50 flex justify-end items-end sm:items-stretch bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative h-[85vh] sm:h-full w-full max-w-xl border-t sm:border-t-0 sm:border-l border-slate-800 bg-slate-900 p-4 sm:p-6 rounded-t-3xl sm:rounded-none shadow-2xl flex flex-col space-y-4 overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
+    <div className="fixed inset-0 z-50 flex justify-end items-end sm:items-stretch bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative h-[88vh] sm:h-full w-full max-w-xl border-t sm:border-t-0 sm:border-l border-[#27272a] bg-[#0c0c0e] text-neutral-100 p-4 sm:p-6 rounded-t-3xl sm:rounded-none shadow-2xl flex flex-col space-y-4 overflow-hidden animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
         
         {/* Mobile Drag Handle */}
-        <div className="sm:hidden w-12 h-1.5 rounded-full bg-slate-700 mx-auto mb-1" />
+        <div className="sm:hidden w-12 h-1.5 rounded-full bg-[#27272a] mx-auto mb-1" />
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-start justify-between border-b border-[#27272a] pb-4">
           <div className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-950 text-cyan-400 border border-cyan-800/50">
-              <History className="h-5 w-5" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#18181c] text-cyan-400 border border-cyan-500/30 shadow-sm shadow-cyan-500/10">
+              <HardDrive className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center space-x-2">
                 <span>本地搜索历史与离线缓存</span>
-                <span className="rounded bg-emerald-950 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-800">
-                  IndexedDB
+                <span className="inline-flex items-center space-x-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/30">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>IndexedDB 高速缓存</span>
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                本地秒级检索，断网状态下仍可查阅已缓存的检索结果与 AI 总结
+              <p className="text-xs text-neutral-400 mt-0.5">
+                支持断网查阅已缓存结果、AI 总结与历史归档数据
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="rounded-xl border border-slate-800 p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+            className="rounded-xl border border-[#27272a] bg-[#18181c] p-2 text-neutral-400 hover:bg-[#27272a] hover:text-white transition-all active:scale-95"
+            title="关闭面板"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {/* Cache Stats Overview Banner */}
+        <div className="grid grid-cols-3 gap-2.5 p-3 rounded-2xl bg-[#141417] border border-[#27272a] text-xs">
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1a1a1e] border border-neutral-800/80">
+            <span className="text-[10px] text-neutral-400 flex items-center space-x-1">
+              <Database className="h-3 w-3 text-cyan-400" />
+              <span>已缓存条目</span>
+            </span>
+            <span className="text-sm font-bold text-cyan-300 mt-0.5">{historyItems.length} 条</span>
+          </div>
+
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1a1a1e] border border-neutral-800/80">
+            <span className="text-[10px] text-neutral-400 flex items-center space-x-1">
+              <Star className="h-3 w-3 text-amber-400" />
+              <span>收藏精选</span>
+            </span>
+            <span className="text-sm font-bold text-amber-300 mt-0.5">{favoriteCount} 条</span>
+          </div>
+
+          <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-[#1a1a1e] border border-neutral-800/80">
+            <span className="text-[10px] text-neutral-400 flex items-center space-x-1">
+              <Layers className="h-3 w-3 text-emerald-400" />
+              <span>存储引擎</span>
+            </span>
+            <span className="text-xs font-semibold text-emerald-300 mt-0.5">秒级离线</span>
+          </div>
+        </div>
+
         {/* Search & Action Controls */}
         <div className="space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-neutral-500" />
             <input
               type="text"
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="快速搜索本地历史记录或摘要..."
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 pl-9 pr-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+              placeholder="快速检索本地缓存历史或 AI 总结..."
+              className="w-full rounded-xl border border-[#27272a] bg-[#141417] pl-10 pr-4 py-2 text-xs text-white placeholder-neutral-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 focus:outline-none transition-all"
             />
+            {searchKeyword && (
+              <button
+                type="button"
+                onClick={() => setSearchKeyword('')}
+                className="absolute right-3 top-2.5 text-neutral-500 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center justify-between gap-2 text-xs overflow-x-auto scrollbar-none pb-0.5">
             {/* Category Filter */}
-            <div className="flex items-center space-x-1">
-              {['all', 'general', 'it', 'science', 'news'].map((cat) => (
+            <div className="flex items-center space-x-1.5 shrink-0">
+              {[
+                { id: 'all', label: '全部' },
+                { id: 'general', label: '网页' },
+                { id: 'it', label: 'IT/代码' },
+                { id: 'science', label: '学术' },
+                { id: 'news', label: '新闻' }
+              ].map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setCategoryFilter(cat)}
-                  className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                    categoryFilter === cat
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-                      : 'bg-slate-950 text-slate-400 border border-slate-800 hover:text-slate-200'
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
+                    categoryFilter === cat.id
+                      ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                      : 'bg-[#18181c] text-neutral-400 border border-[#27272a] hover:bg-[#27272a] hover:text-white'
                   }`}
                 >
-                  {cat === 'all' ? '全部' : cat.toUpperCase()}
+                  {cat.label}
                 </button>
               ))}
             </div>
 
-            {/* Import / Export Controls */}
-            <div className="flex items-center space-x-2">
-              <label className="cursor-pointer p-1.5 text-slate-400 hover:text-white" title="导入 JSON 历史">
-                <Upload className="h-4 w-4" />
+            {/* Import / Export / Clear Controls */}
+            <div className="flex items-center space-x-1 shrink-0">
+              <label className="cursor-pointer p-1.5 text-neutral-400 hover:text-white bg-[#18181c] hover:bg-[#27272a] border border-[#27272a] rounded-lg transition-all" title="导入 JSON 历史">
+                <Upload className="h-3.5 w-3.5" />
                 <input type="file" accept=".json" onChange={handleImport} className="hidden" />
               </label>
 
-              <button onClick={handleExport} className="p-1.5 text-slate-400 hover:text-white" title="导出备份 JSON">
-                <Download className="h-4 w-4" />
+              <button
+                onClick={handleExport}
+                className="p-1.5 text-neutral-400 hover:text-white bg-[#18181c] hover:bg-[#27272a] border border-[#27272a] rounded-lg transition-all"
+                title="导出离线缓存 JSON 备份"
+              >
+                <Download className="h-3.5 w-3.5" />
               </button>
 
-              <button onClick={handleClearAll} className="p-1.5 text-slate-400 hover:text-rose-400" title="清空历史">
-                <Trash2 className="h-4 w-4" />
+              <button
+                onClick={handleClearAll}
+                className="p-1.5 text-neutral-400 hover:text-rose-400 bg-[#18181c] hover:bg-rose-950/30 border border-[#27272a] hover:border-rose-800/50 rounded-lg transition-all"
+                title="清空历史与缓存"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
         </div>
 
         {/* History Item List */}
-        <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin scrollbar-thumb-neutral-800">
           {historyItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-center">
-              <Clock className="h-10 w-10 mb-2 opacity-50" />
-              <p className="text-xs">暂无符合条件的本地历史记录</p>
+            <div className="flex flex-col items-center justify-center py-16 text-neutral-500 text-center rounded-2xl border border-dashed border-[#27272a] bg-[#101013] my-4">
+              <Clock className="h-10 w-10 mb-2 opacity-40 text-neutral-400" />
+              <p className="text-xs font-semibold text-neutral-300">暂无离线搜索缓存记录</p>
+              <p className="text-[11px] text-neutral-500 mt-1 max-w-xs">在搜索结果页点击“离线保存”按钮，即可在此随时离线调取与复习</p>
             </div>
           ) : (
             historyItems.map((item) => (
               <div
                 key={item.id}
                 onClick={() => onSelectHistoryItem(item)}
-                className="group relative rounded-2xl border border-slate-800/80 bg-slate-950 p-3.5 hover:border-slate-700 hover:bg-slate-900 cursor-pointer transition-all"
+                className="group relative rounded-2xl border border-[#27272a]/90 bg-[#141417] p-3.5 hover:border-cyan-500/40 hover:bg-[#18181d] cursor-pointer transition-all shadow-sm"
               >
-                <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-1.5">
                   <div className="flex items-center space-x-2">
-                    <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300">
+                    <span className="rounded-md bg-[#202026] px-2 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-500/20">
                       {item.category.toUpperCase()}
                     </span>
-                    <span>{new Date(item.timestamp).toLocaleString()}</span>
+                    <span className="text-neutral-500">{new Date(item.timestamp).toLocaleString()}</span>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1.5">
                     <button
                       onClick={(e) => handleToggleFavorite(e, item.id)}
-                      className={`p-1 ${item.isFavorite ? 'text-amber-400' : 'text-slate-600 hover:text-amber-400'}`}
+                      className={`p-1 rounded-md hover:bg-[#27272a] transition-all ${item.isFavorite ? 'text-amber-400' : 'text-neutral-500 hover:text-amber-400'}`}
                       title={item.isFavorite ? '取消收藏' : '标记收藏'}
                     >
-                      <Star className="h-3.5 w-3.5 fill-current" />
+                      <Star className={`h-3.5 w-3.5 ${item.isFavorite ? 'fill-amber-400' : ''}`} />
                     </button>
 
                     <button
                       onClick={(e) => handleDelete(e, item.id)}
-                      className="p-1 text-slate-600 hover:text-rose-400"
-                      title="删除单条"
+                      className="p-1 rounded-md text-neutral-500 hover:text-rose-400 hover:bg-[#27272a] transition-all"
+                      title="删除单条缓存"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -211,14 +266,18 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 </h4>
 
                 {item.aiSummaryPreview && (
-                  <p className="text-xs text-slate-400 line-clamp-2 mt-1">
-                    {item.aiSummaryPreview}
-                  </p>
+                  <div className="mt-2 p-2 rounded-xl bg-[#101013] border border-neutral-800/70 text-xs text-neutral-400 line-clamp-2 flex items-start space-x-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-purple-400 shrink-0 mt-0.5" />
+                    <span>{item.aiSummaryPreview}</span>
+                  </div>
                 )}
 
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/50 text-[11px] text-slate-500">
-                  <span>网页源: {item.resultCount} 个结果</span>
-                  <span className="flex items-center space-x-1 text-cyan-400 group-hover:translate-x-0.5 transition-transform">
+                <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-[#27272a]/60 text-[11px] text-neutral-400">
+                  <span className="flex items-center space-x-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                    <span>缓存源: {item.resultCount} 个搜索结果</span>
+                  </span>
+                  <span className="flex items-center space-x-1 text-cyan-400 font-medium group-hover:translate-x-0.5 transition-transform">
                     <span>恢复离线会话</span>
                     <ArrowUpRight className="h-3 w-3" />
                   </span>
@@ -229,12 +288,13 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-800 pt-3 text-right">
+        <div className="border-t border-[#27272a] pt-3 flex items-center justify-between text-xs">
+          <span className="text-[#a1a1aa] text-[11px]">Nexus Engine Offline Cache v1.2</span>
           <button
             onClick={onClose}
-            className="rounded-xl bg-slate-800 px-5 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+            className="rounded-xl bg-[#18181c] border border-[#27272a] px-4 py-2 text-xs font-semibold text-neutral-200 hover:bg-[#27272a] hover:text-white transition-all active:scale-95"
           >
-            关闭 Drawer
+            关闭面板
           </button>
         </div>
 
@@ -242,3 +302,4 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     </div>
   );
 };
+

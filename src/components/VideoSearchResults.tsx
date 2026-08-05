@@ -61,6 +61,7 @@ interface VideoSearchResultsProps {
   savedIds: Set<string>;
   currentPage?: number;
   totalPages?: number;
+  totalResults?: number;
   onPageChange?: (page: number) => void;
 }
 
@@ -73,7 +74,8 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
   onSaveToOffline,
   savedIds,
   currentPage = 1,
-  totalPages = 10,
+  totalPages = 1,
+  totalResults,
   onPageChange,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -609,11 +611,12 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
       )}
 
       {/* Pagination Footer */}
-      {totalPages > 1 && onPageChange && (
+      {onPageChange && (
         <div className="pt-6">
           <GooglePagination
             currentPage={currentPage}
-            totalPages={totalPages}
+            totalPages={platformFilter !== 'all' || durationFilter !== 'all' ? Math.max(1, Math.ceil(filteredResults.length / 10)) : Math.max(1, totalPages)}
+            totalResults={platformFilter !== 'all' || durationFilter !== 'all' ? filteredResults.length : (totalResults || results.length)}
             onPageChange={onPageChange}
           />
         </div>

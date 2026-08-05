@@ -11,6 +11,7 @@ interface SearchResultsListProps {
   savedIds: Set<string>;
   currentPage?: number;
   totalPages?: number;
+  totalResults?: number;
   onPageChange?: (page: number) => void;
   onAiTriggerSearXNGSearch?: () => void;
   isAiSyncing?: boolean;
@@ -23,7 +24,8 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   onSaveToOffline,
   savedIds,
   currentPage = 1,
-  totalPages = 10,
+  totalPages = 1,
+  totalResults,
   onPageChange,
   onAiTriggerSearXNGSearch,
   isAiSyncing = false,
@@ -366,11 +368,14 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
                 <button
                   onClick={() => onSaveToOffline(item)}
-                  className={`hover:text-slate-200 transition-colors flex items-center space-x-1 ${
-                    isSaved ? 'text-[#8ab4f8] font-medium' : ''
+                  className={`transition-all flex items-center space-x-1 px-2 py-0.5 rounded-md text-xs ${
+                    isSaved
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-medium'
+                      : 'text-neutral-400 hover:text-white hover:bg-[#27272a]'
                   }`}
+                  title={isSaved ? '已在离线数据库中缓存' : '保存该网页条目至本地离线缓存'}
                 >
-                  {isSaved ? <BookmarkCheck className="h-3 w-3 text-[#8ab4f8]" /> : <Bookmark className="h-3 w-3" />}
+                  {isSaved ? <BookmarkCheck className="h-3 w-3 text-cyan-400" /> : <Bookmark className="h-3 w-3" />}
                   <span>{isSaved ? '已存离线' : '离线保存'}</span>
                 </button>
               </div>
@@ -384,7 +389,8 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
       {onPageChange && (
         <GooglePagination
           currentPage={currentPage}
-          totalPages={totalPages}
+          totalPages={filterEngine !== 'all' ? Math.max(1, Math.ceil(filteredResults.length / 10)) : Math.max(1, totalPages)}
+          totalResults={filterEngine !== 'all' ? filteredResults.length : (totalResults || results.length)}
           onPageChange={onPageChange}
           isLoading={isLoading}
         />

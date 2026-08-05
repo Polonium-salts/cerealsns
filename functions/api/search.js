@@ -1278,14 +1278,32 @@ export async function onRequestGet(context) {
     avgLatencyMs: Math.floor(12 + Math.random() * 18)
   }));
 
+  const resultCount = formattedResults.length;
+  let computedTotalPages = 1;
+  let estimatedTotalResults = resultCount;
+
+  if (resultCount === 0) {
+    computedTotalPages = page > 1 ? page - 1 : 1;
+    estimatedTotalResults = (computedTotalPages - 1) * 10;
+  } else if (page === 1 && resultCount < 8) {
+    computedTotalPages = 1;
+    estimatedTotalResults = resultCount;
+  } else if (resultCount < 6 && page > 1) {
+    computedTotalPages = page;
+    estimatedTotalResults = (page - 1) * 10 + resultCount;
+  } else {
+    computedTotalPages = Math.min(10, Math.max(page + 2, Math.ceil(resultCount / 2)));
+    estimatedTotalResults = (computedTotalPages - 1) * 10 + resultCount + Math.floor(Math.random() * 20);
+  }
+
   const responseData = {
     query: q,
     category,
     page,
-    totalPages: 10,
+    totalPages: computedTotalPages,
     results: formattedResults,
     stats: {
-      totalResults: formattedResults.length * 42,
+      totalResults: estimatedTotalResults,
       fetchTimeMs: duration,
       edgeNode: 'Cloudflare Pages Global Network',
       cacheHit: false,
