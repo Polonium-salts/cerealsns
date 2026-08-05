@@ -100,19 +100,19 @@ const ImageCard: React.FC<{
 
   return (
     <div
-      className={`group relative bg-[#141417] rounded-2xl border border-[#27272a] hover:border-neutral-500 overflow-hidden transition-all duration-200 cursor-pointer shadow-md hover:shadow-xl flex flex-col justify-between ${
+      className={`group relative bg-white dark:bg-[#141417] rounded-2xl border border-slate-200 dark:border-[#27272a] hover:border-slate-400 dark:hover:border-neutral-500 overflow-hidden transition-all duration-200 cursor-pointer shadow-sm hover:shadow-xl flex flex-col justify-between ${
         layoutMode === 'adaptive' ? 'break-inside-avoid mb-3 sm:mb-4' : ''
       }`}
       onClick={onSelect}
     >
       {/* Image Container */}
       <div 
-        className={`relative w-full bg-neutral-900 overflow-hidden flex items-center justify-center ${getContainerAspectClass()}`}
+        className={`relative w-full bg-slate-100 dark:bg-neutral-900 overflow-hidden flex items-center justify-center ${getContainerAspectClass()}`}
         style={getContainerStyle()}
       >
         {/* Shimmer Placeholder while loading */}
         {!isLoaded && !isError && (
-          <div className="absolute inset-0 bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 bg-[length:200%_100%] animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 dark:from-neutral-900 dark:via-neutral-800 dark:to-neutral-900 bg-[length:200%_100%] animate-pulse" />
         )}
 
         <img
@@ -187,11 +187,11 @@ const ImageCard: React.FC<{
       </div>
 
       {/* Title & Author Info */}
-      <div className="p-2.5 bg-[#121215]">
-        <h4 className="text-xs text-neutral-200 font-medium line-clamp-1 group-hover:text-white transition-colors">
+      <div className="p-2.5 bg-slate-50 dark:bg-[#121215] border-t border-slate-100 dark:border-[#1e1e22]">
+        <h4 className="text-xs text-slate-800 dark:text-neutral-200 font-medium line-clamp-1 group-hover:text-cyan-600 dark:group-hover:text-white transition-colors">
           {item.title}
         </h4>
-        <div className="flex items-center justify-between text-[10px] text-neutral-500 mt-1 font-mono">
+        <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-neutral-500 mt-1 font-mono">
           <span className="truncate max-w-[140px]">{item.author || item.engine}</span>
           <span>{item.resolution || 'HD'}</span>
         </div>
@@ -326,21 +326,21 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
   }
 
   return (
-    <div className="space-y-5 my-2 w-full text-neutral-200 font-sans">
+    <div className="space-y-5 my-2 w-full text-slate-800 dark:text-neutral-200 font-sans">
       
       {/* Image Filters & Layout Switcher Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#27272a] text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-[#27272a] text-xs">
         
         {/* Left: Quick Orientation Chips & Layout Switcher */}
         <div className="flex items-center space-x-3 overflow-x-auto scrollbar-none py-0.5">
           {/* Layout Mode Toggle */}
-          <div className="flex items-center bg-[#18181b] p-1 rounded-xl border border-[#27272a] shrink-0">
+          <div className="flex items-center bg-slate-100 dark:bg-[#18181b] p-1 rounded-xl border border-slate-200 dark:border-[#27272a] shrink-0">
             <button
               onClick={() => setLayoutMode('adaptive')}
               className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                 layoutMode === 'adaptive'
                   ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-neutral-400 hover:text-white'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="瀑布流自适应布局 (自然比例)"
             >
@@ -352,7 +352,7 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
               className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                 layoutMode === 'grid'
                   ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-neutral-400 hover:text-white'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="均分网格布局 (4:3 标准比例)"
             >
@@ -364,7 +364,7 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
               className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                 layoutMode === 'large'
                   ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-neutral-400 hover:text-white'
+                  : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="大图全景视角"
             >
@@ -373,12 +373,12 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
             </button>
           </div>
 
-          <div className="h-4 w-[1px] bg-[#27272a] shrink-0" />
+          <div className="h-4 w-[1px] bg-slate-200 dark:bg-[#27272a] shrink-0" />
 
           {/* Orientation Filter */}
           <div className="flex items-center space-x-1.5 shrink-0">
-            <span className="text-neutral-400 font-medium mr-0.5 flex items-center space-x-1">
-              <Filter className="h-3.5 w-3.5 text-neutral-400" />
+            <span className="text-slate-500 dark:text-neutral-400 font-medium mr-0.5 flex items-center space-x-1">
+              <Filter className="h-3.5 w-3.5 text-slate-400 dark:text-neutral-400" />
               <span>比例:</span>
             </span>
             {[
@@ -392,8 +392,8 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
                 onClick={() => setOrientationFilter(chip.id as any)}
                 className={`px-3 py-1 rounded-full text-xs transition-all ${
                   orientationFilter === chip.id
-                    ? 'bg-white text-black font-semibold shadow-xs'
-                    : 'bg-[#18181b] text-neutral-400 hover:text-white border border-[#27272a]'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-semibold shadow-xs'
+                    : 'bg-slate-100 text-slate-600 dark:bg-[#18181b] dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-[#27272a]'
                 }`}
               >
                 {chip.name}
@@ -403,23 +403,23 @@ export const ImageSearchResults: React.FC<ImageSearchResultsProps> = ({
         </div>
 
         {/* Right: Engine Filter & Results Count */}
-        <div className="flex items-center space-x-3 text-neutral-400 text-xs shrink-0 ml-auto">
+        <div className="flex items-center space-x-3 text-slate-500 dark:text-neutral-400 text-xs shrink-0 ml-auto">
           {presentEngines.length > 1 && (
-            <div className="flex items-center space-x-1 bg-[#18181b] px-2 py-1 rounded-lg border border-[#27272a]">
-              <Globe className="h-3 w-3 text-neutral-500" />
+            <div className="flex items-center space-x-1 bg-slate-100 dark:bg-[#18181b] px-2 py-1 rounded-lg border border-slate-200 dark:border-[#27272a]">
+              <Globe className="h-3 w-3 text-slate-400 dark:text-neutral-500" />
               <select
                 value={engineFilter}
                 onChange={(e) => setEngineFilter(e.target.value)}
-                className="bg-transparent text-white text-xs outline-none cursor-pointer"
+                className="bg-transparent text-slate-800 dark:text-white text-xs outline-none cursor-pointer"
               >
-                <option value="all" className="bg-[#18181b]">全部图片引擎 ({results.length})</option>
+                <option value="all" className="bg-white text-slate-900 dark:bg-[#18181b] dark:text-white">全部图片引擎 ({results.length})</option>
                 {presentEngines.map((eng) => (
-                  <option key={eng} value={eng} className="bg-[#18181b]">{eng}</option>
+                  <option key={eng} value={eng} className="bg-white text-slate-900 dark:bg-[#18181b] dark:text-white">{eng}</option>
                 ))}
               </select>
             </div>
           )}
-          <span className="text-neutral-500 font-mono text-[11px]">
+          <span className="text-slate-400 dark:text-neutral-500 font-mono text-[11px]">
             显示 {filteredResults.length} 张高清图片
           </span>
         </div>

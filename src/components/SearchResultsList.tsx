@@ -121,12 +121,12 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
         {[1, 2, 3, 4].map((idx) => (
           <div key={idx} className="space-y-2 animate-pulse">
             <div className="flex items-center space-x-2">
-              <div className="h-5 w-5 rounded-full bg-slate-800" />
-              <div className="h-3 w-32 rounded bg-slate-800" />
+              <div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-800" />
+              <div className="h-3 w-32 rounded bg-slate-200 dark:bg-slate-800" />
             </div>
-            <div className="h-5 w-2/3 rounded bg-slate-800" />
-            <div className="h-4 w-full rounded bg-slate-900" />
-            <div className="h-4 w-5/6 rounded bg-slate-900" />
+            <div className="h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-800" />
+            <div className="h-4 w-full rounded bg-slate-100 dark:bg-slate-900" />
+            <div className="h-4 w-5/6 rounded bg-slate-100 dark:bg-slate-900" />
           </div>
         ))}
       </div>
@@ -135,10 +135,10 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
   if (results.length === 0) {
     return (
-      <div className="rounded-3xl border border-slate-800 bg-[#1b1e26] p-10 text-center my-6 max-w-2xl mx-auto shadow-sm">
-        <Globe className="h-10 w-10 text-slate-500 mx-auto mb-3" />
-        <h3 className="text-base font-bold text-white">未找到相关结果</h3>
-        <p className="text-xs text-slate-400 mt-1">
+      <div className="rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#1b1e26] p-10 text-center my-6 max-w-2xl mx-auto shadow-sm">
+        <Globe className="h-10 w-10 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">未找到相关结果</h3>
+        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
           您可以尝试更改搜索词，或在顶部分类中切换至全部、IT编程或学术分类。
         </p>
       </div>
@@ -146,30 +146,30 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
   }
 
   return (
-    <div className="space-y-6 my-2 w-full text-slate-200 font-sans">
+    <div className="space-y-6 my-2 w-full text-slate-800 dark:text-slate-200 font-sans">
 
       {/* Top Search Result Meta Bar & Optional Site-specific Link */}
-      <div className="hidden flex-wrap items-center justify-between gap-2 text-xs text-slate-400 border-b border-slate-800/80 pb-3">
+      <div className="hidden flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800/80 pb-3">
         <div className="flex items-center space-x-2">
           {query && (
             <a
               href={`https://www.bing.com/search?q=${encodeURIComponent(query)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#8ab4f8] hover:underline flex items-center space-x-1 font-medium"
+              className="text-blue-700 hover:text-blue-900 dark:text-[#8ab4f8] hover:underline flex items-center space-x-1 font-medium"
             >
               <span>{query.length > 20 ? query.slice(0, 20) + '...' : query} 站内的其它相关信息 »</span>
             </a>
           )}
-          <span className="text-slate-500">·</span>
-          <span>找到约 <span className="font-bold text-slate-200">{filteredResults.length}</span> 条聚合网页结果</span>
-          <span className="text-slate-500">·</span>
-          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" title="搜索数据由 SearXNG 隐私元搜索 API 实时请求并发获取">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span className="text-slate-400 dark:text-slate-500">·</span>
+          <span>找到约 <span className="font-bold text-slate-900 dark:text-slate-200">{filteredResults.length}</span> 条聚合网页结果</span>
+          <span className="text-slate-400 dark:text-slate-500">·</span>
+          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-50 dark:bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/30" title="搜索数据由 SearXNG 隐私元搜索 API 实时请求并发获取">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse"></span>
             <span>SearXNG 元搜索 API 驱动</span>
           </span>
-          <span className="text-slate-500">·</span>
-          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20" title="接口响应已通过 jsDelivr 边缘 CDN 加速分发">
+          <span className="text-slate-400 dark:text-slate-500">·</span>
+          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20" title="接口响应已通过 jsDelivr 边缘 CDN 加速分发">
             <span>⚡ jsDelivr CDN 极速加速</span>
           </span>
         </div>
@@ -182,8 +182,8 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               onClick={() => setFilterEngine('all')}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
                 filterEngine === 'all'
-                  ? 'bg-slate-200 text-slate-900 font-bold'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                  ? 'bg-slate-900 text-white font-bold dark:bg-slate-200 dark:text-slate-900'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
               }`}
             >
               所有 ({results.length})
@@ -198,12 +198,12 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                   onClick={() => setFilterEngine(eng)}
                   className={`rounded-full px-2.5 py-0.5 text-xs transition-colors flex items-center space-x-1 ${
                     isActive
-                      ? 'bg-[#8ab4f8] text-slate-950 font-bold'
-                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      ? 'bg-blue-600 text-white font-bold dark:bg-[#8ab4f8] dark:text-slate-950'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
                   }`}
                 >
                   <span>{eng}</span>
-                  <span className={`text-[10px] ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] ${isActive ? 'text-white dark:text-slate-900' : 'text-slate-500 dark:text-slate-400'}`}>
                     ({count})
                   </span>
                 </button>
@@ -213,11 +213,11 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
 
           {/* Filter Dropdown */}
           <div className="flex items-center space-x-1">
-            <Filter className="h-3 w-3 text-slate-400" />
+            <Filter className="h-3 w-3 text-slate-500 dark:text-slate-400" />
             <select
               value={filterEngine}
               onChange={(e) => setFilterEngine(e.target.value)}
-              className="rounded-md border border-slate-700 bg-[#242832] px-2 py-0.5 text-xs text-slate-200 focus:outline-none"
+              className="rounded-md border border-slate-300 bg-white dark:border-slate-700 dark:bg-[#242832] px-2 py-0.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
             >
               <option value="all">所有检索源 ({filterableEngines.length})</option>
               {filterableEngines.map((eng) => (
@@ -227,11 +227,11 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
           </div>
 
           {/* Sort */}
-          <div className="flex items-center space-x-1 border-l border-slate-700/60 pl-2">
+          <div className="flex items-center space-x-1 border-l border-slate-300 dark:border-slate-700/60 pl-2">
             <button
               onClick={() => setSortBy('default')}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-                sortBy === 'default' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                sortBy === 'default' ? 'bg-blue-600 text-white dark:bg-[#8ab4f8] dark:text-slate-950 font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               默认排序
@@ -239,7 +239,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
             <button
               onClick={() => setSortBy('consensus')}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-                sortBy === 'consensus' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                sortBy === 'consensus' ? 'bg-blue-600 text-white dark:bg-[#8ab4f8] dark:text-slate-950 font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               ✨ 多源共识
@@ -247,7 +247,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
             <button
               onClick={() => setSortBy('latency')}
               className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-                sortBy === 'latency' ? 'bg-[#8ab4f8] text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                sortBy === 'latency' ? 'bg-blue-600 text-white dark:bg-[#8ab4f8] dark:text-slate-950 font-bold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               ⚡ 低延迟
@@ -256,7 +256,7 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
         </div>
       </div>
 
-      {/* Modern Bing/Google Dark Theme Results List */}
+      {/* Modern Search Results List */}
       <div className="space-y-7">
         {filteredResults.map((item) => {
           const isSaved = savedIds.has(item.id);
@@ -268,16 +268,16 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               key={item.id}
               className={`group space-y-1 p-3.5 sm:p-4 rounded-2xl transition-all ${
                 item.isOfficial
-                  ? 'bg-emerald-950/20 border-l-4 border-l-emerald-500 border border-emerald-500/30 shadow-md'
-                  : 'hover:bg-slate-800/30'
+                  ? 'bg-emerald-50/60 border-l-4 border-l-emerald-600 border border-emerald-200 dark:bg-emerald-950/20 dark:border-l-emerald-500 dark:border-emerald-500/30 shadow-xs'
+                  : 'hover:bg-slate-100/80 dark:hover:bg-slate-800/30'
               }`}
             >
               
               {/* Line 1: Favicon + Site Name + URL Breadcrumb + Options Menu */}
-              <div className="flex items-center justify-between text-xs text-slate-300">
+              <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
                 <div className="flex items-center space-x-2.5 min-w-0">
                   {/* Circular Favicon Badge */}
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#2b303d] border border-slate-700/60 overflow-hidden">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 border border-slate-200 dark:bg-[#2b303d] dark:border-slate-700/60 overflow-hidden">
                     <img
                       src={item.favicon || `https://www.google.com/s2/favicons?domain=${new URL(item.url).hostname}`}
                       alt=""
@@ -289,14 +289,14 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                   {/* Site Name and Breadcrumb */}
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center space-x-1.5">
-                      <span className="text-sm font-normal text-slate-100 truncate">{siteName}</span>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{siteName}</span>
                       {item.isOfficial && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40">
                           🏠 官网
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] text-[#9aa0a6] truncate max-w-[340px] sm:max-w-[560px] font-sans">
+                    <span className="text-[11px] text-slate-600 dark:text-[#9aa0a6] truncate max-w-[340px] sm:max-w-[560px] font-sans">
                       {breadcrumb}
                     </span>
                   </div>
@@ -305,21 +305,21 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                 {/* Right Side Badges & Three Dots */}
                 <div className="flex items-center space-x-2 text-[11px] shrink-0 ml-2">
                   {item.isConsensus && (
-                    <span className="hidden sm:inline-block rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-semibold" title="多搜索引擎结果一致验证">
+                    <span className="hidden sm:inline-block rounded bg-indigo-50 text-indigo-800 border border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30 px-2 py-0.5 text-[10px] font-semibold" title="多搜索引擎结果一致验证">
                       ✨ {item.sourcesCount} 源共识
                     </span>
                   )}
-                  <span className="hidden sm:inline-block rounded bg-[#272b36] px-2 py-0.5 text-cyan-300 border border-cyan-500/30 font-mono text-[10px]" title="SearXNG 引擎来源">
+                  <span className="hidden sm:inline-block rounded bg-slate-100 px-2 py-0.5 text-cyan-800 border border-cyan-200 dark:bg-[#272b36] dark:text-cyan-300 dark:border-cyan-500/30 font-mono text-[10px]" title="SearXNG 引擎来源">
                     SearXNG · {item.engine}
                   </span>
-                  <button className="text-[#9aa0a6] hover:text-slate-100 p-1 rounded transition-colors" title="更多选项">
+                  <button className="text-slate-400 hover:text-slate-800 dark:text-[#9aa0a6] dark:hover:text-slate-100 p-1 rounded transition-colors" title="更多选项">
                     <MoreVertical className="h-4 w-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Line 2: Large Title Link in Google/Bing Blue */}
-              <h3 className="text-lg sm:text-xl font-normal text-[#8ab4f8] hover:underline cursor-pointer pt-0.5 leading-snug">
+              {/* Line 2: Large Title Link */}
+              <h3 className="text-lg sm:text-xl font-medium text-blue-700 hover:text-blue-900 dark:text-[#8ab4f8] dark:hover:text-blue-300 hover:underline cursor-pointer pt-0.5 leading-snug">
                 <a
                   href={item.url}
                   target="_blank"
@@ -331,9 +331,9 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               </h3>
 
               {/* Line 3: Snippet Description with Highlighted Keywords */}
-              <p className="text-sm text-[#bdc1c6] leading-relaxed line-clamp-3 font-normal">
+              <p className="text-sm text-slate-700 dark:text-[#bdc1c6] leading-relaxed line-clamp-3 font-normal">
                 {item.publishedDate && (
-                  <span className="text-slate-400 mr-1.5 font-medium">{item.publishedDate} —</span>
+                  <span className="text-slate-500 dark:text-slate-400 mr-1.5 font-medium">{item.publishedDate} —</span>
                 )}
                 {highlightSnippet(item.snippet, query)}
               </p>
@@ -341,14 +341,14 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               {/* Line 3.5: Matched Keywords Pills Tag Bar */}
               {item.matchedKeywords && item.matchedKeywords.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[11px] text-slate-400 font-medium flex items-center space-x-1">
-                    <span className="text-emerald-400">🎯</span>
+                  <span className="text-[11px] text-slate-600 dark:text-slate-400 font-medium flex items-center space-x-1">
+                    <span className="text-emerald-600 dark:text-emerald-400">🎯</span>
                     <span>匹配词:</span>
                   </span>
                   {item.matchedKeywords.slice(0, 5).map((kw, kwIdx) => (
                     <span
                       key={kwIdx}
-                      className="inline-flex items-center rounded-md bg-[#252a38] px-2 py-0.5 text-[10px] font-medium text-emerald-300 border border-emerald-500/25 shadow-xs"
+                      className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-800 border border-emerald-200 dark:bg-[#252a38] dark:text-emerald-300 dark:border-emerald-500/25 shadow-xs"
                     >
                       {kw}
                     </span>
@@ -357,12 +357,12 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
               )}
 
               {/* Line 4: Action Bar */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#9aa0a6] pt-1 opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-[#9aa0a6] pt-1 opacity-90 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => handleCopyLink(item.url, item.id)}
-                  className="hover:text-slate-200 transition-colors flex items-center space-x-1"
+                  className="hover:text-slate-900 dark:hover:text-slate-200 transition-colors flex items-center space-x-1"
                 >
-                  {copiedId === item.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                  {copiedId === item.id ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3" />}
                   <span>{copiedId === item.id ? '已复制链接' : '复制链接'}</span>
                 </button>
 
@@ -370,12 +370,12 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
                   onClick={() => onSaveToOffline(item)}
                   className={`transition-all flex items-center space-x-1 px-2 py-0.5 rounded-md text-xs ${
                     isSaved
-                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-medium'
-                      : 'text-neutral-400 hover:text-white hover:bg-[#27272a]'
+                      ? 'bg-cyan-50 text-cyan-800 border border-cyan-200 font-medium dark:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-500/30'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#27272a]'
                   }`}
                   title={isSaved ? '已在离线数据库中缓存' : '保存该网页条目至本地离线缓存'}
                 >
-                  {isSaved ? <BookmarkCheck className="h-3 w-3 text-cyan-400" /> : <Bookmark className="h-3 w-3" />}
+                  {isSaved ? <BookmarkCheck className="h-3 w-3 text-cyan-600 dark:text-cyan-400" /> : <Bookmark className="h-3 w-3" />}
                   <span>{isSaved ? '已存离线' : '离线保存'}</span>
                 </button>
               </div>

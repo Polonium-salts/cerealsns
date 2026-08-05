@@ -1143,6 +1143,7 @@ export async function onRequestGet(context) {
   const timeRange = url.searchParams.get('time_range') || '';
   const customUrlsParam = url.searchParams.get('custom_urls') || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+  const activeSearxngUrl = url.searchParams.get('active_searxng_url') || '';
 
   // Read environment variable SEARXNG_INSTANCES from Cloudflare Pages Dashboard
   const cfEnvSearxng = env.SEARXNG_INSTANCES || '';
@@ -1177,16 +1178,20 @@ export async function onRequestGet(context) {
   const enginesUsedSet = new Set();
 
   // Combine and rank instances by health and latency
-  const rawInstancesToTry = [
-    ...customInstances.filter(Boolean),
-    ...kvInstances.filter(Boolean),
-    ...envInstances.filter(Boolean),
-    ...DEFAULT_SEARXNG_INSTANCES
-  ];
-
-  const sortedHealthyNodes = getSortedHealthyInstances(rawInstancesToTry);
-  const instanceCount = category === 'videos' ? 8 : 4;
-  const topInstances = sortedHealthyNodes.slice(0, instanceCount);
+  let topInstances = [];
+  if (activeSearxngUrl && activeSearxngUrl !== 'auto') {
+    topInstances = [activeSearxngUrl];
+  } else {
+    const rawInstancesToTry = [
+      ...customInstances.filter(Boolean),
+      ...kvInstances.filter(Boolean),
+      ...envInstances.filter(Boolean),
+      ...DEFAULT_SEARXNG_INSTANCES
+    ];
+    const sortedHealthyNodes = getSortedHealthyInstances(rawInstancesToTry);
+    const instanceCount = category === 'videos' ? 8 : 4;
+    topInstances = sortedHealthyNodes.slice(0, instanceCount);
+  }
 
   const searxngPromises = topInstances.map(inst => {
     const cleanInstance = inst.endsWith('/') ? inst.slice(0, -1) : inst;

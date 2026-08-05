@@ -252,7 +252,13 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
     // Web Grounding search
     if (enableWebGrounding) {
       try {
-        const searchResp = await triggerAISearXNGToolSearch(prompt, 'general');
+        const searchResp = await triggerAISearXNGToolSearch(
+          prompt,
+          'general',
+          config.customSearxngUrls,
+          undefined,
+          config.activeSearxngUrl
+        );
         if (searchResp && searchResp.results) {
           searchResults = searchResp.results.slice(0, 8);
           setSessions((prev) =>
@@ -378,24 +384,24 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
   );
 
   return (
-    <div className="w-full h-[calc(100vh-54px)] flex flex-row bg-[#09090b] text-white overflow-hidden select-none">
+    <div className="w-full h-[calc(100vh-54px)] flex flex-row bg-slate-50 text-slate-900 dark:bg-[#09090b] dark:text-white overflow-hidden select-none">
       
       {/* 1. Collapsible Sidebar Drawer (Sessions List) */}
       <aside
-        className={`h-full bg-[#0d0d10] border-r border-[#27272a] flex flex-col transition-all duration-300 relative shrink-0 z-20 ${
+        className={`h-full bg-slate-100 border-r border-slate-200 dark:bg-[#0d0d10] dark:border-[#27272a] flex flex-col transition-all duration-300 relative shrink-0 z-20 ${
           isSidebarOpen ? 'w-64 sm:w-72' : 'w-14'
         }`}
       >
         {/* Sidebar Header */}
-        <div className="p-3 border-b border-[#27272a] flex items-center justify-between shrink-0">
+        <div className="p-3 border-b border-slate-200 dark:border-[#27272a] flex items-center justify-between shrink-0">
           {isSidebarOpen ? (
             <div className="flex items-center space-x-2">
-              <Sparkles className="h-4 w-4 text-white" />
-              <span className="text-xs font-bold tracking-wider text-white">对话历史</span>
+              <Sparkles className="h-4 w-4 text-slate-900 dark:text-white" />
+              <span className="text-xs font-bold tracking-wider text-slate-900 dark:text-white">对话历史</span>
             </div>
           ) : (
             <div className="mx-auto">
-              <Sparkles className="h-4 w-4 text-white" />
+              <Sparkles className="h-4 w-4 text-slate-900 dark:text-white" />
             </div>
           )}
 
@@ -403,7 +409,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
           <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-[#27272a] transition-colors"
+            className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#27272a] transition-colors"
             title={isSidebarOpen ? '收起对话列表' : '展开对话列表'}
           >
             {isSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
@@ -416,19 +422,19 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
             <button
               type="button"
               onClick={handleNewSession}
-              className="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl bg-white hover:bg-neutral-200 text-black font-bold text-xs shadow-md transition-all active:scale-95"
+              className="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black font-bold text-xs shadow-md transition-all active:scale-95"
             >
-              <Plus className="h-4 w-4 text-black" />
+              <Plus className="h-4 w-4 text-white dark:text-black" />
               <span>新建 AI 对话</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleNewSession}
-              className="w-10 h-10 mx-auto flex items-center justify-center rounded-xl bg-white hover:bg-neutral-200 text-black font-bold shadow-md transition-all active:scale-95"
+              className="w-10 h-10 mx-auto flex items-center justify-center rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-neutral-200 dark:text-black font-bold shadow-md transition-all active:scale-95"
               title="新建 AI 对话"
             >
-              <Plus className="h-4 w-4 text-black" />
+              <Plus className="h-4 w-4 text-white dark:text-black" />
             </button>
           )}
         </div>
@@ -437,20 +443,20 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
         {isSidebarOpen && sessions.length > 3 && (
           <div className="px-3 pb-2 shrink-0">
             <div className="relative">
-              <Search className="h-3.5 w-3.5 absolute left-2.5 top-2 text-neutral-500" />
+              <Search className="h-3.5 w-3.5 absolute left-2.5 top-2 text-slate-400 dark:text-neutral-500" />
               <input
                 type="text"
                 value={sessionSearchKeyword}
                 onChange={(e) => setSessionSearchKeyword(e.target.value)}
                 placeholder="搜索历史对话..."
-                className="w-full bg-[#161619] text-neutral-200 text-[11px] rounded-lg pl-8 pr-2 py-1.5 border border-[#27272a] focus:outline-none focus:border-neutral-400"
+                className="w-full bg-slate-100 text-slate-800 dark:bg-[#161619] dark:text-neutral-200 text-[11px] rounded-lg pl-8 pr-2 py-1.5 border border-slate-200 dark:border-[#27272a] focus:outline-none focus:border-slate-400 dark:focus:border-neutral-400"
               />
             </div>
           </div>
         )}
 
         {/* Session List */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-thin scrollbar-thumb-[#27272a]">
+        <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-[#27272a]">
           {filteredSessions.map((sess) => {
             const isActive = sess.id === activeSessionId;
             return isSidebarOpen ? (
@@ -459,12 +465,12 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                 onClick={() => setActiveSessionId(sess.id)}
                 className={`group flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition-all ${
                   isActive
-                    ? 'bg-white text-black font-semibold shadow-md'
-                    : 'text-neutral-300 hover:text-white hover:bg-[#1a1a1e]'
+                    ? 'bg-slate-900 text-white font-semibold dark:bg-white dark:text-black shadow-md'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200/70 dark:text-neutral-300 dark:hover:text-white dark:hover:bg-[#1a1a1e]'
                 }`}
               >
                 <div className="flex items-center space-x-2 min-w-0 flex-1 pr-2">
-                  <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-black' : 'text-neutral-500'}`} />
+                  <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-white dark:text-black' : 'text-slate-400 dark:text-neutral-500'}`} />
                   <span className="truncate">{sess.title}</span>
                 </div>
                 <div className="flex items-center space-x-1 shrink-0">
@@ -472,7 +478,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                     type="button"
                     onClick={(e) => handleDeleteSession(sess.id, e)}
                     className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${
-                      isActive ? 'text-neutral-600 hover:text-red-600' : 'text-neutral-500 hover:text-red-400'
+                      isActive ? 'text-slate-300 hover:text-red-300 dark:text-neutral-600 dark:hover:text-red-600' : 'text-slate-400 hover:text-red-600 dark:text-neutral-500 dark:hover:text-red-400'
                     }`}
                     title="删除此对话"
                   >
@@ -487,8 +493,8 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                 onClick={() => setActiveSessionId(sess.id)}
                 className={`w-10 h-10 mx-auto flex items-center justify-center rounded-xl transition-all ${
                   isActive
-                    ? 'bg-white text-black font-bold shadow'
-                    : 'text-neutral-400 hover:text-white hover:bg-[#1a1a1e]'
+                    ? 'bg-slate-900 text-white font-bold dark:bg-white dark:text-black shadow'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#1a1a1e]'
                 }`}
                 title={sess.title}
               >
@@ -499,7 +505,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
         </div>
 
         {/* Footer Info */}
-        <div className="p-3 border-t border-[#27272a] text-[11px] text-neutral-500 shrink-0">
+        <div className="p-3 border-t border-slate-200 dark:border-[#27272a] text-[11px] text-slate-500 dark:text-neutral-500 shrink-0">
           {isSidebarOpen ? (
             <div className="flex items-center justify-between">
               <span>共 {sessions.length} 个对话记录</span>
@@ -510,7 +516,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                   setSessions([fresh]);
                   setActiveSessionId(fresh.id);
                 }}
-                className="text-neutral-400 hover:text-red-400 transition-colors"
+                className="text-slate-500 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400 transition-colors"
               >
                 清空全部
               </button>
@@ -522,19 +528,19 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
       </aside>
 
       {/* 2. Main Chat Workspace (Full Page) */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#09090b]">
+      <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-[#09090b]">
 
         {/* Message Stream */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#09090b]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50 dark:bg-[#09090b]">
           {messages.length === 0 ? (
-            /* Minimalist Empty State (No Preset Prompt Cards) */
+            /* Minimalist Empty State */
             <div className="h-full flex flex-col justify-center items-center max-w-xl mx-auto py-16 text-center space-y-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-black shadow-xl">
-                <Sparkles className="h-7 w-7 text-black" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white dark:bg-white dark:text-black shadow-xl">
+                <Sparkles className="h-7 w-7 text-white dark:text-black" />
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-lg font-extrabold text-white">Pure AI 智能对话</h3>
-                <p className="text-xs text-neutral-400 max-w-md leading-relaxed">
+                <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Pure AI 智能对话</h3>
+                <p className="text-xs text-slate-600 dark:text-neutral-400 max-w-md leading-relaxed">
                   输入任何思考、指令、代码分析或问题，开启全新对话。
                 </p>
               </div>
@@ -552,8 +558,8 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-xs font-bold shadow-md ${
                     msg.role === 'user'
-                      ? 'bg-white text-black border-white'
-                      : 'bg-[#1c1c20] text-white border-[#3f3f46]'
+                      ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-black dark:border-white'
+                      : 'bg-white text-slate-800 border-slate-200 dark:bg-[#1c1c20] dark:text-white dark:border-[#3f3f46]'
                   }`}
                 >
                   {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
@@ -561,16 +567,16 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
 
                 {/* Message Content Box */}
                 <div
-                  className={`flex-1 rounded-2xl p-4 space-y-2 border text-xs sm:text-sm shadow-xl transition-all ${
+                  className={`flex-1 rounded-2xl p-4 space-y-2 border text-xs sm:text-sm shadow-md transition-all ${
                     msg.role === 'user'
-                      ? 'bg-white text-black border-white'
-                      : 'bg-[#141417] text-neutral-200 border-[#27272a]'
+                      ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-black dark:border-white'
+                      : 'bg-white text-slate-900 border-slate-200 dark:bg-[#141417] dark:text-neutral-200 dark:border-[#27272a]'
                   }`}
                 >
                   {/* Meta Header */}
                   <div
                     className={`flex items-center justify-between text-[11px] pb-1.5 border-b ${
-                      msg.role === 'user' ? 'text-neutral-600 border-neutral-200' : 'text-neutral-400 border-[#27272a]'
+                      msg.role === 'user' ? 'text-slate-300 border-slate-800 dark:text-neutral-600 dark:border-neutral-200' : 'text-slate-500 border-slate-200 dark:text-neutral-400 dark:border-[#27272a]'
                     }`}
                   >
                     <span className="font-bold">
@@ -583,18 +589,18 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                           <button
                             type="button"
                             onClick={() => handleCopyMessage(msg.id, msg.content)}
-                            className="p-1 text-neutral-400 hover:text-white transition-colors"
+                            className="p-1 text-slate-400 hover:text-slate-700 dark:text-neutral-400 dark:hover:text-white transition-colors"
                             title="复制内容"
                           >
-                            {copiedId === msg.id ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                            {copiedId === msg.id ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3 w-3" />}
                           </button>
                           <button
                             type="button"
                             onClick={() => handleSpeakMessage(msg.id, msg.content)}
-                            className="p-1 text-neutral-400 hover:text-white transition-colors"
+                            className="p-1 text-slate-400 hover:text-slate-700 dark:text-neutral-400 dark:hover:text-white transition-colors"
                             title="语音朗读"
                           >
-                            {isSpeakingId === msg.id ? <VolumeX className="h-3 w-3 text-amber-300" /> : <Volume2 className="h-3 w-3" />}
+                            {isSpeakingId === msg.id ? <VolumeX className="h-3 w-3 text-amber-600 dark:text-amber-300" /> : <Volume2 className="h-3 w-3" />}
                           </button>
                         </div>
                       )}
@@ -603,8 +609,8 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
 
                   {/* Sources list if grounded */}
                   {msg.sources && msg.sources.length > 0 && (
-                    <div className="py-1.5 px-3 rounded-xl bg-[#1c1c20] border border-[#27272a] text-[11px]">
-                      <div className="text-neutral-400 font-medium mb-1">🔍 联网引证来源 ({msg.sources.length}):</div>
+                    <div className="py-1.5 px-3 rounded-xl bg-slate-100 border border-slate-200 dark:bg-[#1c1c20] dark:border-[#27272a] text-[11px]">
+                      <div className="text-slate-600 dark:text-neutral-400 font-medium mb-1">🔍 联网引证来源 ({msg.sources.length}):</div>
                       <div className="flex flex-wrap gap-1.5">
                         {msg.sources.slice(0, 4).map((src, i) => (
                           <a
@@ -612,9 +618,9 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                             href={src.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-2 py-0.5 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-neutral-300 hover:text-white transition-colors truncate max-w-[180px] flex items-center space-x-1"
+                            className="px-2 py-0.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-[#27272a] dark:hover:bg-[#3f3f46] dark:text-neutral-300 dark:hover:text-white transition-colors truncate max-w-[180px] flex items-center space-x-1"
                           >
-                            <span className="font-bold text-white">[{i + 1}]</span>
+                            <span className="font-bold text-slate-900 dark:text-white">[{i + 1}]</span>
                             <span className="truncate">{src.title}</span>
                           </a>
                         ))}
@@ -625,7 +631,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                   {/* Markdown Text Body */}
                   <div
                     className={`prose max-w-none leading-relaxed text-xs sm:text-sm ${
-                      msg.role === 'user' ? 'text-black prose-neutral' : 'prose-invert text-neutral-200'
+                      msg.role === 'user' ? 'text-white dark:text-black prose-neutral' : 'dark:prose-invert text-slate-900 dark:text-neutral-200'
                     }`}
                   >
                     {msg.content ? (
@@ -634,13 +640,13 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                         rehypePlugins={[rehypeRaw, rehypeKatex]}
                         components={{
                           p: ({ children }) => (
-                            <p className={`my-1.5 leading-relaxed ${msg.role === 'user' ? 'text-black' : 'text-neutral-200'}`}>
+                            <p className={`my-1.5 leading-relaxed ${msg.role === 'user' ? 'text-white dark:text-black' : 'text-slate-900 dark:text-neutral-200 font-normal'}`}>
                               {children}
                             </p>
                           ),
-                          h1: ({ children }) => <h1 className="text-base font-bold mt-3 mb-1.5 border-b pb-1">{children}</h1>,
-                          h2: ({ children }) => <h2 className="text-sm font-bold mt-2.5 mb-1">{children}</h2>,
-                          h3: ({ children }) => <h3 className="text-xs font-bold mt-2 mb-1">{children}</h3>,
+                          h1: ({ children }) => <h1 className="text-base font-bold mt-3 mb-1.5 border-b pb-1 border-slate-200 dark:border-[#3f3f46] text-slate-900 dark:text-white">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-sm font-bold mt-2.5 mb-1 text-slate-900 dark:text-white">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-xs font-bold mt-2 mb-1 text-slate-800 dark:text-neutral-200">{children}</h3>,
                           ul: ({ children }) => <ul className="list-disc pl-4 my-1.5 space-y-1">{children}</ul>,
                           ol: ({ children }) => <ol className="list-decimal pl-4 my-1.5 space-y-1">{children}</ol>,
                           code: ({ inline, className, children, ...props }: any) => {
@@ -652,8 +658,8 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                               <code
                                 className={`rounded px-1 py-0.5 text-[11px] font-mono border ${
                                   msg.role === 'user'
-                                    ? 'bg-neutral-100 text-black border-neutral-300'
-                                    : 'bg-[#27272a] text-white border-[#3f3f46]'
+                                    ? 'bg-slate-800 text-white border-slate-700 dark:bg-neutral-100 dark:text-black dark:border-neutral-300'
+                                    : 'bg-slate-100 text-purple-900 border-slate-200 dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46]'
                                 }`}
                                 {...props}
                               >
@@ -666,8 +672,8 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                         {sanitizeMarkdown(msg.content)}
                       </ReactMarkdown>
                     ) : (
-                      <div className="py-3 flex items-center space-x-2 text-neutral-400 text-xs">
-                        <Sparkles className="h-4 w-4 text-white animate-spin" />
+                      <div className="py-3 flex items-center space-x-2 text-slate-500 dark:text-neutral-400 text-xs">
+                        <Sparkles className="h-4 w-4 text-purple-600 dark:text-white animate-spin" />
                         <span>正在思考并流式回答...</span>
                       </div>
                     )}
@@ -681,14 +687,14 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
         </div>
 
         {/* Footer Input Bar */}
-        <footer className="p-3 bg-[#121215] border-t border-[#27272a] shrink-0">
+        <footer className="p-3 bg-white dark:bg-[#121215] border-t border-slate-200 dark:border-[#27272a] shrink-0">
           {/* Form Input Box */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="relative flex items-center rounded-2xl border border-[#27272a] bg-[#09090b] p-1.5 shadow-xl focus-within:border-white transition-all"
+            className="relative flex items-center rounded-2xl border border-slate-300 dark:border-[#27272a] bg-slate-50 dark:bg-[#09090b] p-1.5 shadow-md focus-within:border-slate-500 dark:focus-within:border-white transition-all"
           >
             <textarea
               ref={textareaRef}
@@ -702,7 +708,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                 }
               }}
               placeholder="输入任何提示词或指令... (Shift + Enter 换行，Enter 发送)"
-              className="flex-1 bg-transparent px-3 py-1.5 text-xs sm:text-sm text-white placeholder-neutral-500 focus:outline-none resize-none max-h-32 min-h-[36px]"
+              className="flex-1 bg-transparent px-3 py-1.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-neutral-500 focus:outline-none resize-none max-h-32 min-h-[36px]"
             />
 
             <div className="flex items-center space-x-1 shrink-0 pr-1">
@@ -711,8 +717,8 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                 disabled={!inputPrompt.trim() || isSending}
                 className={`p-2 rounded-xl transition-all font-bold ${
                   inputPrompt.trim() && !isSending
-                    ? 'bg-white text-black hover:bg-neutral-200 shadow-md active:scale-95'
-                    : 'bg-[#18181b] text-neutral-600 cursor-not-allowed'
+                    ? 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-md active:scale-95'
+                    : 'bg-slate-200 text-slate-400 dark:bg-[#18181b] dark:text-neutral-600 cursor-not-allowed'
                 }`}
                 title="发送"
               >

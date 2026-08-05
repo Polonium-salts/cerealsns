@@ -73,13 +73,13 @@ export interface SearxngInstance {
   latencyMs: number;
   region: string;
   status: 'online' | 'degraded' | 'offline';
-  type: 'EdgeOne' | 'Cloudflare' | 'Standard';
+  type: 'Cloudflare' | 'Standard';
 }
 
 export interface EdgeNode {
   id: string;
   name: string;
-  provider: 'EdgeOne' | 'Cloudflare Worker';
+  provider: 'Cloudflare Pages' | 'Cloudflare Worker';
   location: string;
   city: string;
   countryCode: string;
@@ -124,7 +124,9 @@ export interface AppConfig {
   openrouterBaseUrl: string;
   systemPrompt: string;
   customSearxngUrls: string[];
-  activeEdgeProvider: 'Auto' | 'EdgeOne' | 'Cloudflare Worker';
+  activeSearxngUrl?: string;
+  envSearxngInstances?: string[];
+  activeEdgeProvider: 'Auto' | 'Cloudflare Pages' | 'Cloudflare Worker';
   autoSummarize: boolean;
   summaryDepth: 'brief' | 'standard' | 'deep' | 'academic' | 'tech' | 'market';
   temperature: number;

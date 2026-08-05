@@ -262,11 +262,11 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
     <div className="w-full space-y-6 py-2 select-none">
       
       {/* Filter and Controls Header */}
-      <div className="bg-[#121215] border border-[#27272a] rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
+      <div className="bg-white dark:bg-[#121215] border border-slate-200 dark:border-[#27272a] rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm dark:shadow-lg">
         {/* Left Filter Pills */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex items-center space-x-1.5 text-neutral-400 font-semibold mr-1">
-            <SlidersHorizontal className="h-3.5 w-3.5 text-white" />
+          <div className="flex items-center space-x-1.5 text-slate-500 dark:text-neutral-400 font-semibold mr-1">
+            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-800 dark:text-white" />
             <span>视频筛选:</span>
           </div>
 
@@ -283,15 +283,15 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
               onClick={() => setPlatformFilter(pf.id)}
               className={`px-3 py-1 rounded-xl text-xs font-medium transition-all ${
                 platformFilter === pf.id
-                  ? 'bg-white text-black font-bold shadow-md'
-                  : 'bg-[#1c1c20] text-neutral-400 hover:text-white border border-[#27272a]'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow-md'
+                  : 'bg-slate-100 text-slate-600 dark:bg-[#1c1c20] dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-[#27272a]'
               }`}
             >
               {pf.name}
             </button>
           ))}
 
-          <span className="text-neutral-600 hidden sm:inline">|</span>
+          <span className="text-slate-300 dark:text-neutral-600 hidden sm:inline">|</span>
 
           {/* Duration filter */}
           {[
@@ -306,8 +306,8 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
               onClick={() => setDurationFilter(df.id)}
               className={`px-3 py-1 rounded-xl text-xs font-medium transition-all hidden sm:inline-block ${
                 durationFilter === df.id
-                  ? 'bg-white text-black font-bold shadow-md'
-                  : 'bg-[#1c1c20] text-neutral-400 hover:text-white border border-[#27272a]'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow-md'
+                  : 'bg-slate-100 text-slate-600 dark:bg-[#1c1c20] dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-[#27272a]'
               }`}
             >
               {df.name}
@@ -317,16 +317,16 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
 
         {/* Right Layout Mode Toggle & Count */}
         <div className="flex items-center space-x-3 text-xs w-full md:w-auto justify-between md:justify-end">
-          <span className="text-neutral-400 text-[11px]">
-            找到 <strong className="text-white">{filteredResults.length}</strong> 个视频结果
+          <span className="text-slate-500 dark:text-neutral-400 text-[11px]">
+            找到 <strong className="text-slate-900 dark:text-white">{filteredResults.length}</strong> 个视频结果
           </span>
 
-          <div className="flex items-center p-1 bg-[#1a1a1e] rounded-xl border border-[#27272a]">
+          <div className="flex items-center p-1 bg-slate-100 dark:bg-[#1a1a1e] rounded-xl border border-slate-200 dark:border-[#27272a]">
             <button
               type="button"
               onClick={() => setLayoutMode('grid')}
               className={`p-1.5 rounded-lg transition-all ${
-                layoutMode === 'grid' ? 'bg-white text-black font-bold shadow' : 'text-neutral-400 hover:text-white'
+                layoutMode === 'grid' ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow' : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="网格矩阵"
             >
@@ -336,7 +336,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
               type="button"
               onClick={() => setLayoutMode('large')}
               className={`p-1.5 rounded-lg transition-all ${
-                layoutMode === 'large' ? 'bg-white text-black font-bold shadow' : 'text-neutral-400 hover:text-white'
+                layoutMode === 'large' ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow' : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="大卡片剧院"
             >
@@ -346,7 +346,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
               type="button"
               onClick={() => setLayoutMode('list')}
               className={`p-1.5 rounded-lg transition-all ${
-                layoutMode === 'list' ? 'bg-white text-black font-bold shadow' : 'text-neutral-400 hover:text-white'
+                layoutMode === 'list' ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow' : 'text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
               }`}
               title="紧凑列表"
             >
@@ -385,10 +385,10 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
               <div
                 key={item.id || idx}
                 onClick={() => setSelectedVideo(item)}
-                className="group bg-[#141417] hover:bg-[#1a1a1e] border border-[#27272a] hover:border-neutral-500 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row gap-4 transition-all duration-200 cursor-pointer shadow-md hover:shadow-xl"
+                className="group bg-white dark:bg-[#141417] hover:bg-slate-50 dark:hover:bg-[#1a1a1e] border border-slate-200 dark:border-[#27272a] hover:border-slate-400 dark:hover:border-neutral-500 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row gap-4 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-xl"
               >
                 {/* Thumbnail */}
-                <div className="relative w-full sm:w-56 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-[#27272a] group-hover:border-neutral-400 transition-colors">
+                <div className="relative w-full sm:w-56 aspect-video rounded-xl overflow-hidden bg-black shrink-0 border border-slate-200 dark:border-[#27272a] group-hover:border-slate-400 dark:group-hover:border-neutral-400 transition-colors">
                   <img
                     src={meta.thumbnailSrc}
                     alt={item.title}
@@ -427,28 +427,28 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                 {/* Video Info Content */}
                 <div className="flex-1 flex flex-col justify-between space-y-2 min-w-0">
                   <div className="space-y-1.5">
-                    <h3 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
                       {highlightTitle(item.title, query)}
                     </h3>
-                    <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-neutral-400 line-clamp-2 leading-relaxed">
                       {item.snippet || '在线高清视频资源，点击立即播放预览。'}
                     </p>
                   </div>
 
                   {/* Meta Footer */}
-                  <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-2 border-t border-[#27272a]/60">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-neutral-500 pt-2 border-t border-slate-200 dark:border-[#27272a]/60">
                     <div className="flex items-center space-x-3">
                       <span className="flex items-center space-x-1">
-                        <Eye className="h-3 w-3 text-neutral-400" />
+                        <Eye className="h-3 w-3 text-slate-400 dark:text-neutral-400" />
                         <span>{meta.viewsStr}</span>
                       </span>
                       <span>·</span>
                       <span className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3 text-neutral-400" />
+                        <Clock className="h-3 w-3 text-slate-400 dark:text-neutral-400" />
                         <span>{meta.timeAgoStr}</span>
                       </span>
                       <span className="hidden sm:inline">·</span>
-                      <span className="hidden sm:inline text-neutral-400 font-mono">{item.engine} 索引</span>
+                      <span className="hidden sm:inline text-slate-400 dark:text-neutral-400 font-mono">{item.engine} 索引</span>
                     </div>
 
                     {/* Actions */}
@@ -456,10 +456,10 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleCopyLink(item.url, item.id || `${idx}`, e)}
-                        className="p-1.5 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-neutral-300 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#27272a] hover:bg-slate-200 dark:hover:bg-[#3f3f46] text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white transition-colors"
                         title="复制链接"
                       >
-                        {copiedId === (item.id || `${idx}`) ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copiedId === (item.id || `${idx}`) ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                       </button>
                       <button
                         type="button"
@@ -468,7 +468,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                           onSaveToOffline(item);
                         }}
                         className={`p-1.5 rounded-lg transition-colors ${
-                          isSaved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#27272a] hover:bg-[#3f3f46] text-neutral-300 hover:text-white'
+                          isSaved ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 dark:bg-[#27272a] hover:bg-slate-200 dark:hover:bg-[#3f3f46] text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white'
                         }`}
                         title={isSaved ? '已收藏' : '离线收藏'}
                       >
@@ -479,7 +479,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="p-1.5 rounded-lg bg-[#27272a] hover:bg-white hover:text-black text-neutral-300 transition-all flex items-center space-x-1"
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#27272a] hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-black text-slate-600 dark:text-neutral-300 transition-all flex items-center space-x-1"
                         title="打开原站点"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
@@ -507,10 +507,10 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
               <div
                 key={item.id || idx}
                 onClick={() => setSelectedVideo(item)}
-                className="group bg-[#141417] hover:bg-[#18181c] border border-[#27272a] hover:border-neutral-400 rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 cursor-pointer shadow-lg hover:shadow-2xl"
+                className="group bg-white dark:bg-[#141417] hover:bg-slate-50 dark:hover:bg-[#18181c] border border-slate-200 dark:border-[#27272a] hover:border-slate-400 dark:hover:border-neutral-400 rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-300 cursor-pointer shadow-sm hover:shadow-2xl"
               >
                 {/* Thumbnail Header */}
-                <div className="relative w-full aspect-video bg-black overflow-hidden border-b border-[#27272a]">
+                <div className="relative w-full aspect-video bg-black overflow-hidden border-b border-slate-200 dark:border-[#27272a]">
                   <img
                     src={meta.thumbnailSrc}
                     alt={item.title}
@@ -548,18 +548,18 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                 {/* Body Content */}
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                   <div className="space-y-1.5">
-                    <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug">
                       {highlightTitle(item.title, query)}
                     </h3>
-                    <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
+                    <p className="text-[11px] text-slate-600 dark:text-neutral-400 line-clamp-2 leading-relaxed">
                       {item.snippet || '多维度高清原声视频，点击体验在线嵌入式流畅播放。'}
                     </p>
                   </div>
 
                   {/* Card Bottom Meta */}
-                  <div className="pt-2 border-t border-[#27272a] flex items-center justify-between text-[11px] text-neutral-500">
+                  <div className="pt-2 border-t border-slate-200 dark:border-[#27272a] flex items-center justify-between text-[11px] text-slate-500 dark:text-neutral-500">
                     <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-neutral-400">{meta.viewsStr}</span>
+                      <span className="font-semibold text-slate-600 dark:text-neutral-400">{meta.viewsStr}</span>
                       <span>·</span>
                       <span>{meta.timeAgoStr}</span>
                     </div>
@@ -568,10 +568,10 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleCopyLink(item.url, item.id || `${idx}`, e)}
-                        className="p-1.5 rounded-lg bg-[#27272a] hover:bg-[#3f3f46] text-neutral-300 hover:text-white transition-colors"
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#27272a] hover:bg-slate-200 dark:hover:bg-[#3f3f46] text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white transition-colors"
                         title="复制链接"
                       >
-                        {copiedId === (item.id || `${idx}`) ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copiedId === (item.id || `${idx}`) ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                       </button>
                       <button
                         type="button"
@@ -580,7 +580,7 @@ export const VideoSearchResults: React.FC<VideoSearchResultsProps> = ({
                           onSaveToOffline(item);
                         }}
                         className={`p-1.5 rounded-lg transition-colors ${
-                          isSaved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#27272a] hover:bg-[#3f3f46] text-neutral-300 hover:text-white'
+                          isSaved ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 dark:bg-[#27272a] hover:bg-slate-200 dark:hover:bg-[#3f3f46] text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white'
                         }`}
                         title={isSaved ? '已收藏' : '离线收藏'}
                       >

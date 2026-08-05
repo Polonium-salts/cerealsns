@@ -98,15 +98,15 @@ export const QuickShortcuts: React.FC<QuickShortcutsProps> = ({
               }}
               className="group flex flex-col items-center space-y-2 w-16 sm:w-20 cursor-pointer focus:outline-none"
             >
-              {/* Circular Icon Wrapper - Pure White Button */}
+              {/* Circular Icon Wrapper */}
               <div
-                className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-white text-slate-900 border border-slate-200 shadow-md group-hover:bg-slate-100 transition-colors"
+                className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-slate-100 dark:bg-[#2b273a] border border-slate-200 dark:border-[#3f3f46] shadow-xs group-hover:bg-slate-200 dark:group-hover:bg-[#38334a] transition-all"
               >
                 <Icon className={`h-5 w-5 sm:h-6 sm:w-6 ${item.iconColor}`} />
               </div>
 
               {/* Text Label */}
-              <span className="text-[11px] sm:text-xs font-medium text-slate-200 group-hover:text-white transition-colors text-center truncate max-w-full">
+              <span className="text-[11px] sm:text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors text-center truncate max-w-full">
                 {item.name}
               </span>
             </button>

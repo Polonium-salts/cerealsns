@@ -45,7 +45,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Fixed Mobile Bottom Dock Bar */}
       <nav 
         aria-label="移动端主导航"
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0c0c0f]/95 backdrop-blur-xl border-t border-[#27272a] text-neutral-300 px-3 py-1.5 shadow-[0_-10px_25px_rgba(0,0,0,0.8)] transition-all"
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0c0c0f]/95 backdrop-blur-xl border-t border-slate-200 dark:border-[#27272a] text-slate-700 dark:text-neutral-300 px-3 py-1.5 shadow-lg dark:shadow-[0_-10px_25px_rgba(0,0,0,0.8)] transition-all"
       >
         <div className="grid grid-cols-5 items-center gap-1 text-[11px] font-medium">
           
@@ -59,7 +59,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                 onFocusSearch();
               }
             }}
-            className="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 text-neutral-400 hover:text-white"
+            className="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
           >
             <Search className="h-5 w-5 mb-0.5" />
             <span className="truncate">{isSearchActive ? '新搜索' : '搜索'}</span>
@@ -71,14 +71,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             onClick={() => setShowCategorySheet(true)}
             className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 ${
               activeCategory !== 'general' 
-                ? 'text-white font-semibold' 
-                : 'text-neutral-400 hover:text-white'
+                ? 'text-slate-900 dark:text-white font-semibold' 
+                : 'text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white'
             }`}
           >
             <div className="relative">
               <Layers className="h-5 w-5 mb-0.5" />
               {activeCategory !== 'general' && (
-                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-white animate-pulse" />
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-slate-900 dark:bg-white animate-pulse" />
               )}
             </div>
             <span className="truncate">
@@ -102,11 +102,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             }}
             className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all active:scale-95 ${
               mobileViewMode === 'ai' || activeCategory === 'ai'
-                ? 'bg-white text-black font-bold shadow-lg shadow-white/20'
-                : 'bg-[#27272a] text-white border border-[#3f3f46]'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow-md'
+                : 'bg-slate-100 dark:bg-[#27272a] text-slate-800 dark:text-white border border-slate-200 dark:border-[#3f3f46]'
             }`}
           >
-            <Sparkles className={`h-5 w-5 mb-0.5 ${mobileViewMode === 'ai' || activeCategory === 'ai' ? 'text-black' : 'text-purple-300'}`} />
+            <Sparkles className={`h-5 w-5 mb-0.5 ${mobileViewMode === 'ai' || activeCategory === 'ai' ? 'text-purple-300 dark:text-black' : 'text-purple-600 dark:text-purple-300'}`} />
             <span className="text-[10px] truncate">AI 概览</span>
           </button>
 
@@ -114,7 +114,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             type="button"
             onClick={onOpenHistory}
-            className="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 text-neutral-400 hover:text-white"
+            className="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
           >
             <History className="h-5 w-5 mb-0.5" />
             <span className="truncate">历史</span>
@@ -124,7 +124,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           <button
             type="button"
             onClick={onOpenConfig}
-            className="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 text-neutral-400 hover:text-white"
+            className="flex flex-col items-center justify-center py-1.5 rounded-xl transition-all active:scale-95 text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
           >
             <SlidersHorizontal className="h-5 w-5 mb-0.5" />
             <span className="truncate">设置</span>
@@ -135,24 +135,24 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 
       {/* Mobile Category Selection Bottom Sheet Modal */}
       {showCategorySheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:hidden bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-end sm:hidden bg-black/60 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div 
-            className="w-full bg-[#141418] border-t border-[#27272a] rounded-t-3xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+            className="w-full bg-white dark:bg-[#141418] border-t border-slate-200 dark:border-[#27272a] rounded-t-3xl p-5 shadow-2xl flex flex-col space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300 text-slate-900 dark:text-white"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Sheet Handle */}
-            <div className="w-12 h-1.5 rounded-full bg-neutral-600 mx-auto" />
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-neutral-600 mx-auto" />
 
             {/* Sheet Header */}
-            <div className="flex items-center justify-between pb-2 border-b border-[#27272a]">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-[#27272a]">
               <div className="flex items-center space-x-2">
-                <Layers className="h-5 w-5 text-white" />
-                <h3 className="text-base font-bold text-white">选择搜索引擎与频道分类</h3>
+                <Layers className="h-5 w-5 text-slate-900 dark:text-white" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">选择搜索引擎与频道分类</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCategorySheet(false)}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-[#27272a]"
+                className="p-1.5 rounded-full text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#27272a]"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -173,16 +173,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
                     }}
                     className={`flex items-center space-x-3 p-3.5 rounded-2xl border text-left transition-all ${
                       isSelected
-                        ? 'bg-white text-black border-white font-bold shadow-lg'
-                        : 'bg-[#1e1e24] text-neutral-200 border-[#2e2e36] hover:bg-[#272730]'
+                        ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-black dark:border-white font-bold shadow-lg'
+                        : 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 dark:bg-[#1e1e24] dark:text-neutral-200 dark:border-[#2e2e36] dark:hover:bg-[#272730]'
                     }`}
                   >
-                    <div className={`p-2 rounded-xl ${isSelected ? 'bg-black text-white' : 'bg-[#2a2a32] text-neutral-300'}`}>
+                    <div className={`p-2 rounded-xl ${isSelected ? 'bg-white text-black dark:bg-black dark:text-white' : 'bg-slate-200 text-slate-700 dark:bg-[#2a2a32] dark:text-neutral-300'}`}>
                       <IconComp className="h-5 w-5" />
                     </div>
                     <div>
                       <div className="text-sm font-semibold">{cat.name}</div>
-                      <div className={`text-[10px] ${isSelected ? 'text-neutral-700' : 'text-neutral-400'}`}>
+                      <div className={`text-[10px] ${isSelected ? 'text-slate-300 dark:text-neutral-700' : 'text-slate-500 dark:text-neutral-400'}`}>
                         {cat.id === 'general' && '全网网页智能聚合'}
                         {cat.id === 'ai' && 'AI 原生深度分析总结'}
                         {cat.id === 'images' && '高清图库与智能图谱'}
@@ -200,7 +200,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             <button
               type="button"
               onClick={() => setShowCategorySheet(false)}
-              className="w-full py-3 rounded-2xl bg-[#27272a] hover:bg-[#3f3f46] text-white text-xs font-semibold text-center mt-2"
+              className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-[#27272a] dark:hover:bg-[#3f3f46] text-xs font-semibold text-center mt-2"
             >
               完成
             </button>

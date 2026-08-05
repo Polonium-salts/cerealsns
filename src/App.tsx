@@ -12,9 +12,9 @@ import { CommandPalette } from './components/CommandPalette';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { PureAIChatView } from './components/PureAIChatView';
 import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryItem } from './types';
-import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes, fetchAppConfig, saveAppConfig } from './lib/api';
+import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes, fetchAppConfig, saveAppConfig, pingSearxngInstances } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
-import { Sparkles, Layers, Pencil, Globe, Zap, Cpu, Shield } from 'lucide-react';
+import { Sparkles, Layers, Globe, Zap, Cpu, Shield } from 'lucide-react';
 
 const DEFAULT_CONFIG: AppConfig = {
   openrouterApiKey: '',
@@ -26,7 +26,7 @@ const DEFAULT_CONFIG: AppConfig = {
   autoSummarize: true,
   summaryDepth: 'standard',
   temperature: 0.3,
-  theme: 'dark',
+  theme: 'light',
 };
 
 export default function App() {
@@ -54,10 +54,67 @@ export default function App() {
   const [optimalNode, setOptimalNode] = useState<EdgeNode | null>(null);
   const [savedOfflineIds, setSavedOfflineIds] = useState<Set<string>>(new Set());
 
+  // SearXNG Instance Latency Tracking
+  const [searxngLatencies, setSearxngLatencies] = useState<Record<string, number | null>>({});
+  const [isPingingSearxng, setIsPingingSearxng] = useState(false);
+
+  // Trigger ping test for all active/configured SearXNG instances
+  const triggerPingTest = async (urlsToPing?: string[]) => {
+    setIsPingingSearxng(true);
+    const targetUrls = urlsToPing || Array.from(new Set([
+      ...(config.customSearxngUrls || []),
+      ...(config.envSearxngInstances || []),
+      'https://searxng.site',
+      'https://searx.be',
+      'https://paulgo.io',
+      'https://xka.cz',
+      'https://searx.work',
+      'https://opnxng.com'
+    ]));
+
+    try {
+      const results = await pingSearxngInstances(targetUrls);
+      const newLatencies: Record<string, number | null> = {};
+      results.forEach(res => {
+        newLatencies[res.url] = res.latency;
+      });
+      setSearxngLatencies(newLatencies);
+    } catch (e) {
+      console.error('Ping test failed:', e);
+    } finally {
+      setIsPingingSearxng(false);
+    }
+  };
+
   // Modals & Drawers
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // 0. Theme Sync Effect
+  useEffect(() => {
+    const root = document.documentElement;
+    const currentTheme = config.theme || 'light';
+    let isDark = false;
+
+    if (currentTheme === 'dark') {
+      isDark = true;
+    } else if (currentTheme === 'system') {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } else {
+      isDark = false;
+    }
+
+    if (isDark) {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      root.setAttribute('data-theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.setAttribute('data-theme', 'light');
+    }
+  }, [config.theme]);
 
   // 1. Initial configuration & Edge node setup
   useEffect(() => {
@@ -69,22 +126,53 @@ export default function App() {
       // Fetch config from KV / API endpoint (Site defaults)
       const kvResult = await fetchAppConfig();
       const local = localStorage.getItem('nexus_app_config');
-      let localConfig = {};
+      let localConfig: any = {};
       if (local) {
         try {
           localConfig = JSON.parse(local);
         } catch {}
       }
 
-      // Merge: Local user configuration always takes precedence over server-side defaults
-      setConfig((prev) => ({
-        ...prev,
+      const mergedCustom = localConfig.customSearxngUrls || kvResult?.config?.customSearxngUrls || ['https://xka.cz'];
+      const mergedEnv = kvResult?.envSearxngInstances || [];
+
+      // Merge: Local user configuration always takes precedence over server-side defaults, but preserve envSearxngInstances from the server environment
+      const nextConfig = {
+        ...DEFAULT_CONFIG,
         ...(kvResult?.config || {}),
         ...localConfig,
-      }));
+        envSearxngInstances: mergedEnv,
+      };
+      setConfig(nextConfig);
 
       if (kvResult?.storageType) {
         setConfigStorageType(kvResult.storageType);
+      }
+
+      // Automatically trigger parallelized latency checks on load
+      const initUrls = Array.from(new Set([
+        ...mergedCustom,
+        ...mergedEnv,
+        'https://searxng.site',
+        'https://searx.be',
+        'https://paulgo.io',
+        'https://xka.cz',
+        'https://searx.work',
+        'https://opnxng.com'
+      ]));
+
+      setIsPingingSearxng(true);
+      try {
+        const results = await pingSearxngInstances(initUrls);
+        const newLatencies: Record<string, number | null> = {};
+        results.forEach(res => {
+          newLatencies[res.url] = res.latency;
+        });
+        setSearxngLatencies(newLatencies);
+      } catch (e) {
+        console.error('Initial ping test failed:', e);
+      } finally {
+        setIsPingingSearxng(false);
       }
     }
     init();
@@ -175,7 +263,7 @@ export default function App() {
     }
 
     try {
-      const resp = await executeSearch(searchQuery, searchCat, targetPage, searchTime, config.customSearxngUrls, effectiveEngines);
+      const resp = await executeSearch(searchQuery, searchCat, targetPage, searchTime, config.customSearxngUrls, effectiveEngines, config.activeSearxngUrl);
       setSearchData(resp);
       setIsLoading(false);
 
@@ -210,7 +298,7 @@ export default function App() {
     if (!query.trim()) return;
     setIsAiSyncing(true);
     try {
-      const syncedData = await triggerAISearXNGToolSearch(query, category, config.customSearxngUrls, selectedEngines.join(','));
+      const syncedData = await triggerAISearXNGToolSearch(query, category, config.customSearxngUrls, selectedEngines.join(','), config.activeSearxngUrl);
       setSearchData(syncedData);
       setIsAiSyncing(false);
       // Re-trigger AI summary stream with synced precise results
@@ -318,7 +406,7 @@ export default function App() {
   const isSearchActive = Boolean(searchData || isLoading);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-neutral-200 font-sans selection:bg-white selection:text-black flex flex-col relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0c] text-slate-800 dark:text-neutral-200 font-sans selection:bg-slate-900 selection:text-white dark:selection:bg-white dark:selection:text-black flex flex-col relative transition-colors duration-200">
       
       {/* Top Header Navbar with SearchBar & Category Selector below SearchBar */}
       <Navbar
@@ -356,6 +444,10 @@ export default function App() {
         onSearch={handleExecuteSearch}
         isLoading={isLoading}
         fetchTimeMs={searchData?.stats?.fetchTimeMs}
+        onUpdateConfig={handleSaveConfig}
+        searxngLatencies={searxngLatencies}
+        isPingingSearxng={isPingingSearxng}
+        onPingTest={triggerPingTest}
       />
 
       {/* Main Container */}
@@ -389,6 +481,11 @@ export default function App() {
                     onSelectEngines={setSelectedEngines}
                     onSearch={handleExecuteSearch}
                     isLoading={isLoading}
+                    config={config}
+                    onUpdateConfig={handleSaveConfig}
+                    searxngLatencies={searxngLatencies}
+                    isPingingSearxng={isPingingSearxng}
+                    onPingTest={triggerPingTest}
                   />
                 </div>
 
@@ -403,11 +500,11 @@ export default function App() {
                         onClick={() => setCategory(cat.id)}
                         className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all ${
                           isSelected
-                            ? 'bg-white text-black font-semibold shadow-md'
-                            : 'bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] border border-[#2e2e32]'
+                            ? 'bg-slate-900 text-white font-semibold shadow-md dark:bg-white dark:text-black'
+                            : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 dark:bg-[#27272a] dark:text-neutral-300 dark:hover:text-white dark:hover:bg-[#3f3f46] dark:border-[#2e2e32]'
                         }`}
                       >
-                        <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-black' : 'text-neutral-400'}`} />
+                        <IconComp className={`h-3.5 w-3.5 ${isSelected ? 'text-white dark:text-black' : 'text-slate-500 dark:text-neutral-400'}`} />
                         <span>{cat.name}</span>
                       </button>
                     );
@@ -415,11 +512,11 @@ export default function App() {
                 </div>
 
                 {/* Footer Edge Latency Info */}
-                <div className="mt-10 text-center text-xs text-neutral-500 flex items-center justify-center space-x-2">
+                <div className="mt-10 text-center text-xs text-slate-500 dark:text-neutral-500 flex items-center justify-center space-x-2">
                   <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>EdgeOne 节点加速中</span>
+                  <span>Cloudflare Pages API 加速中</span>
                   <span>·</span>
-                  <span>18ms 延迟</span>
+                  <span>{optimalNode?.latencyMs || 18}ms 延迟</span>
                 </div>
               </div>
             )}
@@ -464,15 +561,15 @@ export default function App() {
                   ) : (
                     <>
                       {/* Mobile View Switcher Segmented Control */}
-                      <div className="lg:hidden sticky top-[52px] z-30 bg-[#0a0a0c]/95 backdrop-blur-md pb-2 pt-1">
-                        <div className="flex items-center justify-center p-1 bg-[#18181c] rounded-2xl border border-[#27272a] max-w-sm mx-auto text-xs font-semibold shadow-lg">
+                      <div className="lg:hidden sticky top-[52px] z-30 bg-slate-50/95 dark:bg-[#0a0a0c]/95 backdrop-blur-md pb-2 pt-1">
+                        <div className="flex items-center justify-center p-1 bg-white dark:bg-[#18181c] rounded-2xl border border-slate-200 dark:border-[#27272a] max-w-sm mx-auto text-xs font-semibold shadow-lg">
                           <button
                             type="button"
                             onClick={() => setMobileViewMode('all')}
                             className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
                               mobileViewMode === 'all'
-                                ? 'bg-white text-black font-bold shadow-md'
-                                : 'text-neutral-400 hover:text-white'
+                                ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow-md'
+                                : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
                             }`}
                           >
                             <Layers className="h-3.5 w-3.5" />
@@ -484,7 +581,7 @@ export default function App() {
                             className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
                               mobileViewMode === 'ai'
                                 ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-600/30'
-                                : 'text-neutral-400 hover:text-white'
+                                : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
                             }`}
                           >
                             <Sparkles className="h-3.5 w-3.5 text-purple-200" />
@@ -495,8 +592,8 @@ export default function App() {
                             onClick={() => setMobileViewMode('web')}
                             className={`flex-1 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center space-x-1 ${
                               mobileViewMode === 'web'
-                                ? 'bg-white text-black font-bold shadow-md'
-                                : 'text-neutral-400 hover:text-white'
+                                ? 'bg-slate-900 text-white dark:bg-white dark:text-black font-bold shadow-md'
+                                : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white'
                             }`}
                           >
                             <Globe className="h-3.5 w-3.5" />
@@ -558,18 +655,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Floating Bottom-Right Launcher Buttons on Desktop */}
-      {!isSearchActive && (
-        <div className="hidden sm:flex fixed bottom-6 right-6 z-30 items-center space-x-3">
-          <button
-            onClick={() => setIsConfigOpen(true)}
-            className="flex items-center space-x-2 rounded-full border border-[#3f3f46] bg-[#27272a] px-4 py-2 text-xs font-semibold text-white shadow-2xl hover:bg-[#3f3f46] transition-all active:scale-95"
-          >
-            <Pencil className="h-3.5 w-3.5 text-neutral-300" />
-            <span>自定义 Chrome</span>
-          </button>
-        </div>
-      )}
+
 
       {/* Mobile Bottom Dock Bar */}
       <MobileBottomNav
@@ -605,6 +691,9 @@ export default function App() {
         config={config}
         onSaveConfig={handleSaveConfig}
         storageType={configStorageType}
+        searxngLatencies={searxngLatencies}
+        isPingingSearxng={isPingingSearxng}
+        onPingTest={triggerPingTest}
       />
 
       <HistoryDrawer

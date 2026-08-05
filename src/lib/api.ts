@@ -6,7 +6,8 @@ export async function executeSearch(
   page = 1,
   timeRange = '',
   customSearxngUrls: string[] = [],
-  engines = 'google,bing,baidu,duckduckgo,yandex'
+  engines = 'google,bing,baidu,duckduckgo,yandex',
+  activeSearxngUrl = ''
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({
     q: query,
@@ -18,6 +19,10 @@ export async function executeSearch(
 
   if (customSearxngUrls && customSearxngUrls.length > 0) {
     params.append('custom_urls', customSearxngUrls.join(','));
+  }
+
+  if (activeSearxngUrl) {
+    params.append('active_searxng_url', activeSearxngUrl);
   }
 
   try {
@@ -53,9 +58,10 @@ export async function triggerAISearXNGToolSearch(
   query: string,
   category = 'general',
   customUrls: string[] = [],
-  engines?: string
+  engines?: string,
+  activeSearxngUrl = ''
 ): Promise<SearchResponse> {
-  return executeSearch(query, category, 1, '', customUrls, engines);
+  return executeSearch(query, category, 1, '', customUrls, engines, activeSearxngUrl);
 }
 
 export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
@@ -84,9 +90,9 @@ export async function fetchEdgeNodes(): Promise<{ nodes: EdgeNode[]; optimalRout
   return {
     nodes: [],
     optimalRoute: {
-      id: 'edgeone-hk',
-      name: 'EdgeOne HK-01',
-      provider: 'EdgeOne',
+      id: 'cf-pages-hk',
+      name: 'Cloudflare Pages HK-01',
+      provider: 'Cloudflare Pages',
       location: 'Hong Kong',
       city: 'Hong Kong',
       countryCode: 'HK',
@@ -172,14 +178,18 @@ export function streamAISummary(
 }
 
 // Site Config KV / Storage API
-export async function fetchAppConfig(): Promise<{ config: Partial<AppConfig>; storageType?: string } | null> {
+export async function fetchAppConfig(): Promise<{ config: Partial<AppConfig>; storageType?: string; envSearxngInstances?: string[] } | null> {
   try {
     const resp = await fetch('/api/config');
     if (resp.ok) {
       const text = await resp.text();
       const data = JSON.parse(text);
       if (data.config && typeof data.config === 'object') {
-        return { config: data.config, storageType: data.storageType };
+        return { 
+          config: data.config, 
+          storageType: data.storageType,
+          envSearxngInstances: data.envSearxngInstances 
+        };
       }
     }
   } catch (e) {
@@ -227,6 +237,25 @@ export async function saveAppConfig(config: Partial<AppConfig>): Promise<{ succe
     console.warn('Failed to save config to /api/config:', e);
   }
   return { success: false };
+}
+
+export async function pingSearxngInstances(urls: string[]): Promise<{ url: string; latency: number | null }[]> {
+  try {
+    const resp = await fetch('/api/searxng/ping', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ urls })
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      return data.results || [];
+    }
+  } catch (e) {
+    console.warn('Failed to ping instances:', e);
+  }
+  return urls.map(url => ({ url, latency: null }));
 }
 
 

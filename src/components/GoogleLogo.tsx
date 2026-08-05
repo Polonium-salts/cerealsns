@@ -68,14 +68,14 @@ export const NexusLogo: React.FC<NexusLogoProps> = ({
 
       {/* Brand Name Typography */}
       <div className={`font-sans tracking-tight ${sizeClasses[size]} flex items-center`}>
-        <span className="text-white font-black tracking-tight">Cereals</span>
-        <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-amber-300 bg-clip-text text-transparent font-extrabold ml-1">
+        <span className="text-slate-900 dark:text-white font-black tracking-tight">Cereals</span>
+        <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-600 dark:from-blue-400 dark:via-indigo-300 dark:to-amber-300 bg-clip-text text-transparent font-extrabold ml-1">
           NS
         </span>
       </div>
 
       {showAiBadge && (
-        <span className="rounded-full bg-slate-900/90 px-2.5 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30 shadow-sm flex items-center space-x-1.5 shrink-0">
+        <span className="rounded-full bg-slate-900 dark:bg-slate-900/90 px-2.5 py-0.5 text-xs font-bold text-amber-300 border border-amber-500/30 shadow-xs flex items-center space-x-1.5 shrink-0">
           <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
           <span>AI Engine</span>
         </span>

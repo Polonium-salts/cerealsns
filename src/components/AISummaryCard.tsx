@@ -28,8 +28,8 @@ const CodeBlock: React.FC<{ children: React.ReactNode; className?: string }> = (
   const lines = codeString.split('\n');
 
   return (
-    <div className="relative group my-3.5 rounded-xl border border-[#2e2e32] bg-[#121215] overflow-hidden shadow-md">
-      <div className="flex items-center justify-between px-4 py-2 bg-[#1c1c20] border-b border-[#2e2e32] text-[11px] font-mono text-neutral-400 select-none">
+    <div className="relative group my-3.5 rounded-xl border border-slate-200 dark:border-[#2e2e32] bg-slate-900 dark:bg-[#121215] overflow-hidden shadow-md">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-800 dark:bg-[#1c1c20] border-b border-slate-700 dark:border-[#2e2e32] text-[11px] font-mono text-slate-300 dark:text-neutral-400 select-none">
         <div className="flex items-center space-x-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500/80 inline-block" />
           <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80 inline-block" />
@@ -39,15 +39,15 @@ const CodeBlock: React.FC<{ children: React.ReactNode; className?: string }> = (
         <button
           type="button"
           onClick={handleCopyCode}
-          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#2a2a2e] hover:bg-[#3f3f46] text-neutral-300 hover:text-white transition-all text-[11px] font-medium"
+          className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 dark:bg-[#2a2a2e] dark:hover:bg-[#3f3f46] text-white transition-all text-[11px] font-medium"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
           <span>{copied ? '已复制' : '复制代码'}</span>
         </button>
       </div>
-      <div className="p-4 overflow-x-auto text-xs font-mono text-neutral-200 leading-relaxed whitespace-pre flex">
+      <div className="p-4 overflow-x-auto text-xs font-mono text-slate-100 dark:text-neutral-200 leading-relaxed whitespace-pre flex">
         {lines.length > 1 && (
-          <div className="pr-4 mr-4 border-r border-[#27272a] text-neutral-600 text-right select-none font-mono text-[11px]">
+          <div className="pr-4 mr-4 border-r border-slate-700 dark:border-[#27272a] text-slate-500 dark:text-neutral-600 text-right select-none font-mono text-[11px]">
             {lines.map((_, i) => (
               <div key={i}>{i + 1}</div>
             ))}
@@ -275,27 +275,27 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
   const followUpQuestions = extractFollowUps(summaryText);
 
   return (
-    <Card className={`relative overflow-hidden border-[#27272a] bg-[#18181b] shadow-2xl transition-all ${isPinned ? 'lg:sticky lg:top-20' : ''}`}>
+    <Card className={`relative overflow-hidden border-slate-200 bg-white text-slate-900 dark:border-[#27272a] dark:bg-[#18181b] dark:text-white shadow-xl transition-all ${isPinned ? 'lg:sticky lg:top-20' : ''}`}>
       {/* Header */}
-      <CardHeader className="pb-3 border-b border-[#27272a] hidden">
+      <CardHeader className="pb-3 border-b border-slate-200 dark:border-[#27272a] hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
-              <Sparkles className="h-4 w-4 text-purple-300 animate-pulse" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300 border border-purple-200 dark:border-purple-500/40">
+              <Sparkles className="h-4 w-4 text-purple-600 dark:text-purple-300 animate-pulse" />
             </div>
             <div>
-              <CardTitle className="text-sm font-bold text-white flex items-center space-x-2">
+              <CardTitle className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <span>AI 搜索概览</span>
                 {isStreaming && (
-                  <Badge variant="secondary" className="animate-pulse bg-[#27272a] text-neutral-200 border-[#3f3f46]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-purple-400 mr-1.5 animate-ping" />
+                  <Badge variant="secondary" className="animate-pulse bg-slate-100 text-slate-800 dark:bg-[#27272a] dark:text-neutral-200 border-slate-200 dark:border-[#3f3f46]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500 dark:bg-purple-400 mr-1.5 animate-ping" />
                     SearXNG 思考生成中...
                   </Badge>
                 )}
               </CardTitle>
-              <div className="flex items-center space-x-2 text-[11px] text-neutral-400 mt-0.5">
+              <div className="flex items-center space-x-2 text-[11px] text-slate-500 dark:text-neutral-400 mt-0.5">
                 <span className="flex items-center space-x-1">
-                  <Cpu className="h-3 w-3 text-neutral-400" />
+                  <Cpu className="h-3 w-3 text-slate-400 dark:text-neutral-400" />
                   <span>引擎: {modelUsed}</span>
                 </span>
               </div>
@@ -310,7 +310,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                 size="sm"
                 onClick={onAiTriggerSearXNGSearch}
                 disabled={isAiSyncing}
-                className="h-7 px-2.5 text-[11px] bg-purple-500/15 border-purple-500/30 text-purple-300 hover:bg-purple-500/30 hover:text-white transition-all flex items-center space-x-1 mr-1"
+                className="h-7 px-2.5 text-[11px] bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-500/15 dark:border-purple-500/30 dark:text-purple-300 dark:hover:bg-purple-500/30 dark:hover:text-white transition-all flex items-center space-x-1 mr-1"
                 title="重新请求 SearXNG API 并同步列表"
               >
                 <RefreshCw className={`h-3 w-3 ${isAiSyncing ? 'animate-spin' : ''}`} />
@@ -321,16 +321,16 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
               variant="ghost"
               size="icon"
               onClick={handleCopy}
-              className="h-8 w-8 text-neutral-400 hover:text-white hover:bg-[#27272a]"
+              className="h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#27272a]"
               title="复制回答"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleSpeech}
-              className={`h-8 w-8 ${isSpeaking ? 'text-amber-300' : 'text-neutral-400 hover:text-white hover:bg-[#27272a]'}`}
+              className={`h-8 w-8 ${isSpeaking ? 'text-amber-600 dark:text-amber-300' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#27272a]'}`}
               title="语音朗读"
             >
               {isSpeaking ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
@@ -339,7 +339,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
               variant="ghost"
               size="icon"
               onClick={handleDownload}
-              className="h-8 w-8 text-neutral-400 hover:text-white hover:bg-[#27272a]"
+              className="h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#27272a]"
               title="下载 Markdown 简报"
             >
               <Download className="h-3.5 w-3.5" />
@@ -348,16 +348,16 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
               variant="ghost"
               size="icon"
               onClick={() => onRegenerate()}
-              className="h-8 w-8 text-neutral-400 hover:text-white hover:bg-[#27272a]"
+              className="h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-neutral-400 dark:hover:text-white dark:hover:bg-[#27272a]"
               title="重新生成"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isStreaming ? 'animate-spin text-white' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isStreaming ? 'animate-spin text-slate-900 dark:text-white' : ''}`} />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsPinned(!isPinned)}
-              className={`h-8 w-8 ${isPinned ? 'text-white' : 'text-neutral-500 hover:text-neutral-300'}`}
+              className={`h-8 w-8 ${isPinned ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-neutral-500 hover:text-slate-700 dark:hover:text-neutral-300'}`}
               title={isPinned ? '已固定置顶' : '取消固定'}
             >
               <Pin className="h-3.5 w-3.5" />
@@ -365,7 +365,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
           </div>
         </div>
 
-        {/* Skill Selector Tabs - Native Rounded Pills */}
+        {/* Skill Selector Tabs */}
         <div className="flex items-center space-x-1.5 overflow-x-auto pt-2.5 scrollbar-none">
           {skillList.map((skill) => {
             const isSelected = activeSkill === skill.id;
@@ -380,8 +380,8 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                 }}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap flex items-center space-x-1 ${
                   isSelected
-                    ? 'bg-white text-black font-semibold shadow-sm'
-                    : 'bg-[#27272a] text-neutral-300 hover:text-white hover:bg-[#3f3f46] border border-[#2e2e32]'
+                    ? 'bg-slate-900 text-white font-semibold dark:bg-white dark:text-black shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 dark:bg-[#27272a] dark:text-neutral-300 dark:hover:text-white dark:hover:bg-[#3f3f46] dark:border-[#2e2e32]'
                 }`}
                 title={skill.desc}
               >
@@ -395,11 +395,11 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
 
       {/* Main Content Area */}
       <CardContent className="pt-4 space-y-4">
-        {/* Source References Pill Grid (Moved to top) */}
+        {/* Source References Pill Grid */}
         {searchResults.length > 0 && (
-          <div className="pb-3 border-b border-[#27272a]">
-            <div className="flex items-center justify-between text-[11px] text-neutral-400 mb-2">
-              <span className="font-medium text-neutral-300">主要信息引用源 ({searchResults.slice(0, 5).length})：</span>
+          <div className="pb-3 border-b border-slate-200 dark:border-[#27272a]">
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-neutral-400 mb-2">
+              <span className="font-semibold text-slate-700 dark:text-neutral-300">主要信息引用源 ({searchResults.slice(0, 5).length})：</span>
             </div>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
               {searchResults.slice(0, 5).map((item, idx) => (
@@ -408,9 +408,9 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-xl bg-[#232326] hover:bg-[#27272a] border border-[#2e2e32] text-[10px] text-neutral-300 hover:text-white transition-colors truncate flex items-center space-x-1.5"
+                  className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[10px] text-slate-700 hover:text-slate-900 dark:bg-[#232326] dark:hover:bg-[#27272a] dark:border-[#2e2e32] dark:text-neutral-300 dark:hover:text-white transition-colors truncate flex items-center space-x-1.5 shadow-2xs"
                 >
-                  <span className="h-4 w-4 rounded-full bg-[#27272a] text-white flex items-center justify-center font-bold text-[9px] shrink-0 border border-[#3f3f46]">
+                  <span className="h-4 w-4 rounded-full bg-slate-200 text-slate-800 dark:bg-[#27272a] dark:text-white flex items-center justify-center font-bold text-[9px] shrink-0 border border-slate-300 dark:border-[#3f3f46]">
                     {idx + 1}
                   </span>
                   <span className="truncate">{item.title}</span>
@@ -421,7 +421,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
         )}
 
         {/* Markdown Render Area */}
-        <div className="prose prose-invert prose-sm max-w-none text-neutral-200 leading-relaxed text-xs sm:text-sm">
+        <div className="prose dark:prose-invert prose-sm max-w-none text-slate-800 dark:text-neutral-200 leading-relaxed text-xs sm:text-sm">
           {summaryText ? (
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
@@ -434,7 +434,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                     return (
                       <span
                         onClick={() => result && setActiveCitation(result)}
-                        className="inline-flex items-center justify-center h-4 w-4 text-[10px] font-bold rounded-full bg-[#27272a] text-white border border-[#3f3f46] hover:bg-white hover:text-black transition-colors cursor-pointer mx-0.5"
+                        className="inline-flex items-center justify-center h-4 w-4 text-[10px] font-bold rounded-full bg-slate-200 text-slate-800 border border-slate-300 hover:bg-slate-900 hover:text-white dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46] dark:hover:bg-white dark:hover:text-black transition-colors cursor-pointer mx-0.5"
                         title={result?.title || '引用来源'}
                       >
                         {children}
@@ -442,39 +442,39 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                     );
                   }
                   return (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-purple-300 underline hover:text-purple-200 transition-colors">
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-purple-300 underline hover:text-indigo-800 dark:hover:text-purple-200 transition-colors font-medium">
                       {children}
                     </a>
                   );
                 },
-                h1: ({ children }) => <h1 className="text-lg sm:text-xl font-extrabold text-white mt-4 mb-2 pb-2 border-b border-[#3f3f46] tracking-tight">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-base sm:text-lg font-bold text-neutral-100 mt-4 mb-2 flex items-center space-x-2 tracking-tight">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-sm sm:text-base font-semibold text-purple-300 mt-3 mb-1.5">{children}</h3>,
-                h4: ({ children }) => <h4 className="text-xs sm:text-sm font-semibold text-neutral-200 mt-2.5 mb-1">{children}</h4>,
-                h5: ({ children }) => <h5 className="text-xs font-semibold text-neutral-300 mt-2 mb-1">{children}</h5>,
-                h6: ({ children }) => <h6 className="text-xs font-medium text-neutral-400 uppercase tracking-wider mt-2 mb-1">{children}</h6>,
-                p: ({ children }) => <p className="my-2 text-neutral-300 leading-relaxed text-xs sm:text-sm">{children}</p>,
-                strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-                em: ({ children }) => <em className="italic text-neutral-200">{children}</em>,
-                hr: () => <hr className="my-4 border-[#2e2e32]" />,
-                ul: ({ children }) => <ul className="list-disc list-outside pl-5 my-2 space-y-1 text-neutral-300 text-xs sm:text-sm">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-outside pl-5 my-2 space-y-1 text-neutral-300 text-xs sm:text-sm">{children}</ol>,
-                li: ({ children }) => <li className="text-neutral-300 leading-relaxed text-xs sm:text-sm my-0.5">{children}</li>,
+                h1: ({ children }) => <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white mt-4 mb-2 pb-2 border-b border-slate-200 dark:border-[#3f3f46] tracking-tight">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-neutral-100 mt-4 mb-2 flex items-center space-x-2 tracking-tight">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-sm sm:text-base font-bold text-indigo-700 dark:text-purple-300 mt-3 mb-1.5">{children}</h3>,
+                h4: ({ children }) => <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-neutral-200 mt-2.5 mb-1">{children}</h4>,
+                h5: ({ children }) => <h5 className="text-xs font-semibold text-slate-800 dark:text-neutral-300 mt-2 mb-1">{children}</h5>,
+                h6: ({ children }) => <h6 className="text-xs font-medium text-slate-500 dark:text-neutral-400 uppercase tracking-wider mt-2 mb-1">{children}</h6>,
+                p: ({ children }) => <p className="my-2 text-slate-800 dark:text-neutral-300 leading-relaxed text-xs sm:text-sm font-normal">{children}</p>,
+                strong: ({ children }) => <strong className="font-bold text-slate-900 dark:text-white">{children}</strong>,
+                em: ({ children }) => <em className="italic text-slate-800 dark:text-neutral-200">{children}</em>,
+                hr: () => <hr className="my-4 border-slate-200 dark:border-[#2e2e32]" />,
+                ul: ({ children }) => <ul className="list-disc list-outside pl-5 my-2 space-y-1 text-slate-800 dark:text-neutral-300 text-xs sm:text-sm">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-outside pl-5 my-2 space-y-1 text-slate-800 dark:text-neutral-300 text-xs sm:text-sm">{children}</ol>,
+                li: ({ children }) => <li className="text-slate-800 dark:text-neutral-300 leading-relaxed text-xs sm:text-sm my-0.5">{children}</li>,
                 blockquote: ({ children }) => (
-                  <blockquote className="my-3.5 border-l-4 border-purple-500 bg-[#1a1a1e] py-2.5 px-4 rounded-r-xl text-neutral-300 italic text-xs sm:text-sm shadow-inner">
+                  <blockquote className="my-3.5 border-l-4 border-purple-500 bg-purple-50/60 dark:bg-[#1a1a1e] py-2.5 px-4 rounded-r-xl text-slate-800 dark:text-neutral-300 italic text-xs sm:text-sm shadow-2xs">
                     {children}
                   </blockquote>
                 ),
                 table: ({ children }) => (
-                  <div className="overflow-x-auto my-3.5 rounded-xl border border-[#2e2e32] bg-[#121215] p-0.5 shadow-md">
+                  <div className="overflow-x-auto my-3.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-[#2e2e32] dark:bg-[#121215] p-0.5 shadow-xs">
                     <table className="w-full text-left text-xs border-collapse">{children}</table>
                   </div>
                 ),
-                thead: ({ children }) => <thead className="bg-[#1c1c20] text-white border-b border-[#2e2e32]">{children}</thead>,
-                tbody: ({ children }) => <tbody className="divide-y divide-[#27272a] text-neutral-200">{children}</tbody>,
-                tr: ({ children }) => <tr className="hover:bg-[#1a1a1e] odd:bg-[#151518] transition-colors">{children}</tr>,
-                th: ({ children }) => <th className="p-2.5 font-bold text-white border-b border-[#3f3f46] whitespace-nowrap">{children}</th>,
-                td: ({ children }) => <td className="p-2.5 border-t border-[#27272a] text-neutral-300 align-top">{children}</td>,
+                thead: ({ children }) => <thead className="bg-slate-100 text-slate-900 border-b border-slate-200 dark:bg-[#1c1c20] dark:text-white dark:border-[#2e2e32]">{children}</thead>,
+                tbody: ({ children }) => <tbody className="divide-y divide-slate-200 text-slate-800 dark:divide-[#27272a] dark:text-neutral-200">{children}</tbody>,
+                tr: ({ children }) => <tr className="hover:bg-slate-100/80 dark:hover:bg-[#1a1a1e] odd:bg-white dark:odd:bg-[#151518] transition-colors">{children}</tr>,
+                th: ({ children }) => <th className="p-2.5 font-bold text-slate-900 border-b border-slate-200 dark:text-white dark:border-[#3f3f46] whitespace-nowrap">{children}</th>,
+                td: ({ children }) => <td className="p-2.5 border-t border-slate-200 text-slate-800 dark:border-[#27272a] dark:text-neutral-300 align-top">{children}</td>,
                 pre: ({ children }) => <>{children}</>,
                 code: ({ inline, className, children, ...props }: any) => {
                   const isBlock = !inline && (className || String(children).includes('\n'));
@@ -482,27 +482,27 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
                     return <CodeBlock className={className}>{children}</CodeBlock>;
                   }
                   return (
-                    <code className="rounded-md bg-[#242428] px-1.5 py-0.5 text-[11px] font-mono text-purple-200 border border-[#2e2e32] mx-0.5 font-medium" {...props}>
+                    <code className="rounded-md bg-slate-100 text-indigo-900 border border-slate-200 dark:bg-[#242428] dark:text-purple-200 dark:border-[#2e2e32] px-1.5 py-0.5 text-[11px] font-mono mx-0.5 font-medium" {...props}>
                       {children}
                     </code>
                   );
                 },
                 img: ({ src, alt }) => (
-                  <img src={src} alt={alt || ''} className="max-w-full h-auto rounded-xl border border-[#27272a] my-2.5 shadow-lg" referrerPolicy="no-referrer" />
+                  <img src={src} alt={alt || ''} className="max-w-full h-auto rounded-xl border border-slate-200 dark:border-[#27272a] my-2.5 shadow-md" referrerPolicy="no-referrer" />
                 ),
                 details: ({ children }) => (
-                  <details className="my-2.5 rounded-xl border border-[#2e2e32] bg-[#18181b] p-3 text-xs text-neutral-200 transition-all">{children}</details>
+                  <details className="my-2.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-[#2e2e32] dark:bg-[#18181b] p-3 text-xs text-slate-800 dark:text-neutral-200 transition-all">{children}</details>
                 ),
                 summary: ({ children }) => (
-                  <summary className="cursor-pointer font-bold text-white hover:text-purple-300 transition-colors select-none font-sans">{children}</summary>
+                  <summary className="cursor-pointer font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-purple-300 transition-colors select-none font-sans">{children}</summary>
                 ),
                 mark: ({ children }) => (
-                  <mark className="bg-amber-400/25 text-amber-200 px-1 py-0.5 rounded border border-amber-400/30">{children}</mark>
+                  <mark className="bg-amber-100 text-amber-900 px-1 py-0.5 rounded border border-amber-200 dark:bg-amber-400/25 dark:text-amber-200 dark:border-amber-400/30">{children}</mark>
                 ),
-                del: ({ children }) => <del className="line-through text-neutral-400">{children}</del>,
+                del: ({ children }) => <del className="line-through text-slate-400 dark:text-neutral-400">{children}</del>,
                 input: (props: any) =>
                   props.type === 'checkbox' ? (
-                    <input type="checkbox" checked={props.checked} readOnly className="mr-2 h-3.5 w-3.5 rounded bg-[#27272a] border-[#3f3f46] text-purple-500 accent-purple-500 align-middle" />
+                    <input type="checkbox" checked={props.checked} readOnly className="mr-2 h-3.5 w-3.5 rounded bg-slate-100 dark:bg-[#27272a] border-slate-300 dark:border-[#3f3f46] text-purple-600 accent-purple-600 align-middle" />
                   ) : (
                     <input {...props} />
                   ),
@@ -511,8 +511,8 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
               {processedMarkdown}
             </ReactMarkdown>
           ) : (
-            <div className="py-8 text-center text-neutral-500 text-xs">
-              <Sparkles className="h-6 w-6 mx-auto mb-2 text-neutral-400 animate-pulse" />
+            <div className="py-8 text-center text-slate-500 dark:text-neutral-500 text-xs">
+              <Sparkles className="h-6 w-6 mx-auto mb-2 text-slate-400 dark:text-neutral-400 animate-pulse" />
               <span>正在对搜索结果进行智能语义整理与多维度归纳...</span>
             </div>
           )}
@@ -520,22 +520,22 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
 
         {/* Citation Popover */}
         {activeCitation && (
-          <div className="rounded-2xl border border-[#27272a] bg-[#232326] p-3.5 text-xs text-neutral-200 space-y-1.5 relative shadow-xl">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 dark:border-[#27272a] dark:bg-[#232326] p-3.5 text-xs text-slate-800 dark:text-neutral-200 space-y-1.5 relative shadow-xl">
             <button
               onClick={() => setActiveCitation(null)}
-              className="absolute top-2.5 right-2.5 text-neutral-400 hover:text-white text-xs"
+              className="absolute top-2.5 right-2.5 text-slate-400 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-white text-xs"
             >
               ✕
             </button>
-            <div className="font-bold text-white flex items-center space-x-1">
+            <div className="font-bold text-slate-900 dark:text-white flex items-center space-x-1">
               <span>引用来源：{activeCitation.title}</span>
             </div>
-            <p className="text-neutral-300 text-[11px] line-clamp-2">{activeCitation.snippet}</p>
+            <p className="text-slate-700 dark:text-neutral-300 text-[11px] line-clamp-2">{activeCitation.snippet}</p>
             <a
               href={activeCitation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center space-x-1 text-white hover:underline text-[11px] pt-1 font-medium"
+              className="inline-flex items-center space-x-1 text-blue-700 dark:text-white hover:underline text-[11px] pt-1 font-semibold"
             >
               <span>访问原网页</span>
               <ExternalLink className="h-3 w-3" />
@@ -545,17 +545,17 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
 
         {/* Interactive Follow-up Questions */}
         {followUpQuestions.length > 0 && (
-          <div className="pt-3 border-t border-[#27272a] space-y-2">
-            <span className="text-[11px] text-neutral-400 font-medium">智能关联追问探索：</span>
+          <div className="pt-3 border-t border-slate-200 dark:border-[#27272a] space-y-2">
+            <span className="text-[11px] text-slate-500 dark:text-neutral-400 font-medium">智能关联追问探索：</span>
             <div className="space-y-1.5">
               {followUpQuestions.map((q, idx) => (
                 <button
                   key={idx}
                   onClick={() => onFollowUpClick(q)}
-                  className="w-full text-left px-3.5 py-2 rounded-full bg-[#27272a] hover:bg-[#3f3f46] text-xs text-neutral-200 hover:text-white border border-[#3f3f46] transition-all flex items-center justify-between group"
+                  className="w-full text-left px-3.5 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-xs text-slate-800 hover:text-slate-900 border border-slate-200 dark:bg-[#27272a] dark:hover:bg-[#3f3f46] dark:text-neutral-200 dark:hover:text-white dark:border-[#3f3f46] transition-all flex items-center justify-between group"
                 >
                   <span className="line-clamp-1">{q}</span>
-                  <ArrowRight className="h-3 w-3 text-neutral-400 group-hover:text-white transition-colors" />
+                  <ArrowRight className="h-3 w-3 text-slate-400 dark:text-neutral-400 group-hover:text-slate-800 dark:group-hover:text-white transition-colors" />
                 </button>
               ))}
             </div>

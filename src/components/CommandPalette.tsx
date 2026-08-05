@@ -78,34 +78,34 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="relative w-full max-w-xl rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-slate-950/40 dark:bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-150">
+      <div className="relative w-full max-w-xl rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-slate-900 dark:text-white">
         
         {/* Input Bar */}
-        <form onSubmit={handleSearchSubmit} className="relative flex items-center border-b border-slate-800 p-3">
-          <Search className="h-5 w-5 text-cyan-400 ml-2" />
+        <form onSubmit={handleSearchSubmit} className="relative flex items-center border-b border-slate-200 dark:border-slate-800 p-3">
+          <Search className="h-5 w-5 text-cyan-600 dark:text-cyan-400 ml-2" />
           <input
             type="text"
             autoFocus
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="输入搜索词按 Enter 检索，或点击以下快捷指令..."
-            className="w-full bg-transparent px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none"
+            className="w-full bg-transparent px-3 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
           />
           {input && (
-            <button type="submit" className="flex items-center space-x-1 rounded-lg bg-cyan-500 px-3 py-1 text-xs font-bold text-slate-950">
+            <button type="submit" className="flex items-center space-x-1 rounded-lg bg-cyan-600 dark:bg-cyan-500 px-3 py-1 text-xs font-bold text-white dark:text-slate-950">
               <span>检索</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}
-          <button type="button" onClick={onClose} className="p-1 text-slate-500 hover:text-slate-200 ml-2">
+          <button type="button" onClick={onClose} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 ml-2">
             <X className="h-4 w-4" />
           </button>
         </form>
 
         {/* Quick Commands List */}
         <div className="p-2 space-y-1 max-h-80 overflow-y-auto">
-          <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500">
+          <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
             快捷动作 & 系统命令
           </div>
 
@@ -115,20 +115,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               <button
                 key={cmd.id}
                 onClick={cmd.action}
-                className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors text-left"
+                className="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors text-left"
               >
                 <div className="flex items-center space-x-2.5">
                   <Icon className={`h-4 w-4 ${cmd.color}`} />
                   <span>{cmd.title}</span>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-slate-600 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-transform" />
               </button>
             );
           })}
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-800/80 bg-slate-950 px-4 py-2 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="border-t border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950 px-4 py-2 flex items-center justify-between text-[11px] text-slate-500">
           <span>Esc 键关闭指令面板</span>
           <span className="flex items-center space-x-1">
             <Command className="h-3 w-3" />
