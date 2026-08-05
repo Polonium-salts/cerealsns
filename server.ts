@@ -193,7 +193,7 @@ app.get('/api/nodes/ping', (req, res) => {
 });
 
 // Helper to ping a SearXNG instance from the server and measure latency
-async function pingInstance(url: string, timeoutMs = 2500): Promise<number | null> {
+async function pingInstance(url: string, timeoutMs = 4000): Promise<number | null> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
@@ -203,11 +203,13 @@ async function pingInstance(url: string, timeoutMs = 2500): Promise<number | nul
       method: 'GET',
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
       }
     });
     clearTimeout(timeoutId);
-    await resp.text();
+    // Any HTTP response returned before timeout means server host is online
     return Date.now() - startTime;
   } catch (err) {
     clearTimeout(timeoutId);
@@ -1530,7 +1532,7 @@ async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: strin
     for (const jsonUrl of candidateUrls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1800);
+        const timeoutId = setTimeout(() => controller.abort(), 4500);
 
         const resp = await fetch(jsonUrl, {
           headers: {

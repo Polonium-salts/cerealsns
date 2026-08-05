@@ -250,12 +250,57 @@ export async function pingSearxngInstances(urls: string[]): Promise<{ url: strin
     });
     if (resp.ok) {
       const data = await resp.json();
-      return data.results || [];
+      const serverResults: { url: string; latency: number | null }[] = data.results || [];
+
+      // For any instance where backend ping timed out or was blocked, attempt client-side browser probe
+      const finalResults = await Promise.all(
+        serverResults.map(async (item) => {
+          if (item.latency !== null && item.latency > 0) {
+            return item;
+          }
+          const clientLatency = await clientSidePing(item.url);
+          return { url: item.url, latency: clientLatency };
+        })
+      );
+      return finalResults;
     }
   } catch (e) {
-    console.warn('Failed to ping instances:', e);
+    console.warn('Failed to ping instances via API, attempting client-side fallback:', e);
   }
-  return urls.map(url => ({ url, latency: null }));
+
+  // Fallback: Client-side probe for all instances if API call fails
+  return Promise.all(
+    urls.map(async (url) => ({
+      url,
+      latency: await clientSidePing(url)
+    }))
+  );
+}
+
+async function clientSidePing(url: string, timeoutMs = 3000): Promise<number | null> {
+  const cleanUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+  const start = performance.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    await fetch(`${cleanUrl}/`, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+    clearTimeout(timer);
+    return Math.round(performance.now() - start);
+  } catch (err) {
+    clearTimeout(timer);
+    const startGet = performance.now();
+    const controllerGet = new AbortController();
+    const timerGet = setTimeout(() => controllerGet.abort(), timeoutMs);
+    try {
+      await fetch(`${cleanUrl}/`, { method: 'GET', mode: 'no-cors', signal: controllerGet.signal });
+      clearTimeout(timerGet);
+      return Math.round(performance.now() - startGet);
+    } catch (e2) {
+      clearTimeout(timerGet);
+      return null;
+    }
+  }
 }
 
 
