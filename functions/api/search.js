@@ -100,6 +100,10 @@ function generateInstantFallbackResults(queryStr, category, page = 1, engines = 
     });
   }
 
+  if (category === 'videos') {
+    return [];
+  }
+
   const pageTemplates = {
     1: [
       { title: `${q} - 官方网站与服务入口`, domain: 'google.com', path: `search?q=${encodeURIComponent(q)}`, desc: `[Google] “${displayTerm}”的官方权威网站，提供核心功能介绍、账号服务、最新版本更新及官方技术支持。`, engine: 'Google' },
@@ -623,6 +627,159 @@ async function fetchDuckDuckGoImages(queryStr, page = 1) {
   return [];
 }
 
+// Live YouTube Video Search Engine
+async function fetchYouTubeVideos(queryStr) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(queryStr)}`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const html = await resp.text();
+      const match = html.match(/var ytInitialData = (\{[\s\S]*?\});<\/script>/);
+      if (match) {
+        const data = JSON.parse(match[1]);
+        const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
+        const results = [];
+        for (const item of contents) {
+          if (item.videoRenderer) {
+            const v = item.videoRenderer;
+            const videoId = v.videoId;
+            if (!videoId) continue;
+            const title = v.title?.runs?.[0]?.text || queryStr;
+            const snippet = v.descriptionSnippet?.runs?.map(r => r.text).join('') || `YouTube 视频: ${title}`;
+            const thumb = v.thumbnail?.thumbnails?.[v.thumbnail?.thumbnails?.length - 1]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+            const author = v.ownerText?.runs?.[0]?.text || 'YouTube';
+            const duration = v.lengthText?.simpleText || '08:00';
+
+            results.push({
+              title,
+              url: `https://www.youtube.com/watch?v=${videoId}`,
+              snippet,
+              content: snippet,
+              img_src: thumb,
+              thumbnail_src: thumb,
+              thumbnail: thumb,
+              author,
+              engine: 'YouTube',
+              category: 'videos',
+              duration
+            });
+          }
+        }
+        return results;
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// Bilibili Real-Time Video Search Engine
+async function fetchBilibiliVideos(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const apiUrl = `https://api.bilibili.com/x/web-interface/search/type?search_type=video&keyword=${encodeURIComponent(queryStr)}&page=${page}`;
+    const resp = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer': 'https://www.bilibili.com/'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && data.code === 0 && data.data && Array.isArray(data.data.result)) {
+        return data.data.result.map((item, idx) => {
+          let rawPic = item.pic || '';
+          if (rawPic.startsWith('//')) rawPic = 'https:' + rawPic;
+          const cleanTitle = (item.title || '').replace(/<[^>]+>/g, '').trim();
+          const cleanDesc = (item.description || item.title || '').replace(/<[^>]+>/g, '').trim();
+          const arcurl = item.arcurl || (item.bvid ? `https://www.bilibili.com/video/${item.bvid}` : `https://www.bilibili.com`);
+
+          return {
+            title: cleanTitle || `${queryStr} 视频`,
+            url: arcurl,
+            snippet: cleanDesc || `Bilibili UP主: ${item.author || '哔哩哔哩'} • 播放量: ${item.play || 0}`,
+            img_src: rawPic,
+            thumbnail_src: rawPic,
+            thumbnail: rawPic,
+            author: item.author || 'Bilibili',
+            engine: 'Bilibili',
+            engineRank: idx,
+            category: 'videos',
+            duration: item.duration || '05:20',
+            bvid: item.bvid
+          };
+        });
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// DuckDuckGo Video Search Engine
+async function fetchDuckDuckGoVideos(queryStr, page = 1) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const tokenResp = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(queryStr)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+      },
+      signal: controller.signal
+    });
+    if (tokenResp.ok) {
+      const html = await tokenResp.text();
+      const match = html.match(/vqd=['"]?([^'"&]+)/);
+      if (match && match[1]) {
+        const vqd = match[1];
+        const vUrl = `https://duckduckgo.com/v.js?q=${encodeURIComponent(queryStr)}&vqd=${vqd}&p=${page}`;
+        const vResp = await fetch(vUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer': 'https://duckduckgo.com/'
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (vResp.ok) {
+          const vData = await vResp.json();
+          if (vData && Array.isArray(vData.results)) {
+            return vData.results.map((item, idx) => {
+              const img = item.images?.large || item.images?.medium || item.images?.small || item.image;
+              return {
+                title: item.title || `${queryStr} 视频`,
+                url: item.content || item.url,
+                snippet: item.description || item.publisher || `${queryStr} 视频资源`,
+                img_src: img,
+                thumbnail_src: img,
+                thumbnail: img,
+                author: item.uploader || item.publisher || 'YouTube',
+                engine: item.publisher || 'DuckDuckGo Videos',
+                engineRank: idx,
+                category: 'videos',
+                duration: item.duration || '08:15'
+              };
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
 async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines = '', acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8') {
   const startTime = Date.now();
   try {
@@ -632,6 +789,8 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
     // If engines param contains a single specific engine (like 'bing' or 'google'), pass engines=...
     if (engines && !engines.includes(',') && engines !== 'all') {
       engineQueryParam = `&engines=${encodeURIComponent(engines)}`;
+    } else if (category === 'videos') {
+      engineQueryParam = '&categories=videos';
     } else {
       // For general searches, let SearXNG use its active multi-engine aggregator
       engineQueryParam = `&categories=${encodeURIComponent(category || 'general')}`;
@@ -660,10 +819,27 @@ async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, pag
           const data = JSON.parse(bodyText);
           if (data && Array.isArray(data.results) && data.results.length > 0) {
             recordInstanceHealth(cleanInstance, true, Date.now() - startTime);
-            return data.results.map((r) => ({
-              ...r,
-              engine: normalizeEngineName(r.engine || r.engines?.[0] || 'Google')
-            }));
+            return data.results.map((r, idx) => {
+              const imgSrc = r.img_src || r.thumbnail_src || r.thumbnail || r.src || (category === 'images' ? r.url : undefined);
+              const thumbSrc = r.thumbnail_src || r.thumbnail || r.img_src || r.src || (category === 'images' ? r.url : undefined);
+              return {
+                ...r,
+                title: r.title || `${queryStr} 视频`,
+                url: r.url,
+                snippet: r.content || r.snippet || r.description || '',
+                content: r.content || r.snippet || r.description || '',
+                img_src: imgSrc,
+                thumbnail_src: thumbSrc,
+                thumbnail: thumbSrc,
+                resolution: r.resolution || (r.width && r.height ? `${r.width}x${r.height}` : undefined),
+                author: r.author || r.uploader || r.publisher || r.source || normalizeEngineName(r.engine || 'SearXNG'),
+                engine: normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG'),
+                engineRank: idx,
+                category: category,
+                duration: r.length || r.duration || undefined,
+                iframe: r.embedded || r.iframe_src || undefined
+              };
+            });
           }
         } catch {}
       }
@@ -846,7 +1022,8 @@ export async function onRequestGet(context) {
   const q = url.searchParams.get('q') || '';
   const category = url.searchParams.get('category') || 'general';
   const page = parseInt(url.searchParams.get('page') || '1', 10);
-  const engines = url.searchParams.get('engines') || url.searchParams.get('engine') || 'google';
+  const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo,yandex';
+  const engines = url.searchParams.get('engines') || url.searchParams.get('engine') || defaultEngines;
   const timeRange = url.searchParams.get('time_range') || '';
   const customUrlsParam = url.searchParams.get('custom_urls') || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -892,20 +1069,26 @@ export async function onRequestGet(context) {
   ];
 
   const sortedHealthyNodes = getSortedHealthyInstances(rawInstancesToTry);
-  const topInstances = sortedHealthyNodes.slice(0, 4);
+  const instanceCount = category === 'videos' ? 8 : 4;
+  const topInstances = sortedHealthyNodes.slice(0, instanceCount);
 
   const searxngPromises = topInstances.map(inst => {
     const cleanInstance = inst.endsWith('/') ? inst.slice(0, -1) : inst;
     return fetchSingleSearxngInstance(cleanInstance, q, category, page, timeRange, engines, acceptLang);
   });
 
+  const isVideoCat = category === 'videos';
   const isImageCat = category === 'images' || category === 'media';
 
-  const bingPromise = (!isImageCat && page === 1) ? fetchSingleBing(q) : Promise.resolve([]);
-  const ddgPromise = (!isImageCat && page === 1) ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
-  const wikiPromise = (!isImageCat && page === 1) ? fetchSingleWikipedia(q) : Promise.resolve([]);
-  const baiduPromise = (!isImageCat && page === 1) ? fetchSingleBaidu(q) : Promise.resolve([]);
-  const qwantPromise = (!isImageCat && page === 1) ? fetchSingleQwant(q) : Promise.resolve([]);
+  const youtubeVideosPromise = isVideoCat ? fetchYouTubeVideos(q) : Promise.resolve([]);
+  const bilibiliVideosPromise = isVideoCat ? fetchBilibiliVideos(q, page) : Promise.resolve([]);
+  const ddgVideosPromise = isVideoCat ? fetchDuckDuckGoVideos(q, page) : Promise.resolve([]);
+
+  const bingPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleBing(q) : Promise.resolve([]);
+  const ddgPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleDuckDuckGo(q) : Promise.resolve([]);
+  const wikiPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleWikipedia(q) : Promise.resolve([]);
+  const baiduPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleBaidu(q) : Promise.resolve([]);
+  const qwantPromise = (!isImageCat && !isVideoCat && page === 1) ? fetchSingleQwant(q) : Promise.resolve([]);
 
   const imageBaiduPromise = isImageCat ? fetchBaiduImages(q, page) : Promise.resolve([]);
   const imageDdgPromise = isImageCat ? fetchDuckDuckGoImages(q, page) : Promise.resolve([]);
@@ -923,6 +1106,9 @@ export async function onRequestGet(context) {
     wikiPromise,
     baiduPromise,
     qwantPromise,
+    youtubeVideosPromise,
+    bilibiliVideosPromise,
+    ddgVideosPromise,
     imageBaiduPromise,
     imageDdgPromise,
     imageWikiPromise,
@@ -959,8 +1145,9 @@ export async function onRequestGet(context) {
     }
   }
 
-  // Only use template fallbacks if real live search returned fewer than 3 total items
-  if (totalRealResults < 3) {
+  // Only use template fallbacks if real live search returned fewer than minimum required count
+  const minRequiredCount = (category === 'images' || category === 'media') ? 24 : (category === 'videos' ? 1 : 8);
+  if (totalRealResults < minRequiredCount) {
     for (const fb of fallbacks) {
       if (!seenUrls.has(fb.url)) {
         addToBucket(fb);
@@ -968,7 +1155,7 @@ export async function onRequestGet(context) {
     }
   }
 
-  const enginePriority = ['Google', 'Bing', 'Baidu', 'Wikipedia', 'DuckDuckGo', 'Qwant'];
+  const enginePriority = isVideoCat ? ['YouTube', 'Bilibili', 'DuckDuckGo Videos', 'SearXNG', 'Google', 'Bing'] : ['Google', 'Bing', 'Baidu', 'Wikipedia', 'DuckDuckGo', 'Qwant'];
   const allEngineKeys = Array.from(new Set([...enginePriority, ...Array.from(engineBuckets.keys())]));
 
   const interleavedResults = [];
@@ -977,7 +1164,7 @@ export async function onRequestGet(context) {
   for (let i = 0; i < maxBucketLen; i++) {
     for (const engKey of allEngineKeys) {
       const bucket = engineBuckets.get(engKey);
-      if (bucket && i < bucket.length && interleavedResults.length < 15) {
+      if (bucket && i < bucket.length && interleavedResults.length < 24) {
         interleavedResults.push(bucket[i]);
       }
     }
@@ -985,7 +1172,7 @@ export async function onRequestGet(context) {
 
   if (interleavedResults.length < 10) {
     for (const fb of fallbacks) {
-      if (!seenUrls.has(fb.url) && interleavedResults.length < 15) {
+      if (!seenUrls.has(fb.url) && interleavedResults.length < 24) {
         addToBucket(fb);
         interleavedResults.push(fb);
       }
@@ -1001,7 +1188,7 @@ export async function onRequestGet(context) {
 
   const duration = Date.now() - startTime;
 
-  const formattedResults = results.slice(0, 15).map((item, idx) => {
+  const formattedResults = results.slice(0, 24).map((item, idx) => {
     let domain = '';
     try {
       domain = new URL(item.url || 'https://google.com').hostname;
@@ -1017,8 +1204,9 @@ export async function onRequestGet(context) {
       title: item.title || `${q} - 相关搜索结果 [第${page}页-${idx + 1}]`,
       url: item.url || `https://${domain}/search?q=${encodeURIComponent(q)}`,
       snippet: item.content || item.snippet || `关于“${q}”的搜索实时条目...`,
+      content: item.content || item.snippet,
       engine: engineName,
-      category,
+      category: item.category || category,
       score: rel.finalScore,
       relevancePercent: rel.matchPercent,
       matchedKeywords: rel.matchedKeywords,
@@ -1032,7 +1220,9 @@ export async function onRequestGet(context) {
       thumbnail_src: item.thumbnail_src || item.thumbnail || item.img_src,
       thumbnail: item.thumbnail || item.thumbnail_src || item.img_src,
       resolution: item.resolution,
-      author: item.author
+      author: item.author || engineName,
+      duration: item.duration,
+      iframe: item.iframe
     };
   }).sort((a, b) => b.score - a.score);
 
