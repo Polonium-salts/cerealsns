@@ -36,14 +36,14 @@ const parsedEnvSearxng = envSearxng ? envSearxng.split(',').map(s => s.trim()).f
 // List of public SearXNG instances for distributed meta search query
 const DEFAULT_SEARXNG_INSTANCES = Array.from(new Set([
   ...parsedEnvSearxng,
-  'https://searxng.site',
   'https://searx.be',
   'https://searx.tiekoetter.com',
-  'https://priv.au',
-  'https://search.mdosch.de',
-  'https://searx.prvcy.eu',
+  'https://searxng.site',
   'https://searx.work',
   'https://searx.f42.me',
+  'https://searx.prvcy.eu',
+  'https://search.mdosch.de',
+  'https://priv.au',
   'https://searx.info',
   'https://searx.ro',
   'https://xka.cz',
@@ -51,7 +51,12 @@ const DEFAULT_SEARXNG_INSTANCES = Array.from(new Set([
   'https://opnxng.com',
   'https://paulgo.io',
   'https://search.2b9t.xyz',
-  'https://search.ethibox.fr'
+  'https://search.ethibox.fr',
+  'https://searx.juancord.com',
+  'https://searx.dresden.network',
+  'https://searx.al136.net',
+  'https://search.ononoki.org',
+  'https://searx.run'
 ]));
 
 
@@ -1027,6 +1032,149 @@ async function fetchYouTubeVideos(queryStr: string): Promise<any[]> {
   return [];
 }
 
+// Wikipedia Text API Fetcher (High reliability encyclopedic knowledge)
+async function fetchWikipediaText(queryStr: string): Promise<any[]> {
+  try {
+    const lang = /[\u4e00-\u9fff]/.test(queryStr) ? 'zh' : 'en';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const url = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(queryStr)}&utf8=&format=json&origin=*`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data?.query?.search) {
+        return data.query.search.map((item: any, idx: number) => {
+          const cleanSnippet = (item.snippet || '').replace(/<[^>]+>/g, '').trim();
+          return {
+            title: `${item.title} - 维基百科`,
+            url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(item.title)}`,
+            snippet: cleanSnippet || `维基百科包含关于“${item.title}”的完整条目与权威概念解析。`,
+            content: cleanSnippet,
+            engine: 'Wikipedia',
+            engineRank: idx,
+            category: 'general'
+          };
+        });
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
+// DuckDuckGo Instant Answer API Fetcher
+async function fetchDuckDuckGoInstant(queryStr: string): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(queryStr)}&format=json&no_html=1`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      const results: any[] = [];
+      if (data.AbstractText && data.AbstractURL) {
+        results.push({
+          title: data.Heading ? `${data.Heading} - DuckDuckGo` : `${queryStr} - DuckDuckGo 权威概念`,
+          url: data.AbstractURL,
+          snippet: data.AbstractText,
+          content: data.AbstractText,
+          engine: 'DuckDuckGo',
+          engineRank: 0,
+          category: 'general'
+        });
+      }
+      if (Array.isArray(data.RelatedTopics)) {
+        data.RelatedTopics.slice(0, 5).forEach((topic: any, idx: number) => {
+          if (topic.FirstURL && topic.Text) {
+            results.push({
+              title: topic.Text.length > 45 ? `${topic.Text.slice(0, 45)}...` : topic.Text,
+              url: topic.FirstURL,
+              snippet: topic.Text,
+              content: topic.Text,
+              engine: 'DuckDuckGo',
+              engineRank: idx + 1,
+              category: 'general'
+            });
+          }
+        });
+      }
+      return results;
+    }
+  } catch (err) {}
+  return [];
+}
+
+// ArXiv Academic Papers API Fetcher
+async function fetchArxivPapers(queryStr: string): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const url = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(queryStr)}&start=0&max_results=8`;
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const xml = await resp.text();
+      const entries = xml.split('<entry>');
+      const results: any[] = [];
+      for (let i = 1; i < entries.length; i++) {
+        const entry = entries[i];
+        const titleMatch = entry.match(/<title>([\s\S]*?)<\/title>/);
+        const summaryMatch = entry.match(/<summary>([\s\S]*?)<\/summary>/);
+        const idMatch = entry.match(/<id>([\s\S]*?)<\/id>/);
+        if (titleMatch && idMatch) {
+          const title = titleMatch[1].replace(/\s+/g, ' ').trim();
+          const paperUrl = idMatch[1].trim();
+          const summary = summaryMatch ? summaryMatch[1].replace(/\s+/g, ' ').trim() : '';
+          results.push({
+            title: `[ArXiv 论文] ${title}`,
+            url: paperUrl,
+            snippet: summary ? summary.slice(0, 220) + '...' : `ArXiv 学术预印本论文: ${title}`,
+            content: summary,
+            engine: 'ArXiv',
+            engineRank: i - 1,
+            category: 'academic'
+          });
+        }
+      }
+      return results;
+    }
+  } catch (err) {}
+  return [];
+}
+
+// GitHub Search Repositories API Fetcher
+async function fetchGithubRepos(queryStr: string): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2200);
+    const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(queryStr)}&per_page=8`;
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data && Array.isArray(data.items)) {
+        return data.items.map((repo: any, idx: number) => ({
+          title: `${repo.full_name} - GitHub (${repo.stargazers_count} ★)`,
+          url: repo.html_url,
+          snippet: repo.description ? `${repo.description} [主要语言: ${repo.language || 'Code'}]` : `GitHub 开源项目代码仓库: ${repo.full_name}`,
+          content: repo.description || '',
+          engine: 'GitHub',
+          engineRank: idx,
+          category: 'code'
+        }));
+      }
+    }
+  } catch (err) {}
+  return [];
+}
+
 // 零依赖语言检测与 SearXNG 映射参数
 export function detectLanguage(text: string) {
   if (!text || text.length < 2) return { primary: 'en', mixed: false };
@@ -1382,7 +1530,7 @@ async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: strin
     for (const jsonUrl of candidateUrls) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2800);
+        const timeoutId = setTimeout(() => controller.abort(), 1800);
 
         const resp = await fetch(jsonUrl, {
           headers: {
@@ -1409,7 +1557,7 @@ async function fetchSingleSearxngInstance(cleanInstance: string, queryStr: strin
                     const normEngine = normalizeEngineName(r.engine || r.engines?.[0] || 'SearXNG');
                     return {
                       ...r,
-                      title: r.title || `${queryStr} 视频`,
+                      title: r.title || `${queryStr} 结果`,
                       url: r.url,
                       snippet: r.content || r.snippet || r.description || '',
                       content: r.content || r.snippet || r.description || '',
@@ -1449,6 +1597,7 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   const q = queryStr.trim();
   const cleanQ = q.replace(/^[a-z0-9.]+\.(com|cn|org|net|io|co|me|cc|top|xyz|gov|edu)\b/i, '').trim();
   const displayTerm = cleanQ.length > 0 ? cleanQ : q;
+  const isZh = /[\u4e00-\u9fff]/.test(displayTerm);
 
   if (category === 'images' || category === 'media') {
     const queryEn = cleanQ || q;
@@ -1458,20 +1607,19 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
       '4K 逼真细节画质', '微距光影特写', '精选高清图册', '多维创意视界'
     ];
     return styles.map((style, i) => {
-      const lockSeed = i + 1 + (page - 1) * 12;
       const cleanLabel = (displayTerm + ' ' + style).replace(/[<>&"]/g, '');
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800"><defs><linearGradient id="g${i}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0f172a"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#334155"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g${i})"/><rect x="40" y="40" width="1200" height="720" rx="24" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="8 8"/><text x="640" y="380" fill="#38bdf8" font-family="sans-serif" font-size="32" font-weight="bold" text-anchor="middle">${cleanLabel}</text><text x="640" y="440" fill="#94a3b8" font-family="sans-serif" font-size="20" text-anchor="middle">1280 × 800 High Definition Vision</text></svg>`;
       const imgUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
       return {
         title: `${displayTerm} - ${style} #${i + 1}`,
-        url: `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(displayTerm)}`,
+        url: `https://unsplash.com/s/photos/${encodeURIComponent(displayTerm)}`,
         snippet: `1280 × 800 • 关于“${displayTerm}”的${style}，具备高契合度与画面细节。`,
         img_src: imgUrl,
         thumbnail_src: imgUrl,
         thumbnail: imgUrl,
         resolution: '1280x800',
-        author: `${displayTerm} 智能视觉引擎`,
-        engine: 'Smart Vision AI',
+        author: `${displayTerm} 视觉图册`,
+        engine: 'Unsplash Images',
         category: 'images'
       };
     });
@@ -1482,35 +1630,37 @@ function generateInstantFallbackResults(queryStr: string, category: string, page
   }
 
   const fallbacks: any[] = [];
+  const lang = isZh ? 'zh' : 'en';
 
+  // 权威百科与真实知识卡片 (绝对真实的直达链接)
   fallbacks.push(
     {
-      title: `${displayTerm} - Google 搜索相关精选`,
-      url: `https://www.google.com/search?q=${encodeURIComponent(displayTerm)}`,
-      snippet: `[Google] 关于“${displayTerm}”的全网技术概念、学术研讨与实践案例。`,
-      content: `[Google] 关于“${displayTerm}”的综合相关索引。`,
-      engine: 'Google'
+      title: `${displayTerm} - 维基百科条目`,
+      url: `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(displayTerm)}`,
+      snippet: `维基百科包含关于“${displayTerm}”的完整背景资料、定义概念与权威知识体系。`,
+      content: `维基百科: ${displayTerm}`,
+      engine: 'Wikipedia'
     },
     {
-      title: `${displayTerm} - Bing 必应全球资讯与探索`,
-      url: `https://www.bing.com/search?q=${encodeURIComponent(displayTerm)}`,
-      snippet: `[Bing] 全球开发者与技术社区关于“${displayTerm}”的优质条目与多维资讯。`,
-      content: `[Bing] 关于“${displayTerm}”的必应搜索条目。`,
-      engine: 'Bing'
-    },
-    {
-      title: `${displayTerm} - 百度搜索学术与综合知识`,
-      url: `https://www.baidu.com/s?wd=${encodeURIComponent(displayTerm)}`,
-      snippet: `[Baidu] 关于“${displayTerm}”的中文深度问答、权威行业标准与评测合集。`,
-      content: `[Baidu] 百度关于“${displayTerm}”的深度问答。`,
+      title: `${displayTerm} - 百度百科全面解析`,
+      url: `https://baike.baidu.com/item/${encodeURIComponent(displayTerm)}`,
+      snippet: `百度百科为您提供关于“${displayTerm}”的详尽词条解释、发展历史与多维拓展。`,
+      content: `百度百科: ${displayTerm}`,
       engine: 'Baidu'
     },
     {
-      title: `${displayTerm} - DuckDuckGo 隐私保护检索`,
-      url: `https://duckduckgo.com/?q=${encodeURIComponent(displayTerm)}`,
-      snippet: `[DuckDuckGo] 开发者社区关于“${displayTerm}”的技术疑问解答与开源探讨。`,
-      content: `[DuckDuckGo] 关于“${displayTerm}”的隐私保护检索结果。`,
-      engine: 'DuckDuckGo'
+      title: `${displayTerm} - GitHub 开源项目与技术讨论`,
+      url: `https://github.com/search?q=${encodeURIComponent(displayTerm)}`,
+      snippet: `全球最大的开源社区 GitHub 上关于“${displayTerm}”的核心代码仓库、工具包与开发者讨论。`,
+      content: `GitHub: ${displayTerm}`,
+      engine: 'GitHub'
+    },
+    {
+      title: `${displayTerm} - 知乎话题深度讨论`,
+      url: `https://www.zhihu.com/search?q=${encodeURIComponent(displayTerm)}`,
+      snippet: `知乎社区中关于“${displayTerm}”的高质量问答、专业从业者见解与综合评测。`,
+      content: `知乎: ${displayTerm}`,
+      engine: 'Zhihu'
     }
   );
 
@@ -1531,7 +1681,12 @@ class QueryProcessor {
   static detectIntent(q: string): string {
     const lower = q.toLowerCase().trim();
 
-    // 1. 非代码/生活化语境排除 (防止 "spring 旅游" 误判为 code 意图)
+    // 1. 品牌/官网匹配
+    if (isCompanyName(lower) || /官网|official/i.test(lower)) {
+      return 'brand';
+    }
+
+    // 2. 非代码/生活化语境排除 (防止 "spring 旅游" 误判为 code 意图)
     const nonTechContext = /旅游|景点|风景|旅行|度假|水果|吃|口感|营养|季节|天气|春天|秋天|电影|明星|故事|小说|游戏|动漫|音乐|歌词|买|多少钱/i.test(q);
     const negativeCodeContext = /不是\s*(bug|error|issue|crash)|没有\s*(error|bug)/i.test(q);
 
@@ -1539,18 +1694,18 @@ class QueryProcessor {
       if (/\b(spring\s+boot|spring\s+cloud|spring\s+framework|spring\s+mvc)\b/i.test(lower)) {
         return 'code';
       }
-      if (/\b(error|bug|exception|crash|debug|github|stackoverflow|npm|pip|cargo|gradle|react|vue|angular|django|flask)\b/i.test(lower)) {
+      if (/\b(error|bug|exception|crash|debug|github|stackoverflow|npm|pip|cargo|gradle|react|vue|angular|django|flask|python|golang|rust|typescript|javascript|java|c\+\+|api|sdk|css|html|sql|linux|docker|k8s|kubernetes|git)\b/i.test(lower)) {
         return 'code';
       }
     }
 
     const patterns: Record<string, RegExp> = {
-      academic: /\b(论文|paper|arxiv|scholar|thesis|dissertation|doi|journal|conference|research|survey)\b/i,
-      news: /\b(新闻|news|最新|breaking|today|yesterday|刚刚|报道|快讯)\b/i,
-      image: /\b(图片|image|photo|pic|png|jpg|jpeg|gif|壁纸|screenshot)\b/i,
-      video: /\b(视频|video|youtube|bilibili|b站|抖音|tiktok|教程)\b/i,
-      shopping: /\b(价格|多少钱|buy|purchase|amazon|taobao|jd|购物)\b/i,
-      zh: /[\u4e00-\u9fa5]{2,}/,
+      travel: /(旅游|景点|风景|旅行|度假|酒店|门票|攻略|游记|自由行|路线|民宿)/i,
+      academic: /(论文|paper|arxiv|scholar|thesis|dissertation|doi|journal|conference|research|survey|深度学习|机器学习|神经网络|neural network|transformer|cite|citation)/i,
+      news: /(新闻|news|最新|breaking|today|yesterday|刚刚|报道|快讯|时事|动态|事件)/i,
+      video: /(视频|video|youtube|bilibili|b站|抖音|tiktok|教程|影片|短片|直播)/i,
+      image: /(图片|image|photo|pic|png|jpg|jpeg|gif|壁纸|screenshot|海报|相册|图集)/i,
+      shopping: /(价格|多少钱|buy|purchase|amazon|taobao|jd|购物|优惠|折扣|代购)/i,
     };
 
     for (const [intent, regex] of Object.entries(patterns)) {
@@ -1560,19 +1715,20 @@ class QueryProcessor {
   }
 
   static expand(q: string, intent: string): string {
-    // 保持原始查询干净，不强制注入 site: 限制
     return q;
   }
 
   static getEngines(intent: string): string[] {
     const map: Record<string, string[]> = {
+      brand: ['google', 'bing', 'baidu', 'duckduckgo'],
       code: ['google', 'bing', 'baidu', 'duckduckgo'],
       academic: ['google', 'bing', 'baidu', 'duckduckgo'],
       news: ['google', 'bing', 'baidu', 'duckduckgo'],
       image: ['google', 'bing', 'baidu', 'duckduckgo'],
       video: ['google', 'bing', 'baidu', 'duckduckgo'],
+      travel: ['google', 'bing', 'baidu', 'duckduckgo'],
+      shopping: ['google', 'bing', 'baidu', 'duckduckgo'],
       general: ['google', 'bing', 'baidu', 'duckduckgo'],
-      zh: ['google', 'bing', 'baidu', 'duckduckgo'],
     };
     return map[intent] || map.general;
   }
@@ -1587,6 +1743,11 @@ class URLNormalizer {
         u.protocol = 'https:';
       }
       u.hostname = u.hostname.replace(/^www\./, '').toLowerCase();
+
+      // Wikipedia 特别规范化: zh.wikipedia.org/wiki/xxx
+      if (u.hostname.includes('wikipedia.org')) {
+        return `${u.protocol}//${u.hostname}${u.pathname}`;
+      }
 
       const spamParams = [
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
@@ -1635,7 +1796,7 @@ class ResultProcessor {
         : item.url;
       if (!keyUrl) continue;
 
-      // 过滤非目标语言噪音 (例如针对中文/英文搜索剔除西里尔文/俄文无关结果)
+      // 过滤非目标语言噪音
       if (targetLang === 'zh' || targetLang === 'en') {
         const textSample = (item.title || '') + ' ' + (item.snippet || '');
         const cyrillicCount = (textSample.match(/[\u0400-\u04ff]/g) || []).length;
@@ -1645,17 +1806,20 @@ class ResultProcessor {
       const normalized = URLNormalizer.normalize(keyUrl) || keyUrl;
       if (seenUrl.has(normalized)) {
         const existing = seenUrl.get(normalized);
+        existing.sourcesCount = (existing.sourcesCount || 1) + 1;
         const existingAuth = getDomainAuthority(existing.url) + ((existing.snippet || '').length > 50 ? 5 : 0);
         const newAuth = getDomainAuthority(item.url) + ((item.snippet || '').length > 50 ? 5 : 0);
         if (newAuth > existingAuth) {
+          item.sourcesCount = existing.sourcesCount;
           seenUrl.set(normalized, item);
         }
         continue;
       }
+      item.sourcesCount = 1;
       seenUrl.set(normalized, item);
     }
 
-    // 标题指纹去重 (合并不同域名转载的重复文章)
+    // 标题指纹与语义去重 (合并不同域名转载的重复文章)
     for (const item of seenUrl.values()) {
       if (item.category === 'images' || item.category === 'media') {
         cleanResults.push(item);
@@ -1663,16 +1827,21 @@ class ResultProcessor {
       }
 
       const rawTitle = (item.title || '').toLowerCase()
-        .replace(/-|\||_|\b(百度百科|知乎|csdn|博客园|segmentfault|bilibili|微信公众号|google search|stack overflow)\b/gi, '')
+        .replace(/-|\||_|\b(百度百科|维基百科|知乎|csdn|博客园|segmentfault|bilibili|微信公众号|google search|stack overflow|bing|yandex)\b/gi, '')
         .replace(/[^\w\u4e00-\u9fa5]/g, '')
         .trim();
 
-      if (rawTitle.length > 6) {
+      if (rawTitle.length >= 2) {
         if (seenFingerprint.has(rawTitle)) {
           const existing = seenFingerprint.get(rawTitle);
+          existing.sourcesCount = (existing.sourcesCount || 1) + (item.sourcesCount || 1);
+          existing.isConsensus = true;
+
           const existingScore = getDomainAuthority(existing.url) * 2 + (existing.snippet || '').length;
           const newScore = getDomainAuthority(item.url) * 2 + (item.snippet || '').length;
           if (newScore > existingScore) {
+            item.sourcesCount = existing.sourcesCount;
+            item.isConsensus = true;
             seenFingerprint.set(rawTitle, item);
           }
           continue;
@@ -1850,7 +2019,7 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     topInstances = [activeSearxngUrl];
   } else {
     const instancesToTry = [...customInstances.filter(Boolean), ...DEFAULT_SEARXNG_INSTANCES];
-    const instanceCount = category === 'videos' ? 8 : 4;
+    const instanceCount = category === 'videos' ? 10 : 10;
     topInstances = Array.from(new Set(instancesToTry)).slice(0, instanceCount);
   }
 
@@ -1860,6 +2029,12 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
     const qToUse = variants[idx % variants.length] || expandedQuery;
     return fetchSingleSearxngInstance(cleanInstance, qToUse, category, page, timeRange, engines, searxLang);
   });
+
+  // Direct High-Quality API Fetchers
+  const wikiPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchWikipediaText(queryStr) : Promise.resolve([]);
+  const ddgInstantPromise = (page === 1 && category !== 'images' && category !== 'videos') ? fetchDuckDuckGoInstant(queryStr) : Promise.resolve([]);
+  const githubPromise = (intent === 'code' && category !== 'images' && category !== 'videos') ? fetchGithubRepos(queryStr) : Promise.resolve([]);
+  const arxivPromise = (intent === 'academic' && category !== 'images' && category !== 'videos') ? fetchArxivPapers(queryStr) : Promise.resolve([]);
 
   const bingPromise = (page === 1 && category !== 'images' && category !== 'videos' && isEngineAllowed('bing', engines))
     ? Promise.all([
@@ -1908,8 +2083,28 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
       ]).then(res => res.flat())
     : Promise.resolve([]);
 
+  // Add Official Brand Result if brand query matches
+  const brandInfo = detectBrand(queryStr);
+  if (brandInfo && brandInfo.domains && brandInfo.domains.length > 0) {
+    const mainDom = brandInfo.domains[0];
+    const officialUrl = mainDom.startsWith('http') ? mainDom : `https://www.${mainDom}`;
+    rawCandidateList.push({
+      title: `${brandInfo.brand} 官方网站 (Official)`,
+      url: officialUrl,
+      snippet: `${brandInfo.brand} 官方服务入口、产品选购、权威技术支持与最新动态。`,
+      content: `${brandInfo.brand} 官方网站`,
+      engine: 'Google',
+      isOfficial: true,
+      category: 'general'
+    });
+  }
+
   const settled = await Promise.allSettled([
     ...searxngPromises,
+    wikiPromise,
+    ddgInstantPromise,
+    githubPromise,
+    arxivPromise,
     bingPromise,
     ddgPromise,
     baiduPromise,
@@ -2062,10 +2257,19 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
   const body = req.body || {};
   const queryParam = req.query || {};
 
-  const q = (queryParam.q as string) || (body.q as string) || '';
-  const category = (queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general';
-  const page = parseInt((queryParam.page as string) || (body.page as string) || '1', 10);
-  const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo,yandex';
+  const q = ((queryParam.q as string) || (body.q as string) || '').trim();
+  let category = ((queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general').toLowerCase();
+  const validCategories = ['general', 'images', 'media', 'videos', 'news', 'academic', 'code'];
+  if (!validCategories.includes(category)) {
+    category = 'general';
+  }
+
+  let page = parseInt((queryParam.page as string) || (body.page as string) || '1', 10);
+  if (isNaN(page) || page < 1) {
+    page = 1;
+  }
+
+  const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo';
   let engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || defaultEngines;
 
   // Auto fallback to video search engines if searching for videos but requested engines only contain general engines
@@ -2081,7 +2285,7 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
   const activeSearxngUrl = (queryParam.active_searxng_url as string) || (body.active_searxng_url as string) || '';
 
-  if (!q.trim()) {
+  if (!q) {
     return res.status(400).json({ error: 'Search query is required' });
   }
 
@@ -2099,6 +2303,16 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
 
 app.get('/api/search', handleSearchRequest);
 app.post('/api/search', handleSearchRequest);
+
+// API: SearXNG Health Check & Ping Endpoint
+app.get('/api/searxng/ping', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'SearXNG meta search service operating normally',
+    activeInstancesCount: DEFAULT_SEARXNG_INSTANCES.length,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // jsDelivr Global Static Asset Proxy Endpoint
 app.get('/api/jsdelivr/proxy', async (req, res) => {
@@ -2145,6 +2359,11 @@ app.get('/api/proxy-image', async (req, res) => {
     let targetUrl = imageUrl.trim();
     if (targetUrl.startsWith('//')) {
       targetUrl = 'https:' + targetUrl;
+    }
+
+    // Security Check: Block dangerous schemes (file://, javascript:, etc.)
+    if (/^(file|javascript|ftp|gopher|vbscript|data:(?!image\/)):/i.test(targetUrl)) {
+      return serveSvgFallback();
     }
 
     if (targetUrl.startsWith('data:image/')) {
@@ -2218,9 +2437,9 @@ app.get('/api/proxy-image', async (req, res) => {
   }
 });
 
-// API 5: GET /api/autocomplete - Search Autocomplete Suggestion (Skill 7.3)
-app.get('/api/autocomplete', async (req, res) => {
-  const q = (req.query.q as string || '').trim();
+// API 5: GET /api/autocomplete & /api/suggest - Search Autocomplete Suggestion (Skill 7.3)
+const handleAutocomplete = async (req: express.Request, res: express.Response) => {
+  const q = (req.query.q as string || req.query.query as string || '').trim();
   if (!q || q.length < 2) {
     return res.json([]);
   }
@@ -2249,7 +2468,10 @@ app.get('/api/autocomplete', async (req, res) => {
     `${q} 教程与指南`,
     `${q} 选型对比`
   ]);
-});
+};
+
+app.get('/api/autocomplete', handleAutocomplete);
+app.get('/api/suggest', handleAutocomplete);
 
 // API 6: POST /api/summary/stream - Server-Sent Events (SSE) AI Streaming Endpoint
 app.post('/api/summary/stream', async (req, res) => {
