@@ -8,4 +8,4 @@ Allow: /robots.txt
 Disallow: /api/
 Disallow: /functions/
 
-Sitemap: https://cerealsns.ai/sitemap.xml
+Sitemap: https://ns.cereals.cam/sitemap.xml

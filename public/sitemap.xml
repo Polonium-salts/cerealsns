@@ -5,49 +5,49 @@
                             http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
   <!-- CerealsNS AI Meta Search Homepage -->
   <url>
-    <loc>https://cerealsns.ai/</loc>
+    <loc>https://ns.cereals.cam/</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <!-- General Web Search -->
   <url>
-    <loc>https://cerealsns.ai/?cat=general</loc>
+    <loc>https://ns.cereals.cam/?cat=general</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <!-- Media & Images Search -->
   <url>
-    <loc>https://cerealsns.ai/?cat=images</loc>
+    <loc>https://ns.cereals.cam/?cat=images</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <!-- Video Aggregation Search -->
   <url>
-    <loc>https://cerealsns.ai/?cat=videos</loc>
+    <loc>https://ns.cereals.cam/?cat=videos</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <!-- Realtime News Search -->
   <url>
-    <loc>https://cerealsns.ai/?cat=news</loc>
+    <loc>https://ns.cereals.cam/?cat=news</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.8</priority>
   </url>
   <!-- Science & Academic Papers Search -->
   <url>
-    <loc>https://cerealsns.ai/?cat=science</loc>
+    <loc>https://ns.cereals.cam/?cat=science</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <!-- IT & Developer Search -->
   <url>
-    <loc>https://cerealsns.ai/?cat=it</loc>
+    <loc>https://ns.cereals.cam/?cat=it</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
