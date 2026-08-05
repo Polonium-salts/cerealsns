@@ -7,6 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import { Sparkles, Copy, Check, Download, RefreshCw, Volume2, VolumeX, ArrowRight, Cpu, Pin, ExternalLink } from 'lucide-react';
 import type { SearchResult, AppConfig } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { sanitizeMarkdown } from '../lib/utils';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 
@@ -220,7 +221,7 @@ export const AISummaryCard: React.FC<AISummaryCardProps> = ({
     return text.trim();
   };
 
-  const processedMarkdown = formatMarkdownText(summaryText);
+  const processedMarkdown = sanitizeMarkdown(formatMarkdownText(summaryText));
 
   const handleCopy = () => {
     navigator.clipboard.writeText(summaryText);

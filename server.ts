@@ -12,11 +12,17 @@ const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
 
-// CORS Middleware to allow cross-origin API calls seamlessly
+// CORS Middleware to allow cross-origin API calls seamlessly & set basic security headers
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Requested-With');
+  
+  // Security Headers (Avoiding SAMEORIGIN to maintain compatibility with AI Studio preview iframe)
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -1891,7 +1897,16 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
   const category = (queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general';
   const page = parseInt((queryParam.page as string) || (body.page as string) || '1', 10);
   const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo,yandex';
-  const engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || defaultEngines;
+  let engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || defaultEngines;
+
+  // Auto fallback to video search engines if searching for videos but requested engines only contain general engines
+  if (category === 'videos') {
+    const videoEngines = ['youtube', 'bilibili', 'vimeo', 'dailymotion', 'google_videos'];
+    const hasVideoEngine = engines.split(',').some(eng => videoEngines.includes(eng.trim().toLowerCase()));
+    if (!hasVideoEngine) {
+      engines = defaultEngines;
+    }
+  }
   const timeRange = (queryParam.time_range as string) || (body.time_range as string) || (body.filters?.time as string) || '';
   const customUrlsParam = (queryParam.custom_urls as string) || (body.custom_urls as string) || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];

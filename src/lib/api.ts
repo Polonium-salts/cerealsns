@@ -189,16 +189,39 @@ export async function fetchAppConfig(): Promise<{ config: Partial<AppConfig>; st
 }
 
 export async function saveAppConfig(config: Partial<AppConfig>): Promise<{ success: boolean; storageType?: string }> {
+  // If the user hasn't specified an admin secret, do not call the global server config endpoint.
+  // This prevents unauthenticated 401/403 console errors and saves request overhead.
+  if (!config.adminSecret) {
+    return { success: true, storageType: 'local_storage' };
+  }
+
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (config.adminSecret) {
+      headers['Authorization'] = `Bearer ${config.adminSecret}`;
+    }
+
+    // Security check: Delete sensitive fields from the payload before sending to global KV
+    const payload = { ...config };
+    delete payload.adminSecret;
+    delete payload.openrouterApiKey;
+
     const resp = await fetch('/api/config', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
+      headers,
+      body: JSON.stringify(payload),
     });
+
     if (resp.ok) {
       const text = await resp.text();
       const data = JSON.parse(text);
       return { success: true, storageType: data.storageType };
+    } else {
+      const errorData = await resp.json().catch(() => ({ error: 'Unknown server error' }));
+      console.warn('Failed to persist global configuration:', errorData.error);
     }
   } catch (e) {
     console.warn('Failed to save config to /api/config:', e);

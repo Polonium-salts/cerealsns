@@ -32,10 +32,19 @@ export async function onRequestGet(context) {
     config = memoryConfigStore;
   }
 
+  // Security Sanitization: Redact any sensitive properties (e.g. API keys) before returning to the public
+  const sanitizedConfig = { ...config };
+  if (sanitizedConfig.openrouterApiKey) {
+    sanitizedConfig.openrouterApiKey = '';
+  }
+  if (sanitizedConfig.apiKey) {
+    sanitizedConfig.apiKey = '';
+  }
+
   return new Response(
     JSON.stringify({
       storageType: kv ? 'cloudflare_kv' : 'memory',
-      config,
+      config: sanitizedConfig,
     }),
     {
       headers: {
@@ -60,9 +69,30 @@ export async function onRequestPost(context) {
     });
   }
 
+  // Security Check: Enforce authentication using an Admin Secret token
+  const adminSecret = env.ADMIN_SECRET || env.CONFIG_ADMIN_KEY;
+  const authHeader = request.headers.get('Authorization') || request.headers.get('X-Admin-Token') || '';
+  const clientToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+
   if (kv) {
+    // In production with KV database bound, we MUST enforce authorization
+    if (!adminSecret) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Global configuration is locked. Please set ADMIN_SECRET in Pages Environment Variables.' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (clientToken !== adminSecret) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid Admin Secret key' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     try {
       const existing = (await kv.get('site_config', { type: 'json' })) || {};
+      // Never store empty api keys if user passes empty strings to reset
       const updated = { ...existing, ...body, updatedAt: new Date().toISOString() };
       await kv.put('site_config', JSON.stringify(updated));
       return new Response(
@@ -81,6 +111,14 @@ export async function onRequestPost(context) {
       );
     }
   } else {
+    // Local memory configuration store for development/testing
+    if (adminSecret && clientToken !== adminSecret) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Invalid Admin Secret key' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     memoryConfigStore = { ...memoryConfigStore, ...body, updatedAt: new Date().toISOString() };
     return new Response(
       JSON.stringify({

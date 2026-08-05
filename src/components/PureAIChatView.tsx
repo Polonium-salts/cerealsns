@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import type { SearchResult, AppConfig } from '../types';
 import { streamAISummary, triggerAISearXNGToolSearch } from '../lib/api';
+import { sanitizeMarkdown } from '../lib/utils';
 
 // Code Block with Copy & Syntax Header in Black & White Theme
 const CodeBlock: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => {
@@ -662,7 +663,7 @@ export const PureAIChatView: React.FC<PureAIChatViewProps> = ({
                           },
                         }}
                       >
-                        {msg.content}
+                        {sanitizeMarkdown(msg.content)}
                       </ReactMarkdown>
                     ) : (
                       <div className="py-3 flex items-center space-x-2 text-neutral-400 text-xs">

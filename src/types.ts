@@ -130,4 +130,5 @@ export interface AppConfig {
   temperature: number;
   theme: 'dark' | 'light' | 'system';
   defaultEngines?: string[];
+  adminSecret?: string;
 }

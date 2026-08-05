@@ -802,7 +802,78 @@ async function fetchDuckDuckGoVideos(queryStr, page = 1) {
   return [];
 }
 
+function isSafeUrl(urlStr) {
+  try {
+    const parsed = new URL(urlStr);
+    
+    // 1. Scheme check: only http and https are allowed
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // 2. Reject empty hostname, localhost, and common loopback structures
+    if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') {
+      return false;
+    }
+    
+    // 3. Reject local/reserved TLDs and common private network suffixes
+    const forbiddenSuffixes = ['.local', '.internal', '.lan', '.test', '.invalid', '.onion', '.example'];
+    if (forbiddenSuffixes.some(suffix => hostname.endsWith(suffix))) {
+      return false;
+    }
+    
+    // 4. Reject Cloud Metadata and cloud internal metadata endpoints
+    if (hostname.includes('metadata') || hostname.includes('169.254') || hostname.includes('instance-data')) {
+      return false;
+    }
+    
+    // 5. IPv4 Private/Reserved ranges checks (if the host is an IP address)
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const match = hostname.match(ipv4Regex);
+    if (match) {
+      const parts = match.slice(1).map(Number);
+      if (parts.some(p => p < 0 || p > 255)) {
+        return false;
+      }
+      const first = parts[0];
+      const second = parts[1];
+      
+      // Loopback (127.0.0.0/8)
+      if (first === 127) return false;
+      // Class A Private (10.0.0.0/8)
+      if (first === 10) return false;
+      // Class B Private (172.16.0.0/12)
+      if (first === 172 && second >= 16 && second <= 31) return false;
+      // Class C Private (192.168.0.0/16)
+      if (first === 192 && second === 168) return false;
+      // Link-Local (169.254.0.0/16)
+      if (first === 169 && second === 254) return false;
+      // Broadcast / multicast / reserved
+      if (first === 0 || first >= 224) return false;
+    }
+
+    // IPv6 Private/Reserved ranges checks
+    if (hostname.startsWith('[') && hostname.endsWith(']')) {
+      const ip6 = hostname.slice(1, -1);
+      // Link-local (fe80::) or Unique Local (fc00::, fd00::)
+      if (ip6.startsWith('fe80') || ip6.startsWith('fc00') || ip6.startsWith('fd00') || ip6 === '::1' || ip6 === '0:0:0:0:0:0:0:1') {
+        return false;
+      }
+    }
+    
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function fetchSingleSearxngInstance(cleanInstance, queryStr, category, page, timeRange, engines = '', acceptLang = 'zh-CN,zh;q=0.9,en;q=0.8') {
+  if (!isSafeUrl(cleanInstance)) {
+    console.warn(`SSRF Prevention: Blocked request to unsafe instance: ${cleanInstance}`);
+    return [];
+  }
   const startTime = Date.now();
   try {
     const langParam = /[\u4e00-\u9fa5]/.test(queryStr) ? 'zh-CN' : 'auto';
@@ -1059,7 +1130,16 @@ export async function onRequestGet(context) {
   const category = url.searchParams.get('category') || 'general';
   const page = parseInt(url.searchParams.get('page') || '1', 10);
   const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo,yandex';
-  const engines = url.searchParams.get('engines') || url.searchParams.get('engine') || defaultEngines;
+  let engines = url.searchParams.get('engines') || url.searchParams.get('engine') || defaultEngines;
+
+  // Auto fallback to video search engines if searching for videos but requested engines only contain general engines
+  if (category === 'videos') {
+    const videoEngines = ['youtube', 'bilibili', 'vimeo', 'dailymotion', 'google_videos'];
+    const hasVideoEngine = engines.split(',').some(eng => videoEngines.includes(eng.trim().toLowerCase()));
+    if (!hasVideoEngine) {
+      engines = defaultEngines;
+    }
+  }
   const timeRange = url.searchParams.get('time_range') || '';
   const customUrlsParam = url.searchParams.get('custom_urls') || '';
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];

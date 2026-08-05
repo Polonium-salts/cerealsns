@@ -128,7 +128,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           const list = await resp.json();
           if (Array.isArray(list) && list.length > 0) {
             setSuggestions(list);
-            setShowSuggestions(true);
+            // Only pop up suggestions if the input is currently the active/focused element
+            if (document.activeElement === inputRef.current) {
+              setShowSuggestions(true);
+            }
           } else {
             setSuggestions([]);
             setShowSuggestions(false);

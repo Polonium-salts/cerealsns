@@ -18,6 +18,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
   storageType,
 }) => {
   const [apiKey, setApiKey] = useState(config.openrouterApiKey || '');
+  const [adminSecret, setAdminSecret] = useState(config.adminSecret || '');
   const [model, setModel] = useState(config.openrouterModel || 'openrouter/free');
   const [summaryDepth, setSummaryDepth] = useState(config.summaryDepth || 'standard');
   const [systemPrompt, setSystemPrompt] = useState(config.systemPrompt || '');
@@ -59,6 +60,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
       systemPrompt,
       customSearxngUrls: searxngInstances,
       defaultEngines,
+      adminSecret,
     });
     setSavedSuccess(true);
     setTimeout(() => {
@@ -115,6 +117,24 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-or-v1-xxxxxxxx..."
               className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono text-cyan-300 placeholder-slate-600 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Section 1.5: Site Admin Token */}
+          <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+            <label className="flex items-center space-x-2 font-bold text-slate-100">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span>网站管理员访问凭证 (可选 / 普通用户请留空)</span>
+            </label>
+            <p className="text-[11px] text-slate-400">
+              输入后台设定的 ADMIN_SECRET 安全密钥，即可将全局默认的搜索引擎源和 SearXNG 节点实例持久化保存在云端。
+            </p>
+            <input
+              type="password"
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              placeholder="网站主后台管理密钥..."
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-mono text-emerald-300 placeholder-slate-600 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 

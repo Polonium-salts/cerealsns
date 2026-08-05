@@ -66,16 +66,25 @@ export default function App() {
       const nodeData = await fetchEdgeNodes();
       if (nodeData.optimalRoute) setOptimalNode(nodeData.optimalRoute);
 
-      // Fetch config from KV / API endpoint
+      // Fetch config from KV / API endpoint (Site defaults)
       const kvResult = await fetchAppConfig();
-      if (kvResult && kvResult.config && Object.keys(kvResult.config).length > 0) {
-        setConfig((prev) => ({ ...prev, ...kvResult.config }));
-        if (kvResult.storageType) setConfigStorageType(kvResult.storageType);
-      } else {
-        const local = localStorage.getItem('nexus_app_config');
-        if (local) {
-          try { setConfig((prev) => ({ ...prev, ...JSON.parse(local) })); } catch {}
-        }
+      const local = localStorage.getItem('nexus_app_config');
+      let localConfig = {};
+      if (local) {
+        try {
+          localConfig = JSON.parse(local);
+        } catch {}
+      }
+
+      // Merge: Local user configuration always takes precedence over server-side defaults
+      setConfig((prev) => ({
+        ...prev,
+        ...(kvResult?.config || {}),
+        ...localConfig,
+      }));
+
+      if (kvResult?.storageType) {
+        setConfigStorageType(kvResult.storageType);
       }
     }
     init();

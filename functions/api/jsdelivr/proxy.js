@@ -4,8 +4,26 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
   const assetPath = (url.searchParams.get('path') || '').trim();
 
+  // 1. Basic existence check
   if (!assetPath) {
     return new Response(JSON.stringify({ error: 'Missing path parameter' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 2. Prevent path traversal and special URL hacking sequences
+  if (assetPath.includes('..') || assetPath.includes(':') || assetPath.includes('\\') || assetPath.includes('//')) {
+    return new Response(JSON.stringify({ error: 'Security sequence traversal blocked' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 3. Strict character whitelist check for safe npm package format and asset paths
+  const safePathRegex = /^[a-zA-Z0-9@_/.-]+$/;
+  if (!safePathRegex.test(assetPath)) {
+    return new Response(JSON.stringify({ error: 'Illegal characters in proxy path' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
