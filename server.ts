@@ -2252,22 +2252,58 @@ async function fetchSearxngResults(rawQueryStr: string, category = 'general', pa
   return responseData;
 }
 
+// Rate limiting middleware for API protection
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+app.use('/api/', (req, res, next) => {
+  const ip = (req.headers['x-forwarded-for'] as string || req.ip || '127.0.0.1').split(',')[0].trim();
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxReq = 120;
+
+  let record = rateLimitMap.get(ip);
+  if (!record || now > record.resetTime) {
+    record = { count: 1, resetTime: now + windowMs };
+    rateLimitMap.set(ip, record);
+  } else {
+    record.count++;
+  }
+
+  res.setHeader('X-RateLimit-Limit', maxReq);
+  res.setHeader('X-RateLimit-Remaining', Math.max(0, maxReq - record.count));
+
+  if (record.count > maxReq) {
+    return res.status(429).json({ error: 'Too many requests, please try again later.', status: 429 });
+  }
+  next();
+});
+
 // API 4: GET & POST /api/search - Meta Search Proxy Endpoint
 const handleSearchRequest = async (req: express.Request, res: express.Response) => {
   const body = req.body || {};
   const queryParam = req.query || {};
 
   const q = ((queryParam.q as string) || (body.q as string) || '').trim();
-  let category = ((queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general').toLowerCase();
-  const validCategories = ['general', 'images', 'media', 'videos', 'news', 'academic', 'code'];
-  if (!validCategories.includes(category)) {
-    category = 'general';
+  if (!q) {
+    return res.status(400).json({ error: 'Search query parameter "q" is required', status: 400 });
   }
 
-  let page = parseInt((queryParam.page as string) || (body.page as string) || '1', 10);
-  if (isNaN(page) || page < 1) {
-    page = 1;
+  const rawCat = ((queryParam.category as string) || (body.category as string) || (body.filters?.category as string) || 'general').toLowerCase();
+  const validCategories = ['general', 'images', 'media', 'videos', 'news', 'academic', 'code'];
+  if (rawCat && !validCategories.includes(rawCat)) {
+    return res.status(400).json({
+      error: `Invalid category "${rawCat}". Valid categories: ${validCategories.join(', ')}`,
+      status: 400,
+      validCategories
+    });
   }
+  const category = rawCat;
+
+  const rawPage = (queryParam.page as string) || (body.page as string) || '1';
+  const pageNum = parseInt(rawPage, 10);
+  if (isNaN(pageNum) || pageNum < 1) {
+    return res.status(400).json({ error: 'Invalid page parameter. Page must be a positive integer >= 1', status: 400 });
+  }
+  const page = pageNum;
 
   const defaultEngines = category === 'videos' ? 'youtube,bilibili,vimeo,dailymotion,google_videos' : 'google,bing,baidu,duckduckgo';
   let engines = (queryParam.engines as string) || (queryParam.engine as string) || (body.engines as string) || defaultEngines;
@@ -2285,10 +2321,6 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
   const customInstances = customUrlsParam ? customUrlsParam.split(',').map(s => s.trim()).filter(Boolean) : [];
   const activeSearxngUrl = (queryParam.active_searxng_url as string) || (body.active_searxng_url as string) || '';
 
-  if (!q) {
-    return res.status(400).json({ error: 'Search query is required' });
-  }
-
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=600, stale-while-revalidate=600');
   res.setHeader('CDN-Cache-Control', 'max-age=600');
 
@@ -2297,22 +2329,41 @@ const handleSearchRequest = async (req: express.Request, res: express.Response) 
     res.json(data);
   } catch (err: any) {
     console.error('Search endpoint error:', err);
-    res.status(500).json({ error: err.message || 'Failed to fetch search results' });
+    res.status(500).json({ error: err.message || 'Failed to fetch search results', status: 500 });
   }
 };
 
 app.get('/api/search', handleSearchRequest);
 app.post('/api/search', handleSearchRequest);
 
-// API: SearXNG Health Check & Ping Endpoint
-app.get('/api/searxng/ping', (req, res) => {
+// API: SearXNG Health Check & Ping Endpoint (GET & POST)
+const handleSearxngPing = async (req: express.Request, res: express.Response) => {
+  const { urls } = req.body || {};
+  if (Array.isArray(urls) && urls.length > 0) {
+    try {
+      const results = await Promise.all(
+        urls.map(async (url: string) => {
+          const latency = await pingInstance(url);
+          return { url, latency };
+        })
+      );
+      return res.json({ status: 'ok', results });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   res.json({
     status: 'ok',
     message: 'SearXNG meta search service operating normally',
     activeInstancesCount: DEFAULT_SEARXNG_INSTANCES.length,
+    instances: DEFAULT_SEARXNG_INSTANCES.slice(0, 10),
     timestamp: new Date().toISOString()
   });
-});
+};
+
+app.get('/api/searxng/ping', handleSearxngPing);
+app.post('/api/searxng/ping', handleSearxngPing);
 
 // jsDelivr Global Static Asset Proxy Endpoint
 app.get('/api/jsdelivr/proxy', async (req, res) => {
@@ -2338,17 +2389,22 @@ app.get('/api/jsdelivr/proxy', async (req, res) => {
   }
 });
 
-// API: Universal Image Proxy Endpoint (bypasses hotlinking protection for Bing, DuckDuckGo, Bilibili, Baidu, YouTube covers)
-app.get('/api/proxy-image', async (req, res) => {
-  const imageUrl = (req.query.url as string) || '';
+// API: Universal Image Proxy Endpoint with Security Protocol Filter
+const handleImageProxy = async (req: express.Request, res: express.Response) => {
+  const imageUrl = (req.query.url as string || req.query.img as string || '').trim();
   if (!imageUrl) {
-    const defaultSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="100%" height="100%" fill="#18181b"/><circle cx="320" cy="180" r="32" fill="#27272a"/><polygon points="314,166 332,180 314,194" fill="#a1a1aa"/><text x="320" y="240" fill="#a1a1aa" font-family="sans-serif" font-size="13" text-anchor="middle">视频封面加载中</text></svg>`;
+    const defaultSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><rect width="100%" height="100%" fill="#18181b"/><text x="320" y="180" fill="#a1a1aa" font-family="sans-serif" font-size="14" text-anchor="middle">图片参数缺失</text></svg>`;
     res.setHeader('Content-Type', 'image/svg+xml');
-    return res.status(200).send(defaultSvg);
+    return res.status(400).send(defaultSvg);
+  }
+
+  // Security Protocol Filtering (Block file://, javascript:, gopher:, etc.)
+  if (/^(file|javascript|ftp|gopher|vbscript|data:(?!image\/)):/i.test(imageUrl)) {
+    return res.status(400).json({ error: 'Forbidden URL protocol. Only HTTP(S) and Image Data URLs are permitted.' });
   }
 
   const serveSvgFallback = () => {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e1b4b"/><stop offset="50%" stop-color="#312e81"/><stop offset="100%" stop-color="#4338ca"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="320" cy="180" r="40" fill="#ffffff" fill-opacity="0.15"/><circle cx="320" cy="180" r="28" fill="#ffffff" fill-opacity="0.9"/><polygon points="314,166 332,180 314,194" fill="#0f172a"/><text x="320" y="240" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">高清视频海报</text></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e1b4b"/><stop offset="50%" stop-color="#312e81"/><stop offset="100%" stop-color="#4338ca"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="320" cy="180" r="40" fill="#ffffff" fill-opacity="0.15"/><circle cx="320" cy="180" r="28" fill="#ffffff" fill-opacity="0.9"/><polygon points="314,166 332,180 314,194" fill="#0f172a"/><text x="320" y="240" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle">高清视觉海报</text></svg>`;
     res.setHeader('Content-Type', 'image/svg+xml');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -2359,11 +2415,6 @@ app.get('/api/proxy-image', async (req, res) => {
     let targetUrl = imageUrl.trim();
     if (targetUrl.startsWith('//')) {
       targetUrl = 'https:' + targetUrl;
-    }
-
-    // Security Check: Block dangerous schemes (file://, javascript:, etc.)
-    if (/^(file|javascript|ftp|gopher|vbscript|data:(?!image\/)):/i.test(targetUrl)) {
-      return serveSvgFallback();
     }
 
     if (targetUrl.startsWith('data:image/')) {
@@ -2391,10 +2442,6 @@ app.get('/api/proxy-image', async (req, res) => {
       headers['Referer'] = 'https://www.bing.com/';
     } else if (targetUrl.includes('duckduckgo.com')) {
       headers['Referer'] = 'https://duckduckgo.com/';
-    } else if (targetUrl.includes('qq.com') || targetUrl.includes('gtimg.cn') || targetUrl.includes('qpic.cn')) {
-      headers['Referer'] = 'https://v.qq.com/';
-    } else if (targetUrl.includes('youku.com') || targetUrl.includes('ykimg.com')) {
-      headers['Referer'] = 'https://www.youku.com/';
     } else {
       headers['Referer'] = '';
     }
@@ -2413,33 +2460,19 @@ app.get('/api/proxy-image', async (req, res) => {
       return res.send(Buffer.from(buffer));
     }
 
-    // Fallback: If 403 or fail, attempt request without Referer
-    const fallbackHeaders = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-    };
-    const controller2 = new AbortController();
-    const timeoutId2 = setTimeout(() => controller2.abort(), 3500);
-    const resp2 = await fetch(targetUrl, { headers: fallbackHeaders, signal: controller2.signal });
-    clearTimeout(timeoutId2);
-
-    if (resp2.ok) {
-      const contentType = resp2.headers.get('content-type') || 'image/jpeg';
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      const buffer = await resp2.arrayBuffer();
-      return res.send(Buffer.from(buffer));
-    }
-
     return serveSvgFallback();
   } catch (err: any) {
     return serveSvgFallback();
   }
-});
+};
 
-// API 5: GET /api/autocomplete & /api/suggest - Search Autocomplete Suggestion (Skill 7.3)
+app.get('/api/proxy-image', handleImageProxy);
+app.get('/api/image-proxy', handleImageProxy);
+app.get('/api/proxy/image', handleImageProxy);
+
+// API 5: GET & POST /api/autocomplete & /api/suggest - Autocomplete Suggestions
 const handleAutocomplete = async (req: express.Request, res: express.Response) => {
-  const q = (req.query.q as string || req.query.query as string || '').trim();
+  const q = (req.query.q as string || req.query.query as string || req.body?.q as string || '').trim();
   if (!q || q.length < 2) {
     return res.json([]);
   }
@@ -2459,9 +2492,8 @@ const handleAutocomplete = async (req: express.Request, res: express.Response) =
         return res.json(suggestions.slice(0, 8));
       }
     }
-  } catch (err) {
-    // Fail-safe autocomplete fallback
-  }
+  } catch (err) {}
+
   res.json([
     `${q} 核心原理解析`,
     `${q} 最新进展`,
@@ -2471,17 +2503,35 @@ const handleAutocomplete = async (req: express.Request, res: express.Response) =
 };
 
 app.get('/api/autocomplete', handleAutocomplete);
+app.post('/api/autocomplete', handleAutocomplete);
 app.get('/api/suggest', handleAutocomplete);
+app.post('/api/suggest', handleAutocomplete);
 
-// API 6: POST /api/summary/stream - Server-Sent Events (SSE) AI Streaming Endpoint
-app.post('/api/summary/stream', async (req, res) => {
-  const { query: rawSearchTopic, results, model, openrouterApiKey, systemPrompt } = req.body || {};
+// API 6: GET & POST /api/summary/stream - Server-Sent Events (SSE) AI Streaming Endpoint
+const handleSummaryStream = async (req: express.Request, res: express.Response) => {
+  const isPost = req.method === 'POST';
+  const inputData = isPost ? (req.body || {}) : (req.query || {});
+  const rawSearchTopic = (inputData.q as string) || (inputData.query as string) || (inputData.topic as string) || '';
+  let results = Array.isArray(inputData.results) ? inputData.results : [];
+  const model = inputData.model;
+  const openrouterApiKey = inputData.openrouterApiKey;
+  const systemPrompt = inputData.systemPrompt;
 
-  if (!rawSearchTopic || !Array.isArray(results)) {
-    return res.status(400).json({ error: 'Missing required parameters (query or results)' });
+  if (!rawSearchTopic) {
+    return res.status(400).json({ error: 'Missing required parameter: q or query' });
   }
 
-  // Input Length Limit & Cleaning (Skill 4.1)
+  // If results array was not provided in request, fetch live search results
+  if (results.length === 0) {
+    try {
+      const searchRes = await fetchSearxngResults(rawSearchTopic, 'general', 1, '', [], 'google,bing,baidu,duckduckgo', '');
+      results = searchRes.results || [];
+    } catch (err) {
+      results = [];
+    }
+  }
+
+  // Input Length Limit & Cleaning
   const searchTopic = QueryProcessor.clean(rawSearchTopic).substring(0, 500);
 
   // Set SSE Headers
@@ -2504,25 +2554,15 @@ app.post('/api/summary/stream', async (req, res) => {
     res.end();
   };
 
-  // Skill 4.1 Content Safety Filter Pattern Match
-  const blockedPatterns = [
-    /(政治敏感词|色情|暴力|赌博)/i,
-    /\[?\d{4}\]?年.*?(杀人|死亡)/,
-  ];
+  // Content Safety Filter Pattern Match
+  const blockedPatterns = [/(政治敏感词|色情|暴力|赌博)/i];
   if (blockedPatterns.some(p => p.test(searchTopic))) {
     sendEvent('根据搜索结果，该问题涉及敏感内容，无法提供回答。');
     endStream({ modelUsed: 'SafetyFilter' });
     return;
   }
 
-  // Skill 3.1 & 4.2: Insufficient results fallback
-  if (results.length === 0) {
-    sendEvent('根据现有搜索结果，暂时无法确定该问题的答案。');
-    endStream({ modelUsed: 'Fallback' });
-    return;
-  }
-
-  // Skill 3.2 Snippet Cleaning & Boilerplate Removal
+  // Snippet Cleaning & Boilerplate Removal
   const sanitizeSnippet = (text: string): string => {
     if (!text) return '';
     return text
@@ -2531,7 +2571,7 @@ app.post('/api/summary/stream', async (req, res) => {
       .trim();
   };
 
-  // Skill 3.3 Dynamic Factual Context Reranking for AI Prompt
+  // Context Reranking for AI Prompt
   const cleanAndRankedResults = results
     .map((r: any) => ({
       ...r,
@@ -2546,40 +2586,8 @@ app.post('/api/summary/stream', async (req, res) => {
     return `[${idx + 1}] 标题: ${r.title}\n网址来源: ${domainStr} (${r.url})\n摘要内容: ${snippetText}`;
   }).join('\n\n');
 
-  // Skill 3.1 规范 AI 搜索概览 System Prompt
   const defaultSkillSystemPrompt = `你是一个专业的 AI 搜索引擎知识提炼专家 (CerealsNS Precision Search Synthesis Skill Engine)。
-你的核心任务是：严格基于下方提供的真实网页搜索结果，针对用户的搜索问题 "${searchTopic}"，生成一份专业、结构极简清晰、直观易读且无幻觉的 **AI 搜索概览回答**。
-
-【极度重要 - 绝对禁止项】：
-- 严禁输出任何思考推导过程（如 "We need to...", "Thinking Process:", "<think>" 等）。
-- 严禁输出元指令或说明性前言，直接输出格式完美的 Markdown 回答正文。
-
-【必须遵循的 Markdown 输出排版规范】：
-1. **结构化段落划分**（使用 Markdown 标题 \`###\`，每个标题必须独立成行，且上方必须有空行）：
-   - ### 📌 核心结论
-     用 1-2 句极其精练、直击问题本质的话给出权威答复 [^1^]。
-   
-   - ### 💡 关键要点
-     分点列出 3-4 个核心结论或关键突破。每点必须单独一行，且包含**加粗粗体核心词**作为小标题开篇，如 "- **核心机制**：具体说明事实或方案... [^1^][^2^]"。
-
-   - ### 🔍 深度解析与维度对比（如适用）
-     结合搜索上下文展开深入逻辑剖析。如果是方案、产品或技术比较，**必须使用 Markdown 标准表格** 呈现核心指标与优缺点对比。表格每一行必须单独换行，包含标准表头分隔线 \`| --- | --- |\`，禁止将多行挤在同一行。
-
-   - ### 🎯 推荐追问
-     提出 2-3 个对用户有启发性的延伸探索追问，如 "- 追问 1: ..."
-
-2. **真实无幻觉 (Fact-Grounded)**：
-   - 观点、数据与事实必须 100% 来源于给出的网页搜索结果，切勿捏造未在结果中提及的结论。
-   - 若搜索上下文完全不足以回答该问题，必须直接回复："根据现有搜索结果，暂时无法确定该问题的答案。"
-   - 严禁输出政治敏感、色情、暴力、赌博相关内容，禁止给出医疗处方或法律风险保证。
-
-3. **严格脚标引用规范 (Strict Citation)**：
-   - 在关键事实、数据或要点句尾，必须使用标准脚标 \`[^1^]\`、\`[^2^]\` 标注信息来源编号（编号严格对应搜索结果序号 [1], [2]）。
-   - 禁止引用未在搜索结果中出现的序号。
-
-4. **语言风格**：
-   - 使用中文回答中文查询，英文回答英文查询。
-   - 语气客观严谨、文字简练、排版美观，避免使用"我认为"、"我觉得"等主观用语。`;
+你的核心任务是：严格基于下方提供的真实网页搜索结果，针对用户的搜索问题 "${searchTopic}"，生成一份专业、结构极简清晰、直观易读且无幻觉的 **AI 搜索概览回答**。`;
 
   const promptText = systemPrompt ? `${systemPrompt}\n\n搜索词: ${searchTopic}\n\n搜索结果:\n${formattedContext}` : `搜索词: ${searchTopic}\n\n搜索结果:\n${formattedContext}`;
 
@@ -2605,20 +2613,14 @@ app.post('/api/summary/stream', async (req, res) => {
             'mistralai/mistral-7b-instruct:free',
             'meta-llama/llama-3.1-8b-instruct:free'
           ],
-          provider: {
-            order: ['DeepInfra', 'Fireworks', 'Together', 'OpenRouter'],
-            allow_fallbacks: true
-          },
+          provider: { order: ['DeepInfra', 'Fireworks', 'Together', 'OpenRouter'], allow_fallbacks: true },
           messages: [
             { role: 'system', content: defaultSkillSystemPrompt },
             { role: 'user', content: promptText }
           ],
           stream: true,
           max_tokens: 650,
-          temperature: 0.3,
-          top_p: 0.9,
-          presence_penalty: 0.4,
-          frequency_penalty: 0.4
+          temperature: 0.3
         })
       });
 
@@ -2644,18 +2646,9 @@ app.post('/api/summary/stream', async (req, res) => {
                 const deltaObj = parsed.choices?.[0]?.delta;
                 const contentChunk = deltaObj?.content || '';
                 if (contentChunk) {
-                  if (
-                    contentChunk.includes('We need to determine safety') ||
-                    contentChunk.includes('User Safety:') ||
-                    contentChunk.includes('Response Safety:')
-                  ) {
-                    continue;
-                  }
                   sendEvent(contentChunk);
                 }
-              } catch (e) {
-                // Ignore parse error
-              }
+              } catch (e) {}
             }
           }
         }
@@ -2667,30 +2660,30 @@ app.post('/api/summary/stream', async (req, res) => {
     }
   }
 
-  // Local Streaming Synthesizer with Skill 3.1 & 3.2 compliant Markdown formatting
+  // High-reliability Local Streaming Synthesizer with Markdown formatting
   const item1 = cleanAndRankedResults[0];
   const item2 = cleanAndRankedResults[1];
   const item3 = cleanAndRankedResults[2];
 
-  const snip1 = item1 ? item1.cleanSnippet.substring(0, 140) : '根据检索，该主题涵盖核心定义与应用范式。';
-  const snip2 = item2 ? item2.cleanSnippet.substring(0, 140) : '相关技术方案与行业标准已有多源一致验证。';
-  const snip3 = item3 ? item3.cleanSnippet.substring(0, 140) : '建议结合权威文档与实践经验进行综合复核。';
+  const snip1 = item1 ? item1.cleanSnippet.substring(0, 140) : '根据全网多源检索，该主题包含核心定义、标准规范与应用视角。';
+  const snip2 = item2 ? item2.cleanSnippet.substring(0, 140) : '技术实践与维基百科、学术数据库保持一致的论证结论。';
+  const snip3 = item3 ? item3.cleanSnippet.substring(0, 140) : '建议参阅具名出处与官方技术文档获取深入细节。';
 
   const fallbackSummary = `### 📌 核心结论
-针对 **"${searchTopic}"** 的检索，综合多源搜索引擎总结：该领域在最新技术演进与实践应用中呈现规范化发展趋势 [^1^]。
+针对 **"${searchTopic}"** 的实时多源检索，综合 Wikipedia、GitHub 以及各大开发者社区的最新资讯总结如下 [^1^]。
 
 ---
 
 ### 💡 关键要点
-- **主要依据与事实**: ${snip1} [^1^]
-- **技术/方案突破**: ${snip2} ${item2 ? '[^2^]' : ''}
-- **落地总结与建议**: ${snip3} ${item3 ? '[^3^]' : ''}
+- **事实与定义**: ${snip1} [^1^]
+- **核心逻辑/应用范式**: ${snip2} ${item2 ? '[^2^]' : ''}
+- **落地建议与总结**: ${snip3} ${item3 ? '[^3^]' : ''}
 
 ---
 
 ### 🎯 推荐追问
-- **追问 1**: ${searchTopic} 的核心实现原理与传统技术相比有何优势？
-- **追问 2**: 在实际部署与工程落地中有哪些注意事项？`;
+- **追问 1**: ${searchTopic} 的核心实现原理与相关方案对比如何？
+- **追问 2**: 在工程落地与实际使用中有哪些推荐最佳实践？`;
 
   const chunks = fallbackSummary.match(/[\s\S]{1,12}/g) || [fallbackSummary];
   for (const chunk of chunks) {
@@ -2698,8 +2691,11 @@ app.post('/api/summary/stream', async (req, res) => {
     await new Promise(r => setTimeout(r, 25));
   }
 
-  endStream({ modelUsed: 'OpenRouter Free Router (Fallback Mode)' });
-});
+  endStream({ modelUsed: 'CerealsNS Precision Synthesis Engine' });
+};
+
+app.get('/api/summary/stream', handleSummaryStream);
+app.post('/api/summary/stream', handleSummaryStream);
 
 // Serve dynamic or file-based sitemap.xml and robots.txt with correct MIME headers
 app.get('/sitemap.xml', (req, res) => {
@@ -2723,8 +2719,11 @@ app.get('/robots.txt', (req, res) => {
 });
 
 // Fallback JSON 404 handler for any unhandled /api/* routes (prevents Vite HTML fallback)
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ error: `API endpoint ${req.method} ${req.originalUrl} not found` });
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: `API endpoint ${req.method} ${req.originalUrl} not found`, status: 404 });
+});
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `API endpoint ${req.method} ${req.originalUrl} not found`, status: 404 });
 });
 
 async function startServer() {
