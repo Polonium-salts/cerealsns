@@ -7,6 +7,7 @@ import { SearchResultsList } from './components/SearchResultsList';
 import { ImageSearchResults } from './components/ImageSearchResults';
 import { VideoSearchResults } from './components/VideoSearchResults';
 import { HistoryDrawer } from './components/HistoryDrawer';
+import { HistoryPage } from './components/HistoryPage';
 import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -86,7 +87,8 @@ export default function App() {
     }
   };
 
-  // Modals & Drawers
+  // Modals & Views
+  const [currentView, setCurrentView] = useState<'search' | 'history'>('search');
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -115,6 +117,18 @@ export default function App() {
       root.setAttribute('data-theme', 'light');
     }
   }, [config.theme]);
+
+  // Global Keyboard Shortcuts (Ctrl+H or Cmd+H to toggle Search History Page)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setCurrentView((prev) => (prev === 'history' ? 'search' : 'history'));
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   // 1. Initial configuration & Edge node setup
   useEffect(() => {
@@ -387,6 +401,7 @@ export default function App() {
     });
     setSummaryText(item.aiSummaryFull || item.aiSummaryPreview || '');
     setIsHistoryOpen(false);
+    setCurrentView('search');
   };
 
   // Save single result
@@ -405,6 +420,15 @@ export default function App() {
 
   const isSearchActive = Boolean(searchData || isLoading);
 
+  if (currentView === 'history') {
+    return (
+      <HistoryPage
+        onBack={() => setCurrentView('search')}
+        onSelectHistoryItem={handleSelectHistoryItem}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0c] text-slate-800 dark:text-neutral-200 font-sans selection:bg-slate-900 selection:text-white dark:selection:bg-white dark:selection:text-black flex flex-col relative transition-colors duration-200">
       
@@ -413,7 +437,7 @@ export default function App() {
         config={config}
         optimalNode={optimalNode}
         onOpenConfig={() => setIsConfigOpen(true)}
-        onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenHistory={() => setCurrentView('history')}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onResetSearch={() => {
           setQuery('');
@@ -667,7 +691,7 @@ export default function App() {
             handleExecuteSearch(query.trim(), catId, timeRange, true, selectedEngines.join(','));
           }
         }}
-        onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenHistory={() => setCurrentView('history')}
         onOpenConfig={() => setIsConfigOpen(true)}
         onResetSearch={() => {
           setQuery('');
@@ -706,7 +730,10 @@ export default function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onExecuteQuery={(q) => handleExecuteSearch(q, category, timeRange, true, selectedEngines.join(','))}
-        onOpenHistory={() => setIsHistoryOpen(true)}
+        onOpenHistory={() => {
+          setIsCommandPaletteOpen(false);
+          setCurrentView('history');
+        }}
         onOpenConfig={() => setIsConfigOpen(true)}
         onChangeModel={(m) => handleSaveConfig({ openrouterModel: m })}
       />
