@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Sun,
-  Moon
+  Moon,
+  BarChart3
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -19,6 +20,7 @@ interface NavbarProps {
   optimalNode: EdgeNode | null;
   onOpenConfig: () => void;
   onOpenHistory: () => void;
+  onOpenAiTools?: () => void;
   onOpenCommandPalette: () => void;
   onResetSearch: () => void;
   isSearchActive: boolean;
@@ -58,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   optimalNode,
   onOpenConfig,
   onOpenHistory,
+  onOpenAiTools,
   onOpenCommandPalette,
   onResetSearch,
   isSearchActive,
@@ -175,6 +178,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {config.theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
               </button>
+              {onOpenAiTools && (
+                <button
+                  onClick={onOpenAiTools}
+                  className="p-2.5 text-slate-500 hover:text-emerald-600 dark:text-neutral-400 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-[#27272a] rounded-full transition-colors active:scale-95"
+                  title="网站排名与 AI 精准搜索 API 工具"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                </button>
+              )}
               <button
                 onClick={onOpenHistory}
                 className="p-2.5 text-slate-500 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#27272a] rounded-full transition-colors active:scale-95"

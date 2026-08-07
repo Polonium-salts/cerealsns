@@ -12,6 +12,7 @@ import { ConfigModal } from './components/ConfigModal';
 import { CommandPalette } from './components/CommandPalette';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { PureAIChatView } from './components/PureAIChatView';
+import { AISearchToolsModal } from './components/AISearchToolsModal';
 import type { SearchResponse, SearchResult, AppConfig, EdgeNode, SearchHistoryItem } from './types';
 import { executeSearch, triggerAISearXNGToolSearch, streamAISummary, fetchEdgeNodes, fetchAppConfig, saveAppConfig, pingSearxngInstances } from './lib/api';
 import { saveSearchToOfflineCache } from './lib/indexedDB';
@@ -91,6 +92,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'search' | 'history'>('search');
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAiToolsOpen, setIsAiToolsOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   // 0. Theme Sync Effect
@@ -438,6 +440,7 @@ export default function App() {
         optimalNode={optimalNode}
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenHistory={() => setCurrentView('history')}
+        onOpenAiTools={() => setIsAiToolsOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onResetSearch={() => {
           setQuery('');
@@ -645,6 +648,7 @@ export default function App() {
                             onPageChange={handlePageChange}
                             onAiTriggerSearXNGSearch={handleAiTriggerSearXNGSearch}
                             isAiSyncing={isAiSyncing}
+                            customNodeWarning={searchData?.stats?.customNodeInfo?.warning}
                           />
                         </div>
 
@@ -736,6 +740,11 @@ export default function App() {
         }}
         onOpenConfig={() => setIsConfigOpen(true)}
         onChangeModel={(m) => handleSaveConfig({ openrouterModel: m })}
+      />
+
+      <AISearchToolsModal
+        isOpen={isAiToolsOpen}
+        onClose={() => setIsAiToolsOpen(false)}
       />
 
     </div>

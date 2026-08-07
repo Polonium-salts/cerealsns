@@ -11,6 +11,7 @@ export interface SearchResult {
   sourcesCount?: number;
   isConsensus?: boolean;
   isOfficial?: boolean;
+  isDirectLink?: boolean;
   publishedDate?: string;
   favicon?: string;
   latencyMs: number;
@@ -35,6 +36,16 @@ export interface EngineStats {
   avgLatencyMs: number;
 }
 
+export interface CustomNodeInfo {
+  specifiedUrl?: string | null;
+  status: 'none' | 'success' | 'degraded' | 'failed' | 'invalid_url';
+  validUrls?: string[];
+  invalidUrls?: string[];
+  resultCountFromCustom?: number;
+  warning?: string | null;
+  fallbackUsed?: boolean;
+}
+
 export interface SearchResponse {
   query: string;
   category: string;
@@ -47,6 +58,7 @@ export interface SearchResponse {
     edgeNode: string;
     cacheHit: boolean;
     engineBreakdown: EngineStats[];
+    customNodeInfo?: CustomNodeInfo;
   };
   enginesUsed: string[];
   suggestedQueries?: string[];
